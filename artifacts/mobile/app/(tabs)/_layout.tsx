@@ -1,121 +1,164 @@
-import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
-import { SymbolView } from "expo-symbols";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
+import { BottomTabBarProps, Tabs } from "expo-router";
 import React from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 
-function NativeTabLayout() {
+const TABS = [
+  { name: "index", icon: "grid" },
+  { name: "earn", icon: "dollar-sign" },
+  { name: "reserve", icon: "bookmark" },
+  { name: "profile", icon: "user" },
+] as const;
+
+function PillTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Platform.OS === "web" ? 16 : Math.max(insets.bottom, 16);
+
   return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "square.grid.2x2", selected: "square.grid.2x2.fill" }} />
-        <Label>Explore</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="earn">
-        <Icon sf={{ default: "dollarsign.circle", selected: "dollarsign.circle.fill" }} />
-        <Label>Earn</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="reserve">
-        <Icon sf={{ default: "bookmark", selected: "bookmark.fill" }} />
-        <Label>Reserve</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profile</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <View style={[styles.barWrapper, { paddingBottom: bottomPad }]} pointerEvents="box-none">
+      <View style={styles.pill}>
+        {TABS.map((tab, idx) => {
+          const isFocused = state.index === idx;
+          return (
+            <PillTabButton
+              key={tab.name}
+              icon={tab.icon}
+              isFocused={isFocused}
+              onPress={() => {
+                const event = navigation.emit({
+                  type: "tabPress",
+                  target: state.routes[idx]?.key,
+                  canPreventDefault: true,
+                });
+                if (!isFocused && !event.defaultPrevented) {
+                  navigation.navigate(tab.name);
+                }
+              }}
+            />
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
-function ClassicTabLayout() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const isIOS = Platform.OS === "ios";
-  const isWeb = Platform.OS === "web";
+function PillTabButton({
+  icon,
+  isFocused,
+  onPress,
+}: {
+  icon: string;
+  isFocused: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
-        tabBarStyle: {
-          position: "absolute",
-          backgroundColor: isIOS ? "transparent" : Colors.white,
-          borderTopWidth: 1,
-          borderTopColor: Colors.border,
-          elevation: 0,
-          paddingBottom: safeAreaInsets.bottom,
-          ...(isWeb ? { height: 84 } : {}),
-        },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
-          ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.white }]} />
-          ) : null,
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withSpring(0.88, { damping: 14, stiffness: 300 });
       }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 14, stiffness: 300 });
+      }}
+      style={styles.tabBtn}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Explore",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="square.grid.2x2" tintColor={color} size={22} />
-            ) : (
-              <Feather name="grid" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="earn"
-        options={{
-          title: "Earn",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="dollarsign.circle" tintColor={color} size={22} />
-            ) : (
-              <Feather name="dollar-sign" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="reserve"
-        options={{
-          title: "Reserve",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="bookmark" tintColor={color} size={22} />
-            ) : (
-              <Feather name="bookmark" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="person" tintColor={color} size={22} />
-            ) : (
-              <Feather name="user" size={22} color={color} />
-            ),
-        }}
-      />
-    </Tabs>
+      <Animated.View
+        style={[
+          styles.iconCircle,
+          animStyle,
+          isFocused && styles.iconCircleActive,
+        ]}
+      >
+        <Feather
+          name={icon as any}
+          size={20}
+          color={isFocused ? Colors.primary : Colors.textMuted}
+        />
+      </Animated.View>
+    </Pressable>
   );
 }
 
 export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
+  return (
+    <Tabs
+      tabBar={(props) => <PillTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="earn" />
+      <Tabs.Screen name="reserve" />
+      <Tabs.Screen name="profile" />
+    </Tabs>
+  );
 }
+
+const styles = StyleSheet.create({
+  barWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F6FA",
+    borderRadius: 50,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+  },
+  tabBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 2,
+  },
+  iconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#DCDCDC",
+    borderStyle: "dashed",
+    backgroundColor: "transparent",
+  },
+  iconCircleActive: {
+    backgroundColor: "#FFFFFF",
+    borderColor: Colors.primary,
+    borderStyle: "solid",
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+});
