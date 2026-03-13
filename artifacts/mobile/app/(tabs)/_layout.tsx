@@ -3,7 +3,7 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,20 +14,16 @@ function NativeTabLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Discover</Label>
+        <Icon sf={{ default: "square.grid.2x2", selected: "square.grid.2x2.fill" }} />
+        <Label>Explore</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="search" role="search">
-        <Icon sf={{ default: "magnifyingglass", selected: "magnifyingglass" }} />
-        <Label>Search</Label>
+      <NativeTabs.Trigger name="earn">
+        <Icon sf={{ default: "dollarsign.circle", selected: "dollarsign.circle.fill" }} />
+        <Label>Earn</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="auctions">
-        <Icon sf={{ default: "hammer", selected: "hammer.fill" }} />
-        <Label>Auctions</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="watchlist">
-        <Icon sf={{ default: "heart", selected: "heart.fill" }} />
-        <Label>Watchlist</Label>
+      <NativeTabs.Trigger name="reserve">
+        <Icon sf={{ default: "bookmark", selected: "bookmark.fill" }} />
+        <Label>Reserve</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
@@ -50,8 +46,8 @@ function ClassicTabLayout() {
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : Colors.darkCard,
-          borderTopWidth: isWeb ? 1 : 0,
+          backgroundColor: isIOS ? "transparent" : Colors.white,
+          borderTopWidth: 1,
           borderTopColor: Colors.border,
           elevation: 0,
           paddingBottom: safeAreaInsets.bottom,
@@ -59,61 +55,45 @@ function ClassicTabLayout() {
         },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView
-              intensity={80}
-              tint="dark"
-              style={StyleSheet.absoluteFill}
-            />
+            <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
           ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.darkCard }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.white }]} />
           ) : null,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Discover",
+          title: "Explore",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="house" tintColor={color} size={24} />
+              <SymbolView name="square.grid.2x2" tintColor={color} size={22} />
             ) : (
-              <Feather name="home" size={22} color={color} />
+              <Feather name="grid" size={22} color={color} />
             ),
         }}
       />
       <Tabs.Screen
-        name="search"
+        name="earn"
         options={{
-          title: "Search",
+          title: "Earn",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="magnifyingglass" tintColor={color} size={24} />
+              <SymbolView name="dollarsign.circle" tintColor={color} size={22} />
             ) : (
-              <Feather name="search" size={22} color={color} />
+              <Feather name="dollar-sign" size={22} color={color} />
             ),
         }}
       />
       <Tabs.Screen
-        name="auctions"
+        name="reserve"
         options={{
-          title: "Auctions",
+          title: "Reserve",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="hammer" tintColor={color} size={24} />
+              <SymbolView name="bookmark" tintColor={color} size={22} />
             ) : (
-              <Ionicons name="hammer-outline" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="watchlist"
-        options={{
-          title: "Watchlist",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="heart" tintColor={color} size={24} />
-            ) : (
-              <Feather name="heart" size={22} color={color} />
+              <Feather name="bookmark" size={22} color={color} />
             ),
         }}
       />
@@ -123,7 +103,7 @@ function ClassicTabLayout() {
           title: "Profile",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person" tintColor={color} size={24} />
+              <SymbolView name="person" tintColor={color} size={22} />
             ) : (
               <Feather name="user" size={22} color={color} />
             ),

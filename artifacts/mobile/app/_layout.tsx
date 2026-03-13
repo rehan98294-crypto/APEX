@@ -15,6 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Colors from "@/constants/colors";
+import { BalanceProvider } from "@/context/BalanceContext";
 import { WatchlistProvider } from "@/context/WatchlistContext";
 
 SplashScreen.preventAutoHideAsync();
@@ -26,13 +27,13 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
-        name="item/[id]"
+        name="nft/[id]"
         options={{
           headerShown: true,
           headerTransparent: true,
           headerBackTitle: "",
           headerTitle: "",
-          headerTintColor: Colors.textPrimary,
+          headerTintColor: Colors.dark,
         }}
       />
     </Stack>
@@ -59,12 +60,14 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.dark }}>
-            <WatchlistProvider>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </WatchlistProvider>
+          <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
+            <BalanceProvider>
+              <WatchlistProvider>
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+              </WatchlistProvider>
+            </BalanceProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
       </ErrorBoundary>

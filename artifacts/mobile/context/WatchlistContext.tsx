@@ -3,13 +3,10 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 export interface WatchlistItem {
   id: string;
-  title: string;
+  name: string;
+  collection: string;
   price: number;
-  image: string;
-  category: string;
-  timeLeft?: string;
-  bids?: number;
-  isAuction: boolean;
+  image: any;
 }
 
 interface WatchlistContextType {
@@ -26,7 +23,7 @@ const WatchlistContext = createContext<WatchlistContextType>({
   isWatched: () => false,
 });
 
-const STORAGE_KEY = "treasurefun_watchlist";
+const STORAGE_KEY = "treasurefun_watchlist_v2";
 
 export function WatchlistProvider({ children }: { children: React.ReactNode }) {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
@@ -34,9 +31,7 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((data) => {
       if (data) {
-        try {
-          setWatchlist(JSON.parse(data));
-        } catch {}
+        try { setWatchlist(JSON.parse(data)); } catch {}
       }
     });
   }, []);
@@ -46,20 +41,12 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   };
 
-  const addToWatchlist = (item: WatchlistItem) => {
-    save([...watchlist.filter((w) => w.id !== item.id), item]);
-  };
-
-  const removeFromWatchlist = (id: string) => {
-    save(watchlist.filter((w) => w.id !== id));
-  };
-
+  const addToWatchlist = (item: WatchlistItem) => save([...watchlist.filter((w) => w.id !== item.id), item]);
+  const removeFromWatchlist = (id: string) => save(watchlist.filter((w) => w.id !== id));
   const isWatched = (id: string) => watchlist.some((w) => w.id === id);
 
   return (
-    <WatchlistContext.Provider
-      value={{ watchlist, addToWatchlist, removeFromWatchlist, isWatched }}
-    >
+    <WatchlistContext.Provider value={{ watchlist, addToWatchlist, removeFromWatchlist, isWatched }}>
       {children}
     </WatchlistContext.Provider>
   );

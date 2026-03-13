@@ -1,36 +1,46 @@
-const primary = "#09757A";
-const primaryLight = "#0FA3AB";
-const primaryDark = "#065A5E";
-const gold = "#D4AF37";
-const goldLight = "#F0D060";
-const dark = "#0A0F14";
-const darkCard = "#111820";
-const darkCardAlt = "#161E28";
-const border = "#1E2A38";
-const textPrimary = "#FFFFFF";
-const textSecondary = "#8A9BAE";
-const textMuted = "#4A5A6A";
-const danger = "#E53E3E";
-const success = "#38A169";
+const primary = "#00AC4F";
+const primaryLight = "#00D660";
+const primaryDark = "#008A3E";
+const accent = "#5CBFFE";
+const accentDark = "#3A9FE0";
+const pink = "#EC6898";
+const gold = "#FFD700";
+const dark = "#111111";
+const white = "#FFFFFF";
+const offWhite = "#F7F8FA";
+const cardBg = "#FFFFFF";
+const border = "#EBEBEB";
+const textPrimary = "#111111";
+const textSecondary = "#555555";
+const textMuted = "#999999";
+const success = "#00AC4F";
+const danger = "#FF4444";
+const purple = "#A855F7";
+const orange = "#FF8C00";
 
 export default {
   primary,
   primaryLight,
   primaryDark,
+  accent,
+  accentDark,
+  pink,
   gold,
-  goldLight,
   dark,
-  darkCard,
-  darkCardAlt,
+  white,
+  offWhite,
+  cardBg,
   border,
   textPrimary,
   textSecondary,
   textMuted,
-  danger,
   success,
+  danger,
+  purple,
+  orange,
   light: {
     text: textPrimary,
-    background: dark,
+    background: offWhite,
     tint: primary,
     tabIconDefault: textMuted,
     tabIconSelected: primary,

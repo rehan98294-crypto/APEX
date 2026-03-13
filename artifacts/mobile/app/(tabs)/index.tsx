@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -15,461 +15,406 @@ import {
   View,
 } from "react-native";
 import Animated, {
-  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ListingCard } from "@/components/ListingCard";
 import Colors from "@/constants/colors";
-import { CATEGORIES, FEATURED_LISTINGS, HOT_AUCTIONS, LISTINGS } from "@/data/listings";
+import { useBalance } from "@/context/BalanceContext";
+import { useWatchlist } from "@/context/WatchlistContext";
+import { NFT, NFTS, TOP_COLLECTIONS, RARITY_COLORS } from "@/data/nfts";
 
 const { width } = Dimensions.get("window");
-const HERO_HEIGHT = 260;
+const CARD_WIDTH = (width - 52) / 2;
 
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
+const CATEGORIES = ["All", "Character", "Ape", "Robot", "Alien", "Animal"];
 
-export default function DiscoverScreen() {
+export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const scrollY = useSharedValue(0);
-
+  const [selectedCat, setSelectedCat] = useState("All");
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
-
-  const headerStyle = useAnimatedStyle(() => ({
-    backgroundColor:
-      scrollY.value > 40 ? Colors.dark + "F0" : "transparent",
-    borderBottomWidth: scrollY.value > 40 ? 1 : 0,
-    borderBottomColor: Colors.border,
-  }));
-
-  const filteredListings =
-    selectedCategory === "all"
-      ? LISTINGS
-      : LISTINGS.filter((l) => l.category === selectedCategory);
-
-  const handleCategoryPress = (id: string) => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setSelectedCategory(id);
-  };
+  const filtered = selectedCat === "All" ? NFTS : NFTS.filter((n) => n.category === selectedCat);
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      {/* Animated Header */}
-      <Animated.View
-        style={[
-          styles.header,
-          headerStyle,
-          { paddingTop: topPad, paddingBottom: 12 },
-        ]}
-      >
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.headerGreeting}>Good morning</Text>
-            <Text style={styles.headerTitle}>Discover Treasures</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: topPad + 12 }]}>
+          <Image source={require("../../assets/images/logo.png")} style={styles.logo} resizeMode="contain" />
+          <View style={styles.headerRight}>
+            <BalancePill />
+            <Pressable style={styles.notifBtn}>
+              <Feather name="bell" size={20} color={Colors.textPrimary} />
+              <View style={styles.notifDot} />
+            </Pressable>
           </View>
-          <Pressable
-            onPress={() => router.push("/(tabs)/search")}
-            style={styles.headerSearch}
-          >
-            <Feather name="search" size={20} color={Colors.textPrimary} />
-          </Pressable>
         </View>
-      </Animated.View>
 
-      <AnimatedFlatList
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <View>
-            {/* Hero Featured Listing */}
-            <FeaturedHero />
-
-            {/* Hot Auctions Row */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <View style={styles.hotDot} />
-                  <Text style={styles.sectionTitle}>Hot Auctions</Text>
-                </View>
-                <Pressable onPress={() => router.push("/(tabs)/auctions")}>
-                  <Text style={styles.seeAll}>See All</Text>
-                </Pressable>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalList}
-              >
-                {HOT_AUCTIONS.map((listing) => (
-                  <ListingCard
-                    key={listing.id}
-                    listing={listing}
-                    style={{ marginRight: 12 }}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* Categories */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Browse by Category</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoriesRow}
-                style={{ marginTop: 12 }}
-              >
-                {CATEGORIES.map((cat) => (
-                  <CategoryPill
-                    key={cat.id}
-                    category={cat}
-                    selected={selectedCategory === cat.id}
-                    onPress={() => handleCategoryPress(cat.id)}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
-                  {selectedCategory === "all"
-                    ? "All Listings"
-                    : CATEGORIES.find((c) => c.id === selectedCategory)?.label}
-                </Text>
-                <Text style={styles.countText}>{filteredListings.length} items</Text>
-              </View>
-            </View>
-          </View>
-        }
-        data={filteredListings}
-        keyExtractor={(item: any) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingTop: topPad + 60 },
-        ]}
-        renderItem={({ item }: { item: any }) => (
-          <ListingCard listing={item} />
-        )}
-        scrollEnabled={!!filteredListings.length}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Feather name="package" size={40} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>No listings in this category</Text>
-          </View>
-        }
-      />
-    </View>
-  );
-}
-
-function FeaturedHero() {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
-
-  const handleScroll = (event: any) => {
-    const idx = Math.round(event.nativeEvent.contentOffset.x / width);
-    setActiveIndex(idx);
-  };
-
-  return (
-    <View style={styles.heroContainer}>
-      <FlatList
-        ref={flatListRef}
-        data={FEATURED_LISTINGS}
-        keyExtractor={(item) => item.id}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() =>
-              router.push({ pathname: "/item/[id]", params: { id: item.id } })
-            }
-            style={styles.heroSlide}
+        {/* Hero Banner */}
+        <View style={styles.heroBanner}>
+          <LinearGradient
+            colors={["#E8FFF3", "#EBF8FF", "#FFF0F8"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroGradient}
           >
-            <Image source={{ uri: item.image }} style={styles.heroImage} />
-            <LinearGradient
-              colors={["transparent", "rgba(10,15,20,0.95)"]}
-              style={styles.heroGradient}
-            />
-            <View style={styles.heroContent}>
-              <View style={styles.featuredBadge}>
-                <Text style={styles.featuredText}>FEATURED</Text>
+            <View style={styles.heroLeft}>
+              <Text style={styles.heroTitle}>
+                {"EXPLORE,\nDISCOVER\n& EARN BIG"}
+              </Text>
+              <Text style={styles.heroSub}>
+                Web3 NFT Marketplace with AI-powered rewards
+              </Text>
+              <Pressable
+                onPress={() => router.push("/(tabs)/earn")}
+                style={styles.heroBtn}
+              >
+                <Text style={styles.heroBtnText}>Start Earning</Text>
+              </Pressable>
+            </View>
+            <View style={styles.heroRight}>
+              <View style={styles.heroBadge}>
+                <Feather name="trending-up" size={18} color={Colors.primary} />
+                <Text style={styles.heroBadgeText}>Multi-Reward</Text>
               </View>
-              <Text style={styles.heroCategory}>
-                {item.category.toUpperCase()}
-              </Text>
-              <Text style={styles.heroTitle} numberOfLines={2}>
-                {item.title}
-              </Text>
-              <Text style={styles.heroPrice}>
-                ${item.price.toLocaleString()}
+              <Image
+                source={require("../../assets/images/nft1.png")}
+                style={styles.heroNFT}
+              />
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* Feature cards row */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featureRow}>
+          <FeatureCard icon="zap" color={Colors.accent} title="Multi-Reward" sub="AI-powered trading rewards" />
+          <FeatureCard icon="trending-up" color={Colors.primary} title="Earn Future Value" sub="Dual earnings model" />
+          <FeatureCard icon="bookmark" color={Colors.pink} title="Reserve NFTs" sub="Lock in your price now" />
+        </ScrollView>
+
+        {/* Top Collections */}
+        <View style={styles.section}>
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>Top Collections</Text>
+            <Text style={styles.sectionSub}>Last 24 Hours</Text>
+          </View>
+          {TOP_COLLECTIONS.slice(0, 3).map((col, idx) => (
+            <View key={col.id} style={styles.collectionRow}>
+              <Text style={styles.collectionRank}>{idx + 1}</Text>
+              <Image source={col.image} style={styles.collectionImg} />
+              <View style={styles.collectionInfo}>
+                <Text style={styles.collectionName}>{col.name}</Text>
+                <View style={styles.collectionVolRow}>
+                  <View style={styles.tokenIcon}>
+                    <Text style={styles.tokenIconText}>T</Text>
+                  </View>
+                  <Text style={styles.collectionVol}>{col.volume.toFixed(2)}M</Text>
+                </View>
+              </View>
+              <Text style={[styles.collectionChange, { color: col.change >= 0 ? Colors.primary : Colors.danger }]}>
+                {col.change >= 0 ? "+" : ""}{col.change}%
               </Text>
             </View>
-          </Pressable>
-        )}
-      />
-      <View style={styles.heroDots}>
-        {FEATURED_LISTINGS.map((_, idx) => (
-          <View
-            key={idx}
-            style={[styles.dot, idx === activeIndex && styles.dotActive]}
-          />
-        ))}
-      </View>
+          ))}
+        </View>
+
+        {/* Category Filters */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+          {CATEGORIES.map((cat) => (
+            <Pressable
+              key={cat}
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedCat(cat);
+              }}
+              style={[styles.catPill, selectedCat === cat && styles.catPillActive]}
+            >
+              <Text style={[styles.catText, selectedCat === cat && styles.catTextActive]}>{cat}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        {/* NFT Grid */}
+        <View style={styles.grid}>
+          {filtered.map((nft) => (
+            <NFTCard key={nft.id} nft={nft} />
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
-interface CategoryPillProps {
-  category: { id: string; label: string; icon: string };
-  selected: boolean;
-  onPress: () => void;
+function BalancePill() {
+  const { balance } = useBalance();
+  return (
+    <View style={styles.balancePill}>
+      <View style={styles.tokenIconSm}>
+        <Text style={styles.tokenIconSmText}>T</Text>
+      </View>
+      <Text style={styles.balancePillText}>{balance.toFixed(0)}</Text>
+    </View>
+  );
 }
 
-function CategoryPill({ category, selected, onPress }: CategoryPillProps) {
+function FeatureCard({ icon, color, title, sub }: { icon: any; color: string; title: string; sub: string }) {
+  return (
+    <View style={[styles.featureCard, { borderLeftColor: color }]}>
+      <View style={[styles.featureIconBox, { backgroundColor: color + "18" }]}>
+        <Feather name={icon} size={20} color={color} />
+      </View>
+      <Text style={styles.featureTitle}>{title}</Text>
+      <Text style={styles.featureSub}>{sub}</Text>
+    </View>
+  );
+}
+
+function NFTCard({ nft }: { nft: NFT }) {
+  const { isWatched, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const watched = isWatched(nft.id);
   const scale = useSharedValue(1);
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const rarityColor = RARITY_COLORS[nft.rarity];
 
   return (
-    <Animated.View style={animStyle}>
+    <Animated.View style={[animStyle, { width: CARD_WIDTH }]}>
       <Pressable
-        onPress={onPress}
-        onPressIn={() => { scale.value = withSpring(0.94, { damping: 12 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 12 }); }}
-        style={[styles.pill, selected && styles.pillSelected]}
+        onPress={() => router.push({ pathname: "/nft/[id]", params: { id: nft.id } })}
+        onPressIn={() => { scale.value = withSpring(0.95, { damping: 15 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
+        style={styles.nftCard}
       >
-        <Feather
-          name={category.icon as any}
-          size={14}
-          color={selected ? "#fff" : Colors.textSecondary}
-        />
-        <Text style={[styles.pillText, selected && styles.pillTextSelected]}>
-          {category.label}
-        </Text>
+        <View style={styles.nftImageWrap}>
+          <Image source={nft.image} style={styles.nftImage} />
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              watched
+                ? removeFromWatchlist(nft.id)
+                : addToWatchlist({ id: nft.id, name: nft.name, collection: nft.collection, price: nft.price, image: nft.image });
+            }}
+            style={styles.nftHeart}
+          >
+            <Feather name="heart" size={14} color={watched ? Colors.pink : Colors.textMuted} />
+          </Pressable>
+          <View style={[styles.rarityBadge, { backgroundColor: rarityColor + "22", borderColor: rarityColor + "60" }]}>
+            <Text style={[styles.rarityText, { color: rarityColor }]}>{nft.rarity}</Text>
+          </View>
+        </View>
+        <View style={styles.nftInfo}>
+          <Text style={styles.nftCollection}>{nft.collection}</Text>
+          <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
+          <View style={styles.nftPriceRow}>
+            <View style={styles.tokenIconSm}>
+              <Text style={styles.tokenIconSmText}>T</Text>
+            </View>
+            <Text style={styles.nftPrice}>{nft.priceToken}</Text>
+            <Text style={styles.nftEth}>· {nft.price} ETH</Text>
+          </View>
+          <View style={styles.nftFooter}>
+            <View style={styles.likesRow}>
+              <Feather name="heart" size={11} color={Colors.textMuted} />
+              <Text style={styles.likesText}>{(nft.likes / 1000).toFixed(1)}K</Text>
+            </View>
+            <Pressable
+              onPress={() => router.push({ pathname: "/nft/[id]", params: { id: nft.id } })}
+              style={styles.buyNowBtn}
+            >
+              <Text style={styles.buyNowText}>Buy</Text>
+            </Pressable>
+          </View>
+        </View>
       </Pressable>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark,
-  },
+  container: { flex: 1, backgroundColor: Colors.offWhite },
   header: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
+    alignItems: "center",
     paddingHorizontal: 20,
+    paddingBottom: 12,
   },
-  headerGreeting: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontFamily: "Inter_700Bold",
-    color: Colors.textPrimary,
-  },
-  headerSearch: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.darkCard,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
-    gap: 12,
-  },
-  columnWrapper: {
-    justifyContent: "space-between",
-  },
-  heroContainer: {
-    height: HERO_HEIGHT,
-    marginBottom: 8,
-  },
-  heroSlide: {
-    width,
-    height: HERO_HEIGHT,
-    position: "relative",
-  },
-  heroImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  heroGradient: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: "70%",
-  },
-  heroContent: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  featuredBadge: {
-    backgroundColor: Colors.primary,
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    alignSelf: "flex-start",
-    marginBottom: 6,
-  },
-  featuredText: {
-    fontSize: 9,
-    fontFamily: "Inter_700Bold",
-    color: "#fff",
-    letterSpacing: 1,
-  },
-  heroCategory: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.textMuted,
-    letterSpacing: 1.5,
-  },
-  heroTitle: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-    color: Colors.textPrimary,
-    lineHeight: 26,
-    marginVertical: 4,
-  },
-  heroPrice: {
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
-    color: Colors.goldLight,
-  },
-  heroDots: {
-    position: "absolute",
-    bottom: 12,
-    right: 16,
-    flexDirection: "row",
-    gap: 4,
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.3)",
-  },
-  dotActive: {
-    width: 14,
-    backgroundColor: Colors.primary,
-  },
-  section: {
-    paddingHorizontal: 16,
-    marginBottom: 4,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  sectionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  hotDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.danger,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
-    color: Colors.textPrimary,
-  },
-  seeAll: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    color: Colors.primary,
-  },
-  countText: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
-  },
-  horizontalList: {
-    paddingRight: 16,
-  },
-  categoriesRow: {
-    gap: 8,
-    paddingRight: 16,
-  },
-  pill: {
+  logo: { width: 140, height: 36 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  balancePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 14,
+    backgroundColor: Colors.primary + "15",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: Colors.primary + "30",
+  },
+  balancePillText: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.primary },
+  tokenIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tokenIconText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
+  tokenIconSm: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tokenIconSmText: { fontSize: 8, fontFamily: "Inter_700Bold", color: "#fff" },
+  notifBtn: { position: "relative", padding: 4 },
+  notifDot: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.pink,
+    borderWidth: 1.5,
+    borderColor: Colors.offWhite,
+  },
+  heroBanner: { marginHorizontal: 16, borderRadius: 20, overflow: "hidden", marginBottom: 16 },
+  heroGradient: { padding: 20, flexDirection: "row", alignItems: "center" },
+  heroLeft: { flex: 1 },
+  heroTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary, lineHeight: 24, marginBottom: 8 },
+  heroSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textSecondary, lineHeight: 17, marginBottom: 14 },
+  heroBtn: {
+    backgroundColor: Colors.accent,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    alignSelf: "flex-start",
+  },
+  heroBtnText: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff" },
+  heroRight: { alignItems: "center", gap: 10, marginLeft: 12 },
+  heroBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: Colors.primary + "15",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  heroBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: Colors.primary },
+  heroNFT: { width: 90, height: 90, borderRadius: 16 },
+  featureRow: { paddingHorizontal: 16, gap: 10, marginBottom: 16 },
+  featureCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 14,
+    width: 160,
+    borderLeftWidth: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    gap: 6,
+  },
+  featureIconBox: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  featureTitle: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  featureSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted, lineHeight: 15 },
+  section: { paddingHorizontal: 16, marginBottom: 16 },
+  sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  sectionSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  collectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  collectionRank: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textMuted, width: 18, textAlign: "center" },
+  collectionImg: { width: 44, height: 44, borderRadius: 12 },
+  collectionInfo: { flex: 1 },
+  collectionName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  collectionVolRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+  collectionVol: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  collectionChange: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  catRow: { paddingHorizontal: 16, gap: 8, marginBottom: 16 },
+  catPill: {
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: Colors.darkCard,
+    backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  pillSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+  catPillActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  catText: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  catTextActive: { color: "#fff", fontFamily: "Inter_600SemiBold" },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    gap: 12,
+    justifyContent: "space-between",
   },
-  pillText: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    color: Colors.textSecondary,
+  nftCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 18,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  pillTextSelected: {
-    color: "#fff",
-    fontFamily: "Inter_600SemiBold",
-  },
-  empty: {
+  nftImageWrap: { position: "relative" },
+  nftImage: { width: "100%", height: CARD_WIDTH * 0.95, resizeMode: "cover" },
+  nftHeart: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.9)",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 60,
-    gap: 12,
   },
-  emptyText: {
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
+  rarityBadge: {
+    position: "absolute",
+    bottom: 8,
+    left: 8,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
   },
+  rarityText: { fontSize: 9, fontFamily: "Inter_700Bold", letterSpacing: 0.3 },
+  nftInfo: { padding: 10, gap: 3 },
+  nftCollection: { fontSize: 9, fontFamily: "Inter_600SemiBold", color: Colors.accent, letterSpacing: 0.5 },
+  nftName: { fontSize: 12, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  nftPriceRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  nftPrice: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  nftEth: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  nftFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
+  likesRow: { flexDirection: "row", alignItems: "center", gap: 3 },
+  likesText: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  buyNowBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  buyNowText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
 });

@@ -1,0 +1,157 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "PosteramaText-Regular",
+      "role": "body"
+    },
+    {
+      "family": "Posterama1927-Black",
+      "role": "heading"
+    }
+  ],
+  "colors": {
+    "primary": "#00AC4F",
+    "accent": "#5CBFFE",
+    "background": "#FFFFFF",
+    "textPrimary": "#000000",
+    "link": "#EC6898"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "PosteramaText-Regular",
+      "heading": "Posterama1927-Black"
+    },
+    "fontStacks": {
+      "heading": [
+        "Helvetica Neue",
+        "Helvetica",
+        "PingFang SC",
+        "Hiragino Sans GB",
+        "Microsoft YaHei",
+        "微软雅黑",
+        "Arial",
+        "sans-serif"
+      ],
+      "body": [
+        "Helvetica Neue",
+        "Helvetica",
+        "PingFang SC",
+        "Hiragino Sans GB",
+        "Microsoft YaHei",
+        "微软雅黑",
+        "Arial",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "PosteramaText-Regular",
+        "Times New Roman",
+        "Times",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "14px",
+      "h2": "20px",
+      "body": "22px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "8px"
+  },
+  "components": {
+    "input": {
+      "background": "transparent",
+      "textColor": "#000000",
+      "borderColor": null,
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "none"
+    },
+    "buttonPrimary": {
+      "background": "#5CBFFE",
+      "textColor": "#FFFFFF",
+      "borderRadius": "31px",
+      "borderRadiusCorners": {
+        "topLeft": "31px",
+        "topRight": "31px",
+        "bottomRight": "31px",
+        "bottomLeft": "31px"
+      },
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#EFEFEF",
+      "textColor": "#000000",
+      "borderRadius": "15px",
+      "borderRadiusCorners": {
+        "topLeft": "15px",
+        "topRight": "15px",
+        "bottomRight": "15px",
+        "bottomLeft": "15px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "File saved at: attached_assets/logo.png",
+    "favicon": "https://treasurefun.xyz/treasurefun.ico",
+    "ogImage": null,
+    "logoAlt": "logo"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is the most prominent logo, located at the top of the page, and matches the brand name 'TreasureNFT' inferred from the page title and URL. It is visible and appropriately sized for a brand logo.",
+    "confidence": 0.85,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "APP Store",
+      "reasoning": "Button #0 ('APP Store') has a vibrant blue background (#5CBFFE), which stands out as a primary CTA color. It is action-oriented and likely intended to drive app downloads, making it a strong candidate for the primary button."
+    },
+    "secondary": {
+      "index": 3,
+      "text": "All Filters",
+      "reasoning": "Button #3 ('All Filters') has a light background (#EFEFEF) and serves a secondary function, allowing users to filter content. It contrasts with the primary button's vibrant color, making it suitable as a secondary button."
+    },
+    "confidence": 0.9
+  },
+  "personality": {
+    "tone": "modern",
+    "energy": "high",
+    "targetAudience": "tech-savvy individuals interested in NFTs and digital marketplaces"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.9,
+    "colors": 0.9,
+    "overall": 0.9
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is the most prominent logo, located at the top of the page, and matches the brand name 'TreasureNFT' inferred from the page title and URL. It is visible and appropriately sized for a brand logo.",
+        "confidence": 0.85
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
