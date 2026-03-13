@@ -1,0 +1,196 @@
+export interface Listing {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  category: string;
+  condition: string;
+  seller: string;
+  sellerRating: number;
+  bids?: number;
+  timeLeft?: string;
+  isAuction: boolean;
+  isFeatured?: boolean;
+  isHot?: boolean;
+  tags: string[];
+  location: string;
+}
+
+export const CATEGORIES = [
+  { id: "all", label: "All", icon: "grid" },
+  { id: "electronics", label: "Electronics", icon: "zap" },
+  { id: "watches", label: "Watches", icon: "watch" },
+  { id: "art", label: "Art", icon: "image" },
+  { id: "jewelry", label: "Jewelry", icon: "star" },
+  { id: "collectibles", label: "Collectibles", icon: "package" },
+  { id: "fashion", label: "Fashion", icon: "shopping-bag" },
+  { id: "vintage", label: "Vintage", icon: "clock" },
+];
+
+export const LISTINGS: Listing[] = [
+  {
+    id: "1",
+    title: "Rolex Submariner 2021",
+    description: "Pristine condition Rolex Submariner Date. Full set, box and papers included. Never worn, purchased from authorized dealer.",
+    price: 12500,
+    image: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=800",
+    category: "watches",
+    condition: "Mint",
+    seller: "LuxuryVault",
+    sellerRating: 4.9,
+    isAuction: false,
+    isFeatured: true,
+    tags: ["luxury", "swiss", "investment"],
+    location: "New York, NY",
+  },
+  {
+    id: "2",
+    title: "Vintage Leica M3 Camera",
+    description: "1957 Leica M3 Double Stroke. Fully serviced, CLA done recently. Glass is pristine, shutter speeds accurate.",
+    price: 2200,
+    originalPrice: 2800,
+    image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800",
+    category: "electronics",
+    condition: "Excellent",
+    seller: "VintageLens",
+    sellerRating: 4.8,
+    bids: 14,
+    timeLeft: "2h 34m",
+    isAuction: true,
+    isHot: true,
+    tags: ["camera", "film", "vintage"],
+    location: "San Francisco, CA",
+  },
+  {
+    id: "3",
+    title: "Original Oil Painting — Coastal Serenity",
+    description: "Large format original oil on canvas by acclaimed artist James Whitfield. Signed and dated 2019. Certificate of authenticity included.",
+    price: 4500,
+    image: "https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=800",
+    category: "art",
+    condition: "New",
+    seller: "GalleryOne",
+    sellerRating: 5.0,
+    bids: 7,
+    timeLeft: "5h 12m",
+    isAuction: true,
+    isFeatured: true,
+    tags: ["painting", "original", "coastal"],
+    location: "Miami, FL",
+  },
+  {
+    id: "4",
+    title: "Diamond Solitaire Ring 2.1ct",
+    description: "GIA certified 2.1 carat brilliant cut diamond in platinum setting. E color, VS1 clarity. Comes with full appraisal.",
+    price: 18000,
+    image: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800",
+    category: "jewelry",
+    condition: "Mint",
+    seller: "GemstonePro",
+    sellerRating: 4.9,
+    isAuction: false,
+    isFeatured: true,
+    tags: ["diamond", "GIA", "platinum"],
+    location: "Beverly Hills, CA",
+  },
+  {
+    id: "5",
+    title: "Pokémon Charizard Holo PSA 10",
+    description: "1999 Base Set Shadowless Charizard Holo Rare graded PSA 10 Gem Mint. The holy grail of Pokémon cards.",
+    price: 35000,
+    image: "https://images.unsplash.com/photo-1613771404784-3a5686aa2be3?w=800",
+    category: "collectibles",
+    condition: "Gem Mint",
+    seller: "CardKingdom",
+    sellerRating: 4.7,
+    bids: 32,
+    timeLeft: "1h 05m",
+    isAuction: true,
+    isHot: true,
+    tags: ["pokemon", "PSA10", "rare"],
+    location: "Chicago, IL",
+  },
+  {
+    id: "6",
+    title: "Louis Vuitton Neverfull MM",
+    description: "Authentic Louis Vuitton Neverfull MM in Damier Ebene canvas. Excellent condition, barely used. Dust bag and authenticity card included.",
+    price: 1100,
+    originalPrice: 1500,
+    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800",
+    category: "fashion",
+    condition: "Very Good",
+    seller: "LuxeCloset",
+    sellerRating: 4.8,
+    isAuction: false,
+    tags: ["LV", "handbag", "designer"],
+    location: "Los Angeles, CA",
+  },
+  {
+    id: "7",
+    title: "Apple Vision Pro 256GB",
+    description: "Factory sealed Apple Vision Pro 256GB. Light Seal included. Perfect for collectors or early adopters.",
+    price: 3200,
+    image: "https://images.unsplash.com/photo-1710285073816-5b9db2028a27?w=800",
+    category: "electronics",
+    condition: "Sealed",
+    seller: "TechVault",
+    sellerRating: 4.9,
+    bids: 21,
+    timeLeft: "3h 47m",
+    isAuction: true,
+    isHot: true,
+    tags: ["apple", "AR", "sealed"],
+    location: "Seattle, WA",
+  },
+  {
+    id: "8",
+    title: "Vintage Patek Philippe Calatrava",
+    description: "1960s Patek Philippe Calatrava Ref. 2526. First generation automatic. Incredible patina, fully original dial.",
+    price: 42000,
+    image: "https://images.unsplash.com/photo-1434056886845-dac89ffe9b56?w=800",
+    category: "watches",
+    condition: "Good",
+    seller: "TimepieceHaven",
+    sellerRating: 5.0,
+    isAuction: false,
+    isFeatured: true,
+    tags: ["patek", "vintage", "investment"],
+    location: "Geneva, CH",
+  },
+  {
+    id: "9",
+    title: "Rare First Edition Book Collection",
+    description: "Set of 5 first edition signed books by Nobel Prize winning authors. Individually cased and authenticated.",
+    price: 8800,
+    image: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800",
+    category: "collectibles",
+    condition: "Excellent",
+    seller: "RarePages",
+    sellerRating: 4.6,
+    bids: 9,
+    timeLeft: "12h 20m",
+    isAuction: true,
+    tags: ["books", "signed", "first edition"],
+    location: "Boston, MA",
+  },
+  {
+    id: "10",
+    title: "Hermès Birkin 30 Togo Leather",
+    description: "Hermès Birkin 30 in Etoupe Togo leather with palladium hardware. Comes with original box, dustbag, receipt and clochette.",
+    price: 28000,
+    image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800",
+    category: "fashion",
+    condition: "Pristine",
+    seller: "HauteCouture",
+    sellerRating: 5.0,
+    isAuction: false,
+    isFeatured: true,
+    tags: ["hermes", "birkin", "investment"],
+    location: "Paris, FR",
+  },
+];
+
+export const FEATURED_LISTINGS = LISTINGS.filter((l) => l.isFeatured);
+export const HOT_AUCTIONS = LISTINGS.filter((l) => l.isHot && l.isAuction);

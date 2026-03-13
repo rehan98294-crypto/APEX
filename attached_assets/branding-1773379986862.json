@@ -1,0 +1,125 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Helvetica",
+      "role": "body"
+    },
+    {
+      "family": "Arial",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#09757A",
+    "accent": "#111111",
+    "background": "#FFFFFF",
+    "textPrimary": "#111111",
+    "link": "#D8EFEF"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Helvetica",
+      "heading": "Helvetica"
+    },
+    "fontStacks": {
+      "heading": [
+        "gdsherpa",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ],
+      "body": [
+        "gdsherpa",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "gdsherpa",
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "32px",
+      "h2": "32px",
+      "body": "16px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "10px"
+  },
+  "components": {
+    "buttonPrimary": {
+      "background": "#111111",
+      "textColor": "#FFFFFF",
+      "borderColor": "#111111",
+      "borderRadius": "6px",
+      "borderRadiusCorners": {
+        "topLeft": "6px",
+        "topRight": "6px",
+        "bottomRight": "6px",
+        "bottomLeft": "6px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "https://www.afternic.com/forsale/imgs/afternic/AfternicLogoV2.svg",
+    "favicon": "File saved at: attached_assets/favicon.png",
+    "ogImage": null,
+    "logoAlt": "A GoDaddy-Branded Afternic Logo"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 2,
+    "reasoning": "Selected #2 because it is a medium-sized, visible logo with alt text 'A GoDaddy-Branded Afternic Logo', which aligns with the brand inferred from the URL and page context.",
+    "confidence": 0.85,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "Get this domain",
+      "reasoning": "The button labeled 'Get this domain' is the only button detected and uses a dark background (#111111) with contrasting white text, making it stand out as the primary call-to-action."
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "There is only one button detected, so no secondary button is available."
+    },
+    "confidence": 0.9
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "domain buyers and business professionals"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.9,
+    "colors": 0.9,
+    "overall": 0.9
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 2,
+        "selectedLogoReasoning": "Selected #2 because it is a medium-sized, visible logo with alt text 'A GoDaddy-Branded Afternic Logo', which aligns with the brand inferred from the URL and page context.",
+        "confidence": 0.85
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
