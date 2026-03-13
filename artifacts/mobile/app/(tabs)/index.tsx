@@ -3,10 +3,10 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useState } from "react";
+import { Image } from "expo-image";
 import {
   Dimensions,
   FlatList,
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -44,7 +44,7 @@ export default function ExploreScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-          <Image source={require("../../assets/images/logo.png")} style={styles.logo} resizeMode="contain" />
+          <Image source={require("../../assets/images/logo.png")} style={styles.logo} contentFit="contain" />
           <View style={styles.headerRight}>
             <BalancePill />
             <Pressable style={styles.notifBtn}>
@@ -82,8 +82,9 @@ export default function ExploreScreen() {
                 <Text style={styles.heroBadgeText}>Multi-Reward</Text>
               </View>
               <Image
-                source={require("../../assets/images/nft1.png")}
+                source={require("../../assets/images/nft1.avif")}
                 style={styles.heroNFT}
+                contentFit="cover"
               />
             </View>
           </LinearGradient>
@@ -105,7 +106,7 @@ export default function ExploreScreen() {
           {TOP_COLLECTIONS.slice(0, 3).map((col, idx) => (
             <View key={col.id} style={styles.collectionRow}>
               <Text style={styles.collectionRank}>{idx + 1}</Text>
-              <Image source={col.image} style={styles.collectionImg} />
+              <Image source={col.image} style={styles.collectionImg} contentFit="cover" />
               <View style={styles.collectionInfo}>
                 <Text style={styles.collectionName}>{col.name}</Text>
                 <View style={styles.collectionVolRow}>
@@ -189,7 +190,7 @@ function NFTCard({ nft }: { nft: NFT }) {
         style={styles.nftCard}
       >
         <View style={styles.nftImageWrap}>
-          <Image source={nft.image} style={styles.nftImage} />
+          <Image source={nft.image} style={styles.nftImage} contentFit="cover" />
           <Pressable
             onPress={() => {
               if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

@@ -3,10 +3,10 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
+import { Image } from "expo-image";
 import {
   Alert,
   Dimensions,
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -100,7 +100,7 @@ export default function NFTDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* Image */}
         <View style={styles.imageContainer}>
-          <Image source={nft.image} style={styles.nftImage} resizeMode="cover" />
+          <Image source={nft.image} style={styles.nftImage} contentFit="cover" />
           <LinearGradient
             colors={["transparent", "rgba(0,0,0,0.2)"]}
             style={styles.imageGradient}

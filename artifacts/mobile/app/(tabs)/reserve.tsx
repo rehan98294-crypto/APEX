@@ -3,10 +3,10 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useState } from "react";
+import { Image } from "expo-image";
 import {
   Alert,
   FlatList,
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -148,7 +148,7 @@ export default function ReserveScreen() {
                     onPress={() => router.push({ pathname: "/nft/[id]", params: { id: nft.id } })}
                     style={styles.browseCard}
                   >
-                    <Image source={nft.image} style={styles.browseImg} />
+                    <Image source={nft.image} style={styles.browseImg} contentFit="cover" />
                     <View style={styles.browseInfo}>
                       <Text style={styles.browseCollection}>{nft.collection}</Text>
                       <Text style={styles.browseName} numberOfLines={1}>{nft.name}</Text>
@@ -207,7 +207,7 @@ export default function ReserveScreen() {
                 return (
                   <Animated.View key={r.id} entering={FadeInDown.delay(idx * 60).springify()}>
                     <View style={styles.reservationCard}>
-                      <Image source={r.nftImage} style={styles.reservationImg} />
+                      <Image source={r.nftImage} style={styles.reservationImg} contentFit="cover" />
                       <View style={styles.reservationInfo}>
                         <Text style={styles.reservationCollection}>{r.collection}</Text>
                         <Text style={styles.reservationName} numberOfLines={2}>{r.nftName}</Text>
