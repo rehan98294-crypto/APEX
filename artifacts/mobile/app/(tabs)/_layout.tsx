@@ -2,9 +2,11 @@ import { Feather } from "@expo/vector-icons";
 import { BottomTabBarProps, Tabs } from "expo-router";
 import React from "react";
 import {
+  Dimensions,
   Platform,
   Pressable,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
 import Animated, {
@@ -16,26 +18,29 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
 const TABS = [
-  { name: "index", icon: "grid" },
-  { name: "earn", icon: "dollar-sign" },
-  { name: "reserve", icon: "bookmark" },
-  { name: "profile", icon: "user" },
+  { name: "index",   icon: "grid",         label: "Explore"  },
+  { name: "earn",    icon: "dollar-sign",  label: "Earn"     },
+  { name: "reserve", icon: "bookmark",     label: "Reserve"  },
+  { name: "profile", icon: "user",         label: "Profile"  },
 ] as const;
 
-function PillTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function PillTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const bottomPad = Platform.OS === "web" ? 16 : Math.max(insets.bottom, 16);
+  const bottomPad = Platform.OS === "web" ? 14 : Math.max(insets.bottom, 12);
 
   return (
-    <View style={[styles.barWrapper, { paddingBottom: bottomPad }]} pointerEvents="box-none">
-      <View style={styles.pill}>
+    <View style={[styles.wrapper, { paddingBottom: bottomPad }]} pointerEvents="box-none">
+      <View style={styles.bar}>
         {TABS.map((tab, idx) => {
           const isFocused = state.index === idx;
           return (
-            <PillTabButton
+            <TabItem
               key={tab.name}
               icon={tab.icon}
+              label={tab.label}
               isFocused={isFocused}
               onPress={() => {
                 const event = navigation.emit({
@@ -55,12 +60,14 @@ function PillTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   );
 }
 
-function PillTabButton({
+function TabItem({
   icon,
+  label,
   isFocused,
   onPress,
 }: {
   icon: string;
+  label: string;
   isFocused: boolean;
   onPress: () => void;
 }) {
@@ -72,26 +79,19 @@ function PillTabButton({
   return (
     <Pressable
       onPress={onPress}
-      onPressIn={() => {
-        scale.value = withSpring(0.88, { damping: 14, stiffness: 300 });
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, { damping: 14, stiffness: 300 });
-      }}
-      style={styles.tabBtn}
+      onPressIn={() => { scale.value = withSpring(0.9, { damping: 14, stiffness: 280 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 14, stiffness: 280 }); }}
+      style={isFocused ? styles.activeTab : styles.inactiveTab}
     >
-      <Animated.View
-        style={[
-          styles.iconCircle,
-          animStyle,
-          isFocused && styles.iconCircleActive,
-        ]}
-      >
+      <Animated.View style={[styles.tabInner, animStyle]}>
         <Feather
           name={icon as any}
-          size={20}
-          color={isFocused ? Colors.primary : Colors.textMuted}
+          size={18}
+          color={isFocused ? "#fff" : Colors.textMuted}
         />
+        {isFocused && (
+          <Text style={styles.activeLabel}>{label}</Text>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -111,56 +111,57 @@ export default function TabLayout() {
   );
 }
 
+const BAR_WIDTH = SCREEN_WIDTH * 0.92;
+
 const styles = StyleSheet.create({
-  barWrapper: {
+  wrapper: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     alignItems: "center",
   },
-  pill: {
+  bar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#F5F6FA",
-    borderRadius: 50,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    width: "88%",
+    width: BAR_WIDTH,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
     elevation: 10,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
+    borderColor: "rgba(0,0,0,0.07)",
+    gap: 4,
   },
-  tabBtn: {
+  activeTab: {
+    flex: 2,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inactiveTab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 2,
+    paddingVertical: 9,
+    borderRadius: 12,
   },
-  iconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+  tabInner: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "#DCDCDC",
-    borderStyle: "dashed",
-    backgroundColor: "transparent",
+    gap: 6,
   },
-  iconCircleActive: {
-    backgroundColor: "#FFFFFF",
-    borderColor: Colors.primary,
-    borderStyle: "solid",
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+  activeLabel: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
   },
 });
