@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,6 +29,12 @@ export default function StickyGlassHeader({
     <View style={[styles.headerContainer, { paddingTop: topPad }]}>
       <View style={styles.headerContent}>
         <View style={styles.logoBox}>
+          <LinearGradient
+            colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
           <Image
             source={require("../assets/images/logo-new.jpeg")}
             style={styles.logo}
@@ -40,6 +47,13 @@ export default function StickyGlassHeader({
           {showBalance && (
             <View style={styles.balancePill}>
               <View style={styles.tokenIconSm}>
+                <LinearGradient
+                  colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                  borderRadius={8}
+                />
                 <Text style={styles.tokenIconSmText}>T</Text>
               </View>
               <Text style={styles.balancePillText}>{balance.toFixed(0)}</Text>
@@ -93,7 +107,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: Colors.offWhite,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -135,7 +149,8 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.primary,
+    overflow: "hidden",
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },

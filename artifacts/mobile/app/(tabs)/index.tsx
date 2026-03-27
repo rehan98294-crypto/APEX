@@ -30,7 +30,7 @@ import { NFT, NFTS, TOP_COLLECTIONS, RARITY_COLORS } from "@/data/nfts";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 52) / 2;
 
-const CATEGORIES = ["All", "Character", "Ape", "Robot", "Alien", "Animal"];
+const CATEGORIES = ["Stake", "Polygon NFT", "Art", "Collectible"];
 
 const FEATURED_COLLECTIONS = [
   {
@@ -211,30 +211,31 @@ export default function ExploreScreen() {
           </View>
         </View>
 
-        {/* Category Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-          {CATEGORIES.map((cat) => (
-            <Pressable
-              key={cat}
-              onPress={() => {
-                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedCat(cat);
-              }}
-              style={[styles.catPill, selectedCat === cat && styles.catPillActive]}
-            >
-              {selectedCat === cat && (
-                <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={20} />
-              )}
-              <Text style={[styles.catText, selectedCat === cat && styles.catTextActive]}>{cat}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        {/* NFT Grid */}
-        <View style={styles.grid}>
-          {filtered.map((nft) => (
-            <NFTCard key={nft.id} nft={nft} />
-          ))}
+        {/* Discover More NFTs */}
+        <View style={styles.discoverSection}>
+          <Text style={styles.discoverTitle}>Discover more NFTs</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+            {CATEGORIES.map((cat) => (
+              <Pressable
+                key={cat}
+                onPress={() => {
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedCat(cat);
+                }}
+                style={[styles.catPill, selectedCat === cat && styles.catPillActive]}
+              >
+                {selectedCat === cat && (
+                  <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={20} />
+                )}
+                <Text style={[styles.catText, selectedCat === cat && styles.catTextActive]}>{cat}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <View style={styles.discoverGrid}>
+            {NFTS.slice(0, 6).map((nft, idx) => (
+              <NFTCard key={nft.id} nft={nft} idx={idx} />
+            ))}
+          </View>
         </View>
 
         {/* Featured Collections Section */}
@@ -362,60 +363,29 @@ function FeatureCard({ icon, color, title, sub }: { icon: any; color: string; ti
   );
 }
 
-function NFTCard({ nft }: { nft: NFT }) {
-  const { isWatched, addToWatchlist, removeFromWatchlist } = useWatchlist();
-  const watched = isWatched(nft.id);
+const STAKE_NAMES = [
+  "Stake_2000029", "Stake_2000602", "Stake_2000519",
+  "Stake_2000875", "Stake_2000131", "Stake_2000831",
+];
+const STAKE_PRICES = ["497 USDT", "492 USDT", "496 USDT", "587 USDT", "501 USDT", "534 USDT"];
+
+function NFTCard({ nft, idx = 0 }: { nft: NFT; idx?: number }) {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const rarityColor = RARITY_COLORS[nft.rarity];
 
   return (
-    <Animated.View style={[animStyle, { width: CARD_WIDTH }]}>
+    <Animated.View style={[animStyle, styles.discoverCard]}>
       <Pressable
         onPress={() => router.push({ pathname: "/nft/[id]", params: { id: nft.id } })}
-        onPressIn={() => { scale.value = withSpring(0.95, { damping: 15 }); }}
+        onPressIn={() => { scale.value = withSpring(0.96, { damping: 15 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
-        style={styles.nftCard}
       >
-        <View style={styles.nftImageWrap}>
-          <Image source={nft.image} style={styles.nftImage} contentFit="cover" />
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              watched
-                ? removeFromWatchlist(nft.id)
-                : addToWatchlist({ id: nft.id, name: nft.name, collection: nft.collection, price: nft.price, image: nft.image });
-            }}
-            style={styles.nftHeart}
-          >
-            <Feather name="heart" size={14} color={watched ? Colors.pink : Colors.textMuted} />
-          </Pressable>
-          <View style={[styles.rarityBadge, { backgroundColor: rarityColor + "22", borderColor: rarityColor + "60" }]}>
-            <Text style={[styles.rarityText, { color: rarityColor }]}>{nft.rarity}</Text>
-          </View>
-        </View>
-        <View style={styles.nftInfo}>
-          <Text style={styles.nftCollection}>{nft.collection}</Text>
-          <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
-          <View style={styles.nftPriceRow}>
-            <View style={styles.tokenIconSm}>
-              <Text style={styles.tokenIconSmText}>T</Text>
-            </View>
-            <Text style={styles.nftPrice}>{nft.priceToken}</Text>
-            <Text style={styles.nftEth}>· {nft.price} ETH</Text>
-          </View>
-          <View style={styles.nftFooter}>
-            <View style={styles.likesRow}>
-              <Feather name="heart" size={11} color={Colors.textMuted} />
-              <Text style={styles.likesText}>{(nft.likes / 1000).toFixed(1)}K</Text>
-            </View>
-            <Pressable
-              onPress={() => router.push({ pathname: "/nft/[id]", params: { id: nft.id } })}
-              style={styles.buyNowBtn}
-            >
-              <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={8} />
-              <Text style={styles.buyNowText}>Buy</Text>
-            </Pressable>
+        <Image source={nft.image} style={styles.discoverCardImg} contentFit="cover" />
+        <View style={styles.discoverCardInfo}>
+          <Text style={styles.discoverCardName} numberOfLines={1}>{STAKE_NAMES[idx] ?? nft.name}</Text>
+          <View style={styles.discoverCardPriceRow}>
+            <View style={styles.discoverTIcon}><Text style={styles.discoverTText}>T</Text></View>
+            <Text style={styles.discoverCardPrice}>{STAKE_PRICES[idx] ?? nft.priceToken}</Text>
           </View>
         </View>
       </Pressable>
@@ -434,6 +404,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tokenIconText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
+
+  discoverSection: { paddingHorizontal: 16, marginBottom: 16 },
+  discoverTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginBottom: 14, letterSpacing: -0.3, textAlign: "center" },
+  discoverGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  discoverCard: {
+    width: (width - 44) / 2,
+    backgroundColor: Colors.white,
+    borderRadius: 18,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  discoverCardImg: { width: "100%", height: 150, borderRadius: 14 },
+  discoverCardInfo: { padding: 10, gap: 6 },
+  discoverCardName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  discoverCardPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  discoverTIcon: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#2BD9A8", alignItems: "center", justifyContent: "center" },
+  discoverTText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
+  discoverCardPrice: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#2BD9A8" },
   heroBanner: { marginHorizontal: 16, borderRadius: 20, overflow: "hidden", marginBottom: 16 },
   heroGradient: { padding: 20, flexDirection: "row", alignItems: "center" },
   heroLeft: { flex: 1 },
