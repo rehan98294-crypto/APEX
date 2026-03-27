@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
   sectionSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted },
 
-  topColSection: { paddingHorizontal: 16, marginBottom: 16, backgroundColor: Colors.white, marginHorizontal: 16, borderRadius: 20, padding: 16, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  topColSection: { paddingHorizontal: 16, marginBottom: 16 },
   topColTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary, letterSpacing: -0.5 },
   topColSubRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2, marginBottom: 12 },
   topColSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted },
