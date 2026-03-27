@@ -188,6 +188,29 @@ export default function ExploreScreen() {
           })}
         </View>
 
+        {/* Reserve & Sell Promo */}
+        <View style={styles.promoSection}>
+          <Text style={styles.promoHeadline}>RESERVE AND SELL{"\n"}YOUR NFT EASILY</Text>
+          <Text style={styles.promoSub}>
+            Earning income in treasureFun is simple: just{"\n"}RESERVE and then TRADE to EARN
+          </Text>
+          <Pressable style={styles.promoBtn}>
+            <LinearGradient
+              colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+              borderRadius={30}
+            />
+            <Text style={styles.promoBtnText}>SIGN UP NOW</Text>
+          </Pressable>
+          <View style={styles.promoFanContainer}>
+            <Image source={require("../../assets/images/nft2.avif")} style={styles.promoFanLeft} contentFit="cover" />
+            <Image source={require("../../assets/images/nft1.avif")} style={styles.promoFanCenter} contentFit="cover" />
+            <Image source={require("../../assets/images/nft3.avif")} style={styles.promoFanRight} contentFit="cover" />
+          </View>
+        </View>
+
         {/* Category Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
           {CATEGORIES.map((cat) => (
@@ -607,4 +630,83 @@ const styles = StyleSheet.create({
   hotSmallBottom: { flexDirection: "row", alignItems: "center", gap: 5 },
   hotSmallAvatar: { width: 18, height: 18, borderRadius: 9 },
   hotSmallPrice: { fontSize: 12, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+
+  promoSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+    alignItems: "flex-start",
+    backgroundColor: "#F5F8FF",
+    marginHorizontal: 0,
+    marginBottom: 8,
+  },
+  promoHeadline: {
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textPrimary,
+    lineHeight: 34,
+    letterSpacing: -0.5,
+    marginBottom: 12,
+  },
+  promoSub: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  promoBtn: {
+    overflow: "hidden",
+    borderRadius: 30,
+    paddingHorizontal: 36,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 32,
+  },
+  promoBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    letterSpacing: 1,
+  },
+  promoFanContainer: {
+    width: "100%",
+    height: 220,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  promoFanLeft: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 18,
+    left: "5%",
+    top: 30,
+    transform: [{ rotate: "-12deg" }],
+    zIndex: 1,
+  },
+  promoFanCenter: {
+    position: "absolute",
+    width: 185,
+    height: 185,
+    borderRadius: 18,
+    alignSelf: "center",
+    top: 10,
+    zIndex: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  promoFanRight: {
+    position: "absolute",
+    width: 155,
+    height: 155,
+    borderRadius: 18,
+    right: "5%",
+    top: 40,
+    transform: [{ rotate: "10deg" }],
+    zIndex: 2,
+  },
 });
