@@ -21,10 +21,10 @@ import Colors from "@/constants/colors";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const TABS = [
-  { name: "index",   icon: "grid",         label: "Explore"  },
-  { name: "earn",    icon: "dollar-sign",  label: "Earn"     },
+  { name: "index",   icon: "home",         label: "Home"     },
   { name: "reserve", icon: "bookmark",     label: "Reserve"  },
-  { name: "profile", icon: "user",         label: "Profile"  },
+  { name: "earn",    icon: "box",          label: "Assets"   },
+  { name: "profile", icon: "user",         label: "My"       },
 ] as const;
 
 function PillTabBar({ state, navigation }: BottomTabBarProps) {
@@ -111,7 +111,7 @@ export default function TabLayout() {
   );
 }
 
-const BAR_WIDTH = SCREEN_WIDTH * 0.96;
+const BAR_WIDTH = SCREEN_WIDTH * 0.92;
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -126,24 +126,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: BAR_WIDTH,
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    borderRadius: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     shadowColor: "#000",
-    shadowOpacity: 0.10,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.07)",
-    gap: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 8,
+    borderWidth: 0,
+    gap: 0,
   },
   activeTab: {
-    flex: 2,
+    flex: 1.2,
     backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -151,8 +150,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
   },
   tabInner: {
     flexDirection: "row",
