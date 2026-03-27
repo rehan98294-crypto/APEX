@@ -32,6 +32,37 @@ const CARD_WIDTH = (width - 52) / 2;
 
 const CATEGORIES = ["All", "Character", "Ape", "Robot", "Alien", "Animal"];
 
+const FEATURED_COLLECTIONS = [
+  {
+    id: "fc1",
+    name: "Apex Penguins",
+    creator: "APEX_STUDIO",
+    totalItems: 10,
+    mainImage: require("../../assets/images/nft1.avif"),
+    previews: [
+      require("../../assets/images/nft2.avif"),
+      require("../../assets/images/nft3.avif"),
+      require("../../assets/images/nft4.avif"),
+    ],
+    creatorAvatar: require("../../assets/images/nft5.avif"),
+    gradColors: ["#C2EEFF", "#D4F7EC", "#FFE8D6"] as [string, string, string],
+  },
+  {
+    id: "fc2",
+    name: "Ice Peng Club",
+    creator: "WILLOUGHBY",
+    totalItems: 6,
+    mainImage: require("../../assets/images/nft6.avif"),
+    previews: [
+      require("../../assets/images/nft7.avif"),
+      require("../../assets/images/nft8.avif"),
+      require("../../assets/images/nft9.avif"),
+    ],
+    creatorAvatar: require("../../assets/images/nft10.avif"),
+    gradColors: ["#E0D4FF", "#C2EEFF", "#FFD6EF"] as [string, string, string],
+  },
+];
+
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const [selectedCat, setSelectedCat] = useState("All");
@@ -140,7 +171,75 @@ export default function ExploreScreen() {
             <NFTCard key={nft.id} nft={nft} />
           ))}
         </View>
+
+        {/* Featured Collections Section */}
+        <View style={styles.featSection}>
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>Featured Collections</Text>
+          </View>
+          {FEATURED_COLLECTIONS.map((col) => (
+            <FeaturedCollectionCard key={col.id} col={col} />
+          ))}
+        </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function FeaturedCollectionCard({ col }: { col: typeof FEATURED_COLLECTIONS[0] }) {
+  const imgH = 180;
+  const smH = (imgH - 8) / 3;
+  const smW = (width - 32 - 16 - 12) * 0.38;
+  const mainW = (width - 32 - 16 - 12) * 0.6;
+
+  return (
+    <View style={styles.featCard}>
+      <LinearGradient
+        colors={col.gradColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Image row */}
+      <View style={styles.featImgRow}>
+        {/* Main large image */}
+        <Image
+          source={col.mainImage}
+          style={[styles.featMainImg, { width: mainW, height: imgH }]}
+          contentFit="cover"
+        />
+        {/* Three small previews */}
+        <View style={styles.featSmallCol}>
+          {col.previews.map((src, i) => (
+            <Image
+              key={i}
+              source={src}
+              style={[styles.featSmallImg, { width: smW, height: smH }]}
+              contentFit="cover"
+            />
+          ))}
+        </View>
+      </View>
+
+      {/* Info row */}
+      <Text style={styles.featColName}>{col.name}</Text>
+      <View style={styles.featInfoRow}>
+        <View style={styles.featCreatorRow}>
+          <Image source={col.creatorAvatar} style={styles.featAvatar} contentFit="cover" />
+          <Text style={styles.featCreatorLabel}>by </Text>
+          <Text style={styles.featCreatorName}>{col.creator}</Text>
+        </View>
+        <View style={styles.featTotalChip}>
+          <LinearGradient
+            colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <Text style={styles.featTotalText}>TOTAL {col.totalItems} ITEM</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -362,4 +461,34 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   buyNowText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
+
+  featSection: { paddingHorizontal: 16, marginTop: 24, gap: 14 },
+  featCard: {
+    borderRadius: 20,
+    overflow: "hidden",
+    padding: 12,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  featImgRow: { flexDirection: "row", gap: 6 },
+  featMainImg: { borderRadius: 14 },
+  featSmallCol: { flex: 1, gap: 4 },
+  featSmallImg: { borderRadius: 10 },
+  featColName: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  featInfoRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  featCreatorRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  featAvatar: { width: 28, height: 28, borderRadius: 14 },
+  featCreatorLabel: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  featCreatorName: { fontSize: 12, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  featTotalChip: {
+    borderRadius: 20,
+    overflow: "hidden",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  featTotalText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.3 },
 });
