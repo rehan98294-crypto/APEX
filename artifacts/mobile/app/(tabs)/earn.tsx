@@ -86,7 +86,7 @@ export default function EarnScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <StickyGlassHeader />
         
         {/* Balance Cards */}

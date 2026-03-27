@@ -40,7 +40,7 @@ export default function ProfileScreen() {
     <View style={[styles.containerWrap, { paddingBottom: bottomPad }]}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 140 }]}
         showsVerticalScrollIndicator={false}
       >
         <StickyGlassHeader showBalance={false} showMenu={false} />

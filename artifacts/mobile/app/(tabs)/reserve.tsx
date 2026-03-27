@@ -124,7 +124,7 @@ export default function ReserveScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 150 }}>
         <StickyGlassHeader />
         
         {/* Top 3 stat cards */}
