@@ -121,29 +121,39 @@ export default function ExploreScreen() {
         </ScrollView>
 
         {/* Top Collections */}
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Top Collections</Text>
-            <Text style={styles.sectionSub}>Last 24 Hours</Text>
+        <View style={styles.topColSection}>
+          <Text style={styles.topColTitle}>TOP COLLECTIONS OVER</Text>
+          <View style={styles.topColSubRow}>
+            <Text style={styles.topColSub}>Last 24 Hours</Text>
+            <Pressable style={styles.topColMoreBtn}>
+              <Text style={styles.topColMoreText}>More</Text>
+              <Feather name="chevron-right" size={14} color={Colors.textPrimary} />
+            </Pressable>
           </View>
-          {TOP_COLLECTIONS.slice(0, 3).map((col, idx) => (
-            <View key={col.id} style={styles.collectionRow}>
-              <Text style={styles.collectionRank}>{idx + 1}</Text>
-              <Image source={col.image} style={styles.collectionImg} contentFit="cover" />
-              <View style={styles.collectionInfo}>
-                <Text style={styles.collectionName}>{col.name}</Text>
-                <View style={styles.collectionVolRow}>
-                  <View style={styles.tokenIcon}>
-                    <Text style={styles.tokenIconText}>T</Text>
+          {TOP_COLLECTIONS.map((col, idx) => {
+            const volStr = col.volume >= 1000
+              ? `${(col.volume / 1000).toFixed(2)}B`
+              : `${col.volume.toFixed(2)}M`;
+            const isLast = idx === TOP_COLLECTIONS.length - 1;
+            return (
+              <View key={col.id} style={[styles.topColRow, !isLast && styles.topColRowDivider]}>
+                <Text style={styles.topColRank}>{idx + 1}</Text>
+                <Image source={col.image} style={styles.topColAvatar} contentFit="cover" />
+                <View style={styles.topColInfo}>
+                  <Text style={styles.topColName}>{col.name}</Text>
+                  <View style={styles.topColVolRow}>
+                    <View style={styles.topColTIcon}>
+                      <Text style={styles.topColTText}>T</Text>
+                    </View>
+                    <Text style={styles.topColVol}>{volStr}</Text>
                   </View>
-                  <Text style={styles.collectionVol}>{col.volume.toFixed(2)}M</Text>
                 </View>
+                <Text style={[styles.topColChange, { color: col.change >= 0 ? "#2BD9A8" : Colors.danger }]}>
+                  {col.change >= 0 ? "+" : ""}{col.change}%
+                </Text>
               </View>
-              <Text style={[styles.collectionChange, { color: col.change >= 0 ? Colors.primary : Colors.danger }]}>
-                {col.change >= 0 ? "+" : ""}{col.change}%
-              </Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {/* Category Filters */}
@@ -375,21 +385,24 @@ const styles = StyleSheet.create({
   sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
   sectionSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted },
-  collectionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  collectionRank: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textMuted, width: 18, textAlign: "center" },
-  collectionImg: { width: 44, height: 44, borderRadius: 12 },
-  collectionInfo: { flex: 1 },
-  collectionName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
-  collectionVolRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
-  collectionVol: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted },
-  collectionChange: { fontSize: 14, fontFamily: "Inter_700Bold" },
+
+  topColSection: { paddingHorizontal: 16, marginBottom: 16, backgroundColor: Colors.white, marginHorizontal: 16, borderRadius: 20, padding: 16, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  topColTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary, letterSpacing: -0.5 },
+  topColSubRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2, marginBottom: 12 },
+  topColSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  topColMoreBtn: { flexDirection: "row", alignItems: "center", gap: 2 },
+  topColMoreText: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  topColRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
+  topColRowDivider: { borderBottomWidth: 1, borderBottomColor: Colors.border },
+  topColRank: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.textPrimary, width: 22, textAlign: "center" },
+  topColAvatar: { width: 52, height: 52, borderRadius: 26 },
+  topColInfo: { flex: 1 },
+  topColName: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, marginBottom: 4 },
+  topColVolRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  topColTIcon: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#2BD9A8", alignItems: "center", justifyContent: "center" },
+  topColTText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
+  topColVol: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  topColChange: { fontSize: 15, fontFamily: "Inter_700Bold", minWidth: 52, textAlign: "right" },
   catRow: { paddingHorizontal: 16, gap: 8, marginBottom: 16 },
   catPill: {
     paddingHorizontal: 16,
