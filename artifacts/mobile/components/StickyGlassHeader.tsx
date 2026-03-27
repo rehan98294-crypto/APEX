@@ -27,7 +27,8 @@ export default function StickyGlassHeader({
 
   return (
     <View style={[styles.headerContainer, { paddingTop: topPad }]}>
-      <BlurView intensity={80} style={styles.blurView}>
+      <BlurView intensity={40} style={styles.blurView}>
+        <View style={[styles.blurBackground, { paddingTop: topPad }]} />
         <View style={styles.headerContent}>
           <Image
             source={require("../assets/images/logo.png")}
@@ -82,6 +83,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     paddingBottom: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.75)",
+  },
+  blurBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
   },
   headerContent: {
     flexDirection: "row",
