@@ -1,11 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Dimensions,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -13,32 +11,40 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  SlideInDown,
-  SlideOutDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
-import { NFTS } from "@/data/nfts";
 
 const { width } = Dimensions.get("window");
-const CARD = (width - 52) / 3;
+
+const CONFIRM_GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
+
+const LEVELS = [
+  { lv: 1, label: "Lv1", rate: "1.8-1.95%" },
+  { lv: 2, label: "Lv2", rate: "2.1-2.5%" },
+  { lv: 3, label: "Lv3", rate: "2.6-2.9%" },
+  { lv: 4, label: "Lv4", rate: "3.1-3.5%" },
+  { lv: 5, label: "Lv5", rate: "3.7-4.3%" },
+  { lv: 6, label: "Lv6", rate: "4.35-4.65%" },
+];
+
+const AMOUNTS = [
+  { label: "100-500", token: "100-500" },
+  { label: "500-2K", token: "500-2K" },
+  { label: "1K-5K", token: "1K-5K" },
+  { label: "2K-10K", token: "2K-10K" },
+  { label: "5K-20K", token: "5K-20K" },
+];
 
 interface ActiveReservation {
   id: string;
-  nft: (typeof NFTS)[0];
+  level: (typeof LEVELS)[0];
+  amount: string;
   startTime: number;
-  incomeRate: number; // TFT per second
+  incomeRate: number;
   claimed: number;
   lastClaim: number;
 }
@@ -51,278 +57,275 @@ function calcAccumulated(r: ActiveReservation): number {
 export default function ReserveScreen() {
   const insets = useSafeAreaInsets();
   const { balance, earnReward } = useBalance();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
-  const [activeTab, setActiveTab] = useState<"browse" | "active">("browse");
-  const [selectedNFT, setSelectedNFT] = useState<(typeof NFTS)[0] | null>(null);
-  const [pendingIncome, setPendingIncome] = useState(0);
+  const [activeTab, setActiveTab] = useState<"todays" | "reserve" | "collected">("reserve");
+  const [selectedLevel, setSelectedLevel] = useState(LEVELS[1]);
+  const [selectedAmount, setSelectedAmount] = useState(AMOUNTS[1]);
+  const [levelOpen, setLevelOpen] = useState(false);
+  const [amountOpen, setAmountOpen] = useState(false);
   const [activeReservations, setActiveReservations] = useState<ActiveReservation[]>([]);
+  const [collected, setCollected] = useState<ActiveReservation[]>([]);
   const [totalIncome, setTotalIncome] = useState(0);
   const [todayIncome, setTodayIncome] = useState(0);
-  const [tick, setTick] = useState(0);
+  const [teamBenefits] = useState(0.1);
+  const [, setTick] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const reservedIds = activeReservations.map((r) => r.nft.id);
-
-  // Tick every second to update accumulated income display
   useEffect(() => {
     timerRef.current = setInterval(() => setTick((t) => t + 1), 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
   const liveTotal = activeReservations.reduce((sum, r) => sum + calcAccumulated(r), 0);
-
-  const handleSelectNFT = (nft: (typeof NFTS)[0]) => {
-    if (reservedIds.includes(nft.id)) return;
-    const income = parseFloat((nft.priceToken * 0.0185 + Math.random() * 0.3).toFixed(2));
-    setPendingIncome(income);
-    setSelectedNFT(nft);
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  };
+  const cumulativeIncome = parseFloat((totalIncome + liveTotal).toFixed(2));
+  const balanceForReservation = parseFloat((balance * 0.001 + 0.01).toFixed(2));
 
   const handleConfirm = () => {
-    if (!selectedNFT) return;
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    const ratePerSec = parseFloat((pendingIncome / 86400).toFixed(8)); // spread over 24h
-    const newReservation: ActiveReservation = {
+    const income = parseFloat(((balance * 0.001) * (selectedLevel.lv * 0.023)).toFixed(4));
+    const ratePerSec = parseFloat((income / 86400).toFixed(10));
+    const newR: ActiveReservation = {
       id: Date.now().toString(),
-      nft: selectedNFT,
+      level: selectedLevel,
+      amount: selectedAmount.token,
       startTime: Date.now(),
       incomeRate: ratePerSec,
       claimed: 0,
       lastClaim: Date.now(),
     };
-    setActiveReservations((prev) => [newReservation, ...prev]);
-    setTodayIncome((p) => parseFloat((p + pendingIncome).toFixed(2)));
-    setTotalIncome((p) => parseFloat((p + pendingIncome).toFixed(2)));
-    earnReward(pendingIncome, `Reservation income: ${selectedNFT.name}`);
-    setSelectedNFT(null);
-    setActiveTab("active");
+    setActiveReservations((prev) => [newR, ...prev]);
+    setTodayIncome((p) => parseFloat((p + income).toFixed(4)));
+    setTotalIncome((p) => parseFloat((p + income).toFixed(4)));
+    earnReward(income, `Reservation Lv${selectedLevel.lv}`);
   };
 
-  const handleClaim = (reservationId: string) => {
+  const handleClaim = (id: string) => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setActiveReservations((prev) =>
       prev.map((r) => {
-        if (r.id !== reservationId) return r;
-        const accumulated = calcAccumulated(r);
-        earnReward(accumulated, `Claimed reservation income`);
-        setTodayIncome((t) => parseFloat((t + accumulated).toFixed(4)));
-        setTotalIncome((t) => parseFloat((t + accumulated).toFixed(4)));
+        if (r.id !== id) return r;
+        const acc = calcAccumulated(r);
+        earnReward(acc, "Claimed reservation income");
+        setTodayIncome((t) => parseFloat((t + acc).toFixed(4)));
+        setTotalIncome((t) => parseFloat((t + acc).toFixed(4)));
         return { ...r, claimed: 0, lastClaim: Date.now() };
       })
     );
   };
 
-  const handleCancel = (reservationId: string) => {
-    setActiveReservations((prev) => prev.filter((r) => r.id !== reservationId));
+  const handleCancel = (id: string) => {
+    const r = activeReservations.find((x) => x.id === id);
+    if (r) setCollected((prev) => [{ ...r, claimed: calcAccumulated(r) }, ...prev]);
+    setActiveReservations((prev) => prev.filter((x) => x.id !== id));
   };
 
-  const balanceForReservation = parseFloat((balance * 0.001 + 0.01).toFixed(2));
+  const STAT_BOXES = [
+    { label: "Today\nEarnings", value: todayIncome.toFixed(2), borderColor: "#5CBFFE" },
+    { label: "Cumulative\nIncome", value: cumulativeIncome.toFixed(2), borderColor: "#00AC4F" },
+    { label: "Team Benefits", value: teamBenefits.toFixed(1), borderColor: "#BBBBBB" },
+    { label: "Reservation\nrange", value: "1~2000", borderColor: "#FF8C00" },
+    { label: "Wallet Balance", value: balance.toFixed(1), borderColor: "#5CBFFE" },
+    { label: "Balance for\nReservation", value: balance.toFixed(1), borderColor: "#333333" },
+  ];
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 150 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 150 }}
+        onScrollBeginDrag={() => { setLevelOpen(false); setAmountOpen(false); }}
+      >
         <StickyGlassHeader />
-        
-        {/* Top 3 stat cards */}
-        <View style={styles.statsRow}>
-          <StatCard label="Total Income" value={(totalIncome + liveTotal).toFixed(2)} color={Colors.accent} />
-          <StatCard label="Today" value={todayIncome.toFixed(2)} color={Colors.primary} />
-          <StatCard label="Reserved" value={String(activeReservations.length)} color={Colors.pink} />
-        </View>
 
-        {/* Wallet info row */}
-        <View style={styles.infoRow}>
-          <InfoChip icon="layers" label="Range" value="1–1000" color={Colors.accent} />
-          <InfoChip icon="credit-card" label="Wallet" value={balance.toFixed(2)} color={Colors.primary} />
-          <InfoChip icon="lock" label="For Reserve" value={balanceForReservation.toFixed(2)} color={Colors.pink} />
-        </View>
+        {/* Gap between header and boxes */}
+        <View style={{ height: 20 }} />
 
-        {/* Tabs */}
-        <View style={styles.tabsRow}>
-          <Pressable
-            onPress={() => setActiveTab("browse")}
-            style={[styles.tabPill, activeTab === "browse" && styles.tabPillActive]}
-          >
-            <Feather name="grid" size={14} color={activeTab === "browse" ? "#fff" : Colors.textSecondary} />
-            <Text style={[styles.tabPillText, activeTab === "browse" && styles.tabPillTextActive]}>
-              Browse NFTs
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setActiveTab("active")}
-            style={[styles.tabPill, activeTab === "active" && styles.tabPillActive]}
-          >
-            <Feather name="activity" size={14} color={activeTab === "active" ? "#fff" : Colors.textSecondary} />
-            <Text style={[styles.tabPillText, activeTab === "active" && styles.tabPillTextActive]}>
-              My Reservations ({activeReservations.length})
-            </Text>
-          </Pressable>
-        </View>
-
-        {activeTab === "browse" ? (
-          <>
-            <Text style={styles.sectionLabel}>Tap an NFT to start earning income</Text>
-            <View style={styles.grid}>
-              {NFTS.map((nft) => {
-                const reserved = reservedIds.includes(nft.id);
-                return (
-                  <Pressable
-                    key={nft.id}
-                    onPress={() => handleSelectNFT(nft)}
-                    disabled={reserved}
-                    style={[styles.nftCard, reserved && styles.nftCardDone]}
-                  >
-                    <Image source={nft.image} style={styles.nftImg} contentFit="cover" />
-                    {reserved && (
-                      <View style={styles.doneOverlay}>
-                        <Feather name="check-circle" size={22} color="#fff" />
-                      </View>
-                    )}
-                    <View style={styles.nftFooter}>
-                      <View style={styles.tIconXs}><Text style={styles.tIconXsText}>T</Text></View>
-                      <Text style={styles.nftPriceText}>{nft.priceToken}</Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
+        {/* 6 stat boxes — 2 rows × 3 */}
+        <View style={styles.boxGrid}>
+          {STAT_BOXES.map((box, i) => (
+            <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor }]}>
+              <Text style={styles.boxLabel}>{box.label}</Text>
+              <Text style={styles.boxValue}>{box.value}</Text>
             </View>
-          </>
-        ) : (
-          <View style={styles.activeList}>
-            {activeReservations.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Feather name="bookmark" size={36} color={Colors.textMuted} />
-                <Text style={styles.emptyTitle}>No active reservations</Text>
-                <Text style={styles.emptySub}>Browse NFTs and reserve to start earning</Text>
-                <Pressable onPress={() => setActiveTab("browse")} style={styles.browseNowBtn}>
-                  <Text style={styles.browseNowText}>Browse NFTs</Text>
+          ))}
+        </View>
+
+        {/* Section card */}
+        <View style={styles.card}>
+          {/* Tabs row */}
+          <View style={styles.tabsRow}>
+            {(["todays", "reserve", "collected"] as const).map((tab) => {
+              const label = tab === "todays" ? "Today's" : tab === "reserve" ? "Reserve" : "Collected";
+              const isActive = activeTab === tab;
+              return (
+                <Pressable key={tab} onPress={() => { setActiveTab(tab); setLevelOpen(false); setAmountOpen(false); }} style={styles.tabBtn}>
+                  <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{label}</Text>
+                  {isActive && <View style={styles.tabUnderline} />}
                 </Pressable>
-              </View>
-            ) : (
-              activeReservations.map((r) => {
-                const accumulated = calcAccumulated(r);
-                return (
-                  <Animated.View key={r.id} entering={FadeIn.duration(300)} style={styles.activeCard}>
-                    <Image source={r.nft.image} style={styles.activeImg} contentFit="cover" />
-                    <View style={styles.activeInfo}>
-                      <Text style={styles.activeName} numberOfLines={1}>{r.nft.name}</Text>
-                      <Text style={styles.activeCollection}>{r.nft.collection}</Text>
-                      <View style={styles.incomeRow}>
-                        <View style={styles.tIconSm}><Text style={styles.tIconSmText}>T</Text></View>
-                        <Text style={styles.accumulatedText}>{accumulated.toFixed(4)}</Text>
-                        <Text style={styles.incomeLabel}> income</Text>
+              );
+            })}
+          </View>
+
+          {/* --- RESERVE TAB --- */}
+          {activeTab === "reserve" && (
+            <View style={styles.reserveBody}>
+              {/* Selectors row */}
+              <View style={styles.selectorsRow}>
+                {/* Level dropdown */}
+                <View style={{ flex: 1 }}>
+                  <Pressable
+                    style={styles.selectorBtn}
+                    onPress={() => { setLevelOpen((o) => !o); setAmountOpen(false); }}
+                  >
+                    <Text style={styles.selectorLvLabel}>{selectedLevel.label}</Text>
+                    <Text style={styles.selectorRate}>{selectedLevel.rate}</Text>
+                    <Feather name={levelOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
+                  </Pressable>
+
+                  {levelOpen && (
+                    <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.dropdown}>
+                      <View style={styles.dropdownHeader}>
+                        <Text style={styles.dropdownHdrLv}>LV</Text>
+                        <Text style={styles.dropdownHdrInc}>Income(%)</Text>
                       </View>
-                      <View style={styles.cardActions}>
-                        <Pressable
-                          onPress={() => handleClaim(r.id)}
-                          style={styles.claimBtn}
-                        >
-                          <LinearGradient
-                            colors={[Colors.primaryLight, Colors.primary]}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                            style={styles.claimBtnGrad}
+                      {LEVELS.map((lvl) => {
+                        const isSel = lvl.lv === selectedLevel.lv;
+                        return (
+                          <Pressable
+                            key={lvl.lv}
+                            style={[styles.dropdownRow, isSel && styles.dropdownRowActive]}
+                            onPress={() => { setSelectedLevel(lvl); setLevelOpen(false); }}
                           >
+                            <Text style={[styles.dropdownLv, isSel && styles.dropdownLvActive]}>{lvl.label}</Text>
+                            <Text style={[styles.dropdownRate, isSel && styles.dropdownRateActive]}>{lvl.rate}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </Animated.View>
+                  )}
+                </View>
+
+                {/* Amount dropdown */}
+                <View style={{ flex: 1 }}>
+                  <Pressable
+                    style={styles.selectorBtn}
+                    onPress={() => { setAmountOpen((o) => !o); setLevelOpen(false); }}
+                  >
+                    <View style={styles.tokenBadge}>
+                      <Text style={styles.tokenBadgeText}>T</Text>
+                    </View>
+                    <Text style={styles.selectorAmountText}>{selectedAmount.token}</Text>
+                    <Feather name={amountOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
+                    <Pressable style={styles.infoIcon} onPress={() => {}}>
+                      <Feather name="info" size={14} color={Colors.textMuted} />
+                    </Pressable>
+                  </Pressable>
+
+                  {amountOpen && (
+                    <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.dropdown}>
+                      {AMOUNTS.map((amt) => {
+                        const isSel = amt.token === selectedAmount.token;
+                        return (
+                          <Pressable
+                            key={amt.token}
+                            style={[styles.dropdownRow, isSel && styles.dropdownRowActive]}
+                            onPress={() => { setSelectedAmount(amt); setAmountOpen(false); }}
+                          >
+                            <View style={styles.tokenBadgeSm}><Text style={styles.tokenBadgeSmText}>T</Text></View>
+                            <Text style={[styles.dropdownAmtText, isSel && styles.dropdownRateActive]}>{amt.token}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </Animated.View>
+                  )}
+                </View>
+              </View>
+
+              {/* Confirm button */}
+              <Pressable
+                onPress={handleConfirm}
+                style={styles.confirmWrap}
+                onPressIn={() => {}}
+              >
+                <LinearGradient
+                  colors={CONFIRM_GRAD}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.confirmGrad}
+                >
+                  <Text style={styles.confirmText}>Confirm</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          )}
+
+          {/* --- TODAY'S TAB --- */}
+          {activeTab === "todays" && (
+            <View style={styles.listBody}>
+              {activeReservations.length === 0 ? (
+                <EmptyState icon="clock" title="No earnings today" sub="Make a reservation to start earning" />
+              ) : (
+                activeReservations.map((r) => {
+                  const accumulated = calcAccumulated(r);
+                  return (
+                    <View key={r.id} style={styles.resCard}>
+                      <View style={styles.resCardLeft}>
+                        <Text style={styles.resLvBadge}>{r.level.label}</Text>
+                        <Text style={styles.resAmount}>{r.amount}</Text>
+                      </View>
+                      <View style={styles.resCardRight}>
+                        <Text style={styles.resIncomeVal}>+{accumulated.toFixed(4)}</Text>
+                        <Text style={styles.resIncomeLabel}>income</Text>
+                        <Pressable onPress={() => handleClaim(r.id)} style={styles.claimBtn}>
+                          <LinearGradient colors={CONFIRM_GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.claimBtnGrad}>
                             <Text style={styles.claimBtnText}>Claim</Text>
                           </LinearGradient>
                         </Pressable>
-                        <Pressable onPress={() => handleCancel(r.id)} style={styles.cancelBtn}>
-                          <Feather name="x" size={14} color={Colors.danger} />
-                        </Pressable>
                       </View>
+                      <Pressable onPress={() => handleCancel(r.id)} style={styles.cancelBtn}>
+                        <Feather name="x" size={14} color={Colors.danger} />
+                      </Pressable>
                     </View>
-                  </Animated.View>
-                );
-              })
-            )}
-          </View>
-        )}
-      </ScrollView>
+                  );
+                })
+              )}
+            </View>
+          )}
 
-      {/* Confirmation Modal */}
-      <Modal
-        visible={!!selectedNFT}
-        transparent
-        animationType="none"
-        onRequestClose={() => setSelectedNFT(null)}
-        statusBarTranslucent
-      >
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
-          style={styles.overlay}
-        >
-          <Pressable style={styles.overlayBg} onPress={() => setSelectedNFT(null)} />
-          <Animated.View
-            entering={SlideInDown.springify().damping(18).stiffness(200)}
-            exiting={SlideOutDown.duration(220)}
-            style={styles.modal}
-          >
-            {selectedNFT && (
-              <>
-                {/* NFT Image */}
-                <View style={styles.modalImgWrap}>
-                  <Image source={selectedNFT.image} style={styles.modalImg} contentFit="cover" />
-                </View>
-
-                {/* NFT Name */}
-                <Text style={styles.modalNftName} numberOfLines={1}>{selectedNFT.name}</Text>
-
-                {/* Income Section */}
-                <View style={styles.modalIncomeBox}>
-                  <Text style={styles.modalIncomeLabel}>Income</Text>
-                  <View style={styles.modalAmountRow}>
-                    <View style={styles.tIconMd}><Text style={styles.tIconMdText}>T</Text></View>
-                    <Text style={styles.modalAmount}>{pendingIncome}</Text>
+          {/* --- COLLECTED TAB --- */}
+          {activeTab === "collected" && (
+            <View style={styles.listBody}>
+              {collected.length === 0 ? (
+                <EmptyState icon="check-circle" title="Nothing collected yet" sub="Claim your reservation income to see it here" />
+              ) : (
+                collected.map((r) => (
+                  <View key={r.id} style={[styles.resCard, { opacity: 0.75 }]}>
+                    <View style={styles.resCardLeft}>
+                      <Text style={styles.resLvBadge}>{r.level.label}</Text>
+                      <Text style={styles.resAmount}>{r.amount}</Text>
+                    </View>
+                    <View style={styles.resCardRight}>
+                      <Text style={styles.resIncomeVal}>+{r.claimed.toFixed(4)}</Text>
+                      <Text style={styles.resIncomeLabel}>collected</Text>
+                    </View>
                   </View>
-                </View>
-
-                {/* Confirm */}
-                <Pressable onPress={handleConfirm} style={styles.confirmWrap}>
-                  <LinearGradient
-                    colors={[Colors.accent, "#2D9FE0"]}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                    style={styles.confirmGrad}
-                  >
-                    <Text style={styles.confirmText}>Confirm</Text>
-                  </LinearGradient>
-                </Pressable>
-
-                <Pressable onPress={() => setSelectedNFT(null)} style={styles.cancelLink}>
-                  <Text style={styles.cancelLinkText}>Cancel</Text>
-                </Pressable>
-              </>
-            )}
-          </Animated.View>
-        </Animated.View>
-      </Modal>
+                ))
+              )}
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+function EmptyState({ icon, title, sub }: { icon: any; title: string; sub: string }) {
   return (
-    <View style={[styles.statCard, { borderTopColor: color }]}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <View style={styles.statValRow}>
-        <View style={[styles.tIconXs, { backgroundColor: color }]}><Text style={styles.tIconXsText}>T</Text></View>
-        <Text style={[styles.statValue, { color }]}>{value}</Text>
-      </View>
-    </View>
-  );
-}
-
-function InfoChip({ icon, label, value, color }: { icon: any; label: string; value: string; color: string }) {
-  return (
-    <View style={styles.infoChip}>
-      <View style={[styles.infoIconBox, { backgroundColor: color + "18" }]}>
-        <Feather name={icon} size={13} color={color} />
-      </View>
-      <Text style={styles.infoValue}>{value}</Text>
-      <Text style={styles.infoLabel}>{label}</Text>
+    <View style={styles.emptyBox}>
+      <Feather name={icon} size={34} color={Colors.textMuted} />
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptySub}>{sub}</Text>
     </View>
   );
 }
@@ -330,111 +333,183 @@ function InfoChip({ icon, label, value, color }: { icon: any; label: string; val
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.offWhite },
 
-  statsRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginBottom: 10 },
-  statCard: {
-    flex: 1, backgroundColor: Colors.white, borderRadius: 14,
-    padding: 12, borderTopWidth: 3, gap: 6,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  boxGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 14,
+    gap: 10,
+    marginBottom: 20,
   },
-  statLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted },
-  statValRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  statValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
-
-  infoRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginBottom: 14 },
-  infoChip: {
-    flex: 1, backgroundColor: Colors.white, borderRadius: 14, padding: 10, gap: 4,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  statBox: {
+    width: (width - 48) / 3,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    padding: 12,
+    paddingLeft: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    gap: 6,
   },
-  infoIconBox: { width: 26, height: 26, borderRadius: 7, alignItems: "center", justifyContent: "center" },
-  infoValue: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  infoLabel: { fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  boxLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, lineHeight: 14 },
+  boxValue: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
 
-  tabsRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginBottom: 14 },
-  tabPill: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-    paddingVertical: 9, borderRadius: 12,
-    backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border,
+  card: {
+    marginHorizontal: 14,
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    overflow: "visible",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    paddingBottom: 20,
   },
-  tabPillActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  tabPillText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
-  tabPillTextActive: { color: "#fff" },
 
-  sectionLabel: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, paddingHorizontal: 16, marginBottom: 10 },
-
-  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 10 },
-  nftCard: {
-    width: CARD, backgroundColor: Colors.white, borderRadius: 14,
-    overflow: "hidden", borderWidth: 1, borderColor: Colors.border,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  tabsRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: 16,
   },
-  nftCardDone: { opacity: 0.55 },
-  nftImg: { width: "100%", height: CARD },
-  doneOverlay: {
-    ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,172,79,0.35)",
-    alignItems: "center", justifyContent: "center",
+  tabBtn: { flex: 1, alignItems: "center", paddingVertical: 14, position: "relative" },
+  tabText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textMuted },
+  tabTextActive: { fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  tabUnderline: {
+    position: "absolute",
+    bottom: 0,
+    left: "15%",
+    right: "15%",
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "#5CBFFE",
   },
-  nftFooter: { flexDirection: "row", alignItems: "center", gap: 4, padding: 7 },
-  tIconXs: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
-  tIconXsText: { fontSize: 6, fontFamily: "Inter_700Bold", color: "#fff" },
-  nftPriceText: { fontSize: 11, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
 
-  activeList: { paddingHorizontal: 16, gap: 10 },
-  emptyBox: { alignItems: "center", paddingVertical: 50, gap: 10 },
-  emptyTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  emptySub: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
-  browseNowBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12, marginTop: 6 },
-  browseNowText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  reserveBody: { padding: 16, gap: 14 },
 
-  activeCard: {
-    flexDirection: "row", backgroundColor: Colors.white, borderRadius: 16,
-    overflow: "hidden", borderWidth: 1, borderColor: Colors.border,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
-    marginBottom: 2,
+  selectorsRow: { flexDirection: "row", gap: 10, zIndex: 10 },
+  selectorBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  activeImg: { width: 90, height: 110 },
-  activeInfo: { flex: 1, padding: 12, gap: 5 },
-  activeName: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  activeCollection: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.accent },
-  incomeRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  tIconSm: { width: 14, height: 14, borderRadius: 7, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
-  tIconSmText: { fontSize: 7, fontFamily: "Inter_700Bold", color: "#fff" },
-  accumulatedText: { fontSize: 16, fontFamily: "Inter_700Bold", color: Colors.primary },
-  incomeLabel: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted },
-  cardActions: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
-  claimBtn: { flex: 1, borderRadius: 10, overflow: "hidden", height: 34 },
-  claimBtnGrad: { flex: 1, alignItems: "center", justifyContent: "center" },
-  claimBtnText: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff" },
+  selectorLvLabel: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  selectorRate: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#5CBFFE", flex: 1 },
+  selectorAmountText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, flex: 1 },
+
+  tokenBadge: {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "#5CBFFE", alignItems: "center", justifyContent: "center",
+  },
+  tokenBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
+  tokenBadgeSm: {
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: "#5CBFFE", alignItems: "center", justifyContent: "center",
+  },
+  tokenBadgeSmText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
+
+  infoIcon: { padding: 2 },
+
+  dropdown: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    marginTop: 4,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: "#000",
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 12,
+    zIndex: 999,
+    overflow: "hidden",
+  },
+  dropdownHeader: {
+    flexDirection: "row",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    gap: 20,
+  },
+  dropdownHdrLv: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textMuted, width: 40 },
+  dropdownHdrInc: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textMuted },
+  dropdownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 20,
+  },
+  dropdownRowActive: { backgroundColor: "#EEF9FF" },
+  dropdownLv: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, width: 40 },
+  dropdownLvActive: { color: "#5CBFFE" },
+  dropdownRate: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  dropdownRateActive: { color: "#5CBFFE", fontFamily: "Inter_700Bold" },
+  dropdownAmtText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+
+  confirmWrap: { borderRadius: 16, overflow: "hidden", marginTop: 4 },
+  confirmGrad: { paddingVertical: 17, alignItems: "center", justifyContent: "center" },
+  confirmText: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.5 },
+
+  listBody: { padding: 16, gap: 10 },
+
+  resCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.offWhite,
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  resCardLeft: { flex: 1, gap: 4 },
+  resLvBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#EEF9FF",
+    color: "#5CBFFE",
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  resAmount: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  resCardRight: { alignItems: "flex-end", gap: 4 },
+  resIncomeVal: { fontSize: 16, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  resIncomeLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  claimBtn: { borderRadius: 10, overflow: "hidden", height: 30, minWidth: 64 },
+  claimBtnGrad: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
+  claimBtnText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" },
   cancelBtn: {
-    width: 34, height: 34, borderRadius: 10,
-    backgroundColor: Colors.danger + "12", alignItems: "center", justifyContent: "center",
+    width: 30, height: 30, borderRadius: 8,
+    backgroundColor: Colors.danger + "12",
+    alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: Colors.danger + "30",
   },
 
-  overlay: { flex: 1, justifyContent: "flex-end" },
-  overlayBg: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)" },
-  modal: {
-    backgroundColor: "#fff", borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingTop: 24, paddingHorizontal: 28, paddingBottom: 44,
-    alignItems: "center", gap: 8,
-    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 20, shadowOffset: { width: 0, height: -4 }, elevation: 20,
-  },
-  modalImgWrap: {
-    width: 150, height: 150, borderRadius: 20, overflow: "hidden",
-    borderWidth: 2, borderColor: Colors.border,
-    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5,
-    marginBottom: 4,
-  },
-  modalImg: { width: "100%", height: "100%" },
-  modalNftName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary, maxWidth: 260 },
-  modalIncomeBox: { alignItems: "center", gap: 2, marginVertical: 4 },
-  modalIncomeLabel: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted },
-  modalAmountRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  tIconMd: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
-  tIconMdText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
-  modalAmount: { fontSize: 40, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  confirmWrap: { width: "100%", borderRadius: 16, overflow: "hidden", marginTop: 10 },
-  confirmGrad: { paddingVertical: 16, alignItems: "center", justifyContent: "center" },
-  confirmText: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.3 },
-  cancelLink: { paddingVertical: 8 },
-  cancelLinkText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textMuted },
+  emptyBox: { alignItems: "center", paddingVertical: 40, gap: 10 },
+  emptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  emptySub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
 });
