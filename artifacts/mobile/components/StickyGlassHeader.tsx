@@ -1,5 +1,4 @@
 import { Feather } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
@@ -27,45 +26,42 @@ export default function StickyGlassHeader({
 
   return (
     <View style={[styles.headerContainer, { paddingTop: topPad }]}>
-      <BlurView intensity={40} style={styles.blurView}>
-        <View style={[styles.blurBackground, { paddingTop: topPad }]} />
-        <View style={styles.headerContent}>
-          <Image
-            source={require("../assets/images/logo.png")}
-            style={styles.logo}
-            contentFit="contain"
-          />
-          <View style={styles.headerRight}>
-            {showBalance && (
-              <View style={styles.balancePill}>
-                <View style={styles.tokenIconSm}>
-                  <Text style={styles.tokenIconSmText}>T</Text>
-                </View>
-                <Text style={styles.balancePillText}>{balance.toFixed(0)}</Text>
+      <View style={styles.headerContent}>
+        <Image
+          source={require("../assets/images/logo.png")}
+          style={styles.logo}
+          contentFit="contain"
+        />
+        <View style={styles.headerRight}>
+          {showBalance && (
+            <View style={styles.balancePill}>
+              <View style={styles.tokenIconSm}>
+                <Text style={styles.tokenIconSmText}>T</Text>
               </View>
-            )}
-            {showMenu && (
-              <>
-                <Pressable style={styles.iconBtn}>
-                  <Feather
-                    name="bell"
-                    size={20}
-                    color={Colors.textPrimary}
-                  />
-                  <View style={styles.notifDot} />
-                </Pressable>
-                <Pressable style={styles.iconBtn}>
-                  <Feather
-                    name="menu"
-                    size={20}
-                    color={Colors.textPrimary}
-                  />
-                </Pressable>
-              </>
-            )}
-          </View>
+              <Text style={styles.balancePillText}>{balance.toFixed(0)}</Text>
+            </View>
+          )}
+          {showMenu && (
+            <>
+              <Pressable style={styles.iconBtn}>
+                <Feather
+                  name="bell"
+                  size={20}
+                  color={Colors.textPrimary}
+                />
+                <View style={styles.notifDot} />
+              </Pressable>
+              <Pressable style={styles.iconBtn}>
+                <Feather
+                  name="menu"
+                  size={20}
+                  color={Colors.textPrimary}
+                />
+              </Pressable>
+            </>
+          )}
         </View>
-      </BlurView>
+      </View>
     </View>
   );
 }
@@ -77,19 +73,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
-    backgroundColor: "transparent",
-  },
-  blurView: {
+    backgroundColor: Colors.white,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    paddingBottom: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.75)",
-  },
-  blurBackground: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
+    paddingBottom: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   headerContent: {
     flexDirection: "row",
