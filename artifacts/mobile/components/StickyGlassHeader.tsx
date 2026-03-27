@@ -27,13 +27,15 @@ export default function StickyGlassHeader({
   return (
     <View style={[styles.headerContainer, { paddingTop: topPad }]}>
       <View style={styles.headerContent}>
-        <View style={styles.logoCircle}>
+        <View style={styles.logoBox}>
           <Image
             source={require("../assets/images/logo-new.jpeg")}
             style={styles.logo}
             contentFit="cover"
           />
         </View>
+        <Text style={styles.brandName}>Apex.NFT</Text>
+        <View style={styles.spacer} />
         <View style={styles.headerRight}>
           {showBalance && (
             <View style={styles.balancePill}>
@@ -70,11 +72,6 @@ export default function StickyGlassHeader({
 
 const styles = StyleSheet.create({
   headerContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     backgroundColor: Colors.white,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -89,11 +86,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
   },
-  logoCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  logoBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     overflow: "hidden",
     backgroundColor: Colors.offWhite,
     alignItems: "center",
@@ -102,6 +100,15 @@ const styles = StyleSheet.create({
   logo: {
     width: "100%",
     height: "100%",
+  },
+  brandName: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
+  },
+  spacer: {
+    flex: 1,
   },
   headerRight: {
     flexDirection: "row",

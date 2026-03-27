@@ -42,8 +42,8 @@ export default function ExploreScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      <StickyGlassHeader />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <StickyGlassHeader />
 
         {/* Hero Banner */}
         <View style={styles.heroBanner}>
@@ -213,11 +213,8 @@ function NFTCard({ nft }: { nft: NFT }) {
   );
 }
 
-const HEADER_HEIGHT = Platform.OS === "web" ? 80 : 100;
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.offWhite },
-  scrollContent: { paddingTop: HEADER_HEIGHT },
   tokenIcon: {
     width: 20,
     height: 20,

@@ -124,8 +124,9 @@ export default function ReserveScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      <StickyGlassHeader />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 110 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+        <StickyGlassHeader />
+        
         {/* Top 3 stat cards */}
         <View style={styles.statsRow}>
           <StatCard label="Total Income" value={(totalIncome + liveTotal).toFixed(2)} color={Colors.accent} />
@@ -326,11 +327,8 @@ function InfoChip({ icon, label, value, color }: { icon: any; label: string; val
   );
 }
 
-const HEADER_HEIGHT = Platform.OS === "web" ? 80 : 100;
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.offWhite },
-  scrollContent: { paddingTop: HEADER_HEIGHT },
 
   statsRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginBottom: 10 },
   statCard: {

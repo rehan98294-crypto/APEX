@@ -18,8 +18,6 @@ import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
 import { useWatchlist } from "@/context/WatchlistContext";
 
-const HEADER_HEIGHT = Platform.OS === "web" ? 80 : 100;
-
 const MENU_ITEMS = [
   { icon: "shopping-bag", label: "My Purchases", badge: null },
   { icon: "clock", label: "Transaction History", badge: null },
@@ -40,12 +38,12 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.containerWrap, { paddingBottom: bottomPad }]}>
-      <StickyGlassHeader showBalance={false} showMenu={false} />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingTop: HEADER_HEIGHT, paddingBottom: 100 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
       >
+        <StickyGlassHeader showBalance={false} showMenu={false} />
 
       {/* Avatar Card */}
       <LinearGradient

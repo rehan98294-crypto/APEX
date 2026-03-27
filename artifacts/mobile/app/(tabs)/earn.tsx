@@ -86,8 +86,9 @@ export default function EarnScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      <StickyGlassHeader />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <StickyGlassHeader />
+        
         {/* Balance Cards */}
         <View style={styles.balanceGrid}>
           <BalanceCard label="Available" value={balance} color={Colors.primary} icon="dollar-sign" />
@@ -307,11 +308,8 @@ function BalanceCard({ label, value, color, icon }: { label: string; value: numb
   );
 }
 
-const HEADER_HEIGHT = Platform.OS === "web" ? 80 : 100;
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.offWhite },
-  scrollContent: { paddingTop: HEADER_HEIGHT, paddingHorizontal: 16 },
   balanceGrid: { flexDirection: "row", gap: 10 },
   balanceCard: {
     flex: 1,
