@@ -64,6 +64,7 @@ export default function ExploreScreen() {
                 onPress={() => router.push("/(tabs)/earn")}
                 style={styles.heroBtn}
               >
+                <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={20} />
                 <Text style={styles.heroBtnText}>Start Earning</Text>
               </Pressable>
             </View>
@@ -125,6 +126,9 @@ export default function ExploreScreen() {
               }}
               style={[styles.catPill, selectedCat === cat && styles.catPillActive]}
             >
+              {selectedCat === cat && (
+                <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={20} />
+              )}
               <Text style={[styles.catText, selectedCat === cat && styles.catTextActive]}>{cat}</Text>
             </Pressable>
           ))}
@@ -204,6 +208,7 @@ function NFTCard({ nft }: { nft: NFT }) {
               onPress={() => router.push({ pathname: "/nft/[id]", params: { id: nft.id } })}
               style={styles.buyNowBtn}
             >
+              <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={8} />
               <Text style={styles.buyNowText}>Buy</Text>
             </Pressable>
           </View>
@@ -230,11 +235,12 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary, lineHeight: 24, marginBottom: 8 },
   heroSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textSecondary, lineHeight: 17, marginBottom: 14 },
   heroBtn: {
-    backgroundColor: Colors.accent,
+    backgroundColor: "transparent",
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 9,
     alignSelf: "flex-start",
+    overflow: "hidden",
   },
   heroBtnText: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff" },
   heroRight: { alignItems: "center", gap: 10, marginLeft: 12 },
@@ -294,7 +300,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  catPillActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  catPillActive: { backgroundColor: "transparent", borderColor: "transparent", overflow: "hidden" },
   catText: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
   catTextActive: { color: "#fff", fontFamily: "Inter_600SemiBold" },
   grid: {
@@ -349,10 +355,11 @@ const styles = StyleSheet.create({
   likesRow: { flexDirection: "row", alignItems: "center", gap: 3 },
   likesText: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted },
   buyNowBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: "transparent",
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 5,
+    overflow: "hidden",
   },
   buyNowText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
 });

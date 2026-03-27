@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { BottomTabBarProps, Tabs } from "expo-router";
 import React from "react";
 import {
@@ -83,6 +84,14 @@ function TabItem({
       onPressOut={() => { scale.value = withSpring(1, { damping: 14, stiffness: 280 }); }}
       style={isFocused ? styles.activeTab : styles.inactiveTab}
     >
+      {isFocused && (
+        <LinearGradient
+          colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <Animated.View style={[styles.tabInner, animStyle]}>
         <Feather
           name={icon as any}
@@ -140,7 +149,8 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     flex: 1.2,
-    backgroundColor: Colors.primary,
+    backgroundColor: "transparent",
+    overflow: "hidden",
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 14,

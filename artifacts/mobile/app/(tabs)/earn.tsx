@@ -126,9 +126,14 @@ export default function EarnScreen() {
                       <Feather name="check" size={14} color={Colors.primary} />
                     </View>
                   ) : (
-                    <View style={styles.claimBtn}>
+                    <LinearGradient
+                      colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.claimBtn}
+                    >
                       <Text style={styles.claimBtnText}>Claim</Text>
-                    </View>
+                    </LinearGradient>
                   )}
                 </Pressable>
               );
@@ -142,12 +147,18 @@ export default function EarnScreen() {
             onPress={() => setTab("stake")}
             style={[styles.tabBtn, tab === "stake" && styles.tabBtnActive]}
           >
+            {tab === "stake" && (
+              <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={12} />
+            )}
             <Text style={[styles.tabBtnText, tab === "stake" && styles.tabBtnTextActive]}>Stake TFT</Text>
           </Pressable>
           <Pressable
             onPress={() => setTab("history")}
             style={[styles.tabBtn, tab === "history" && styles.tabBtnActive]}
           >
+            {tab === "history" && (
+              <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={12} />
+            )}
             <Text style={[styles.tabBtnText, tab === "history" && styles.tabBtnTextActive]}>
               Active Stakes ({stakes.filter((s) => s.status === "active").length})
             </Text>
@@ -168,6 +179,9 @@ export default function EarnScreen() {
                   }}
                   style={[styles.planCard, selectedPlan.days === plan.days && styles.planCardActive]}
                 >
+                  {selectedPlan.days === plan.days && (
+                    <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                  )}
                   {plan.highlight && (
                     <View style={styles.popularBadge}>
                       <Text style={styles.popularText}>{plan.badge}</Text>
@@ -231,7 +245,7 @@ export default function EarnScreen() {
 
               <Pressable onPress={handleStake} style={styles.stakeBtn}>
                 <LinearGradient
-                  colors={[Colors.primaryLight, Colors.primary]}
+                  colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.stakeBtnGrad}
@@ -354,7 +368,7 @@ const styles = StyleSheet.create({
   tokenIconSmText: { fontSize: 7, fontFamily: "Inter_700Bold", color: "#fff" },
   taskReward: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.primary },
   doneBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.primary + "20", alignItems: "center", justifyContent: "center" },
-  claimBtn: { backgroundColor: Colors.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
+  claimBtn: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignItems: "center", justifyContent: "center" },
   claimBtnText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" },
   tabRow: {
     flexDirection: "row",
@@ -371,7 +385,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: "center",
   },
-  tabBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  tabBtnActive: { backgroundColor: "transparent", borderColor: "transparent", overflow: "hidden" },
   tabBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
   tabBtnTextActive: { color: "#fff" },
   plansGrid: { flexDirection: "row", gap: 8, marginBottom: 16, flexWrap: "wrap" },
@@ -388,7 +402,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     gap: 2,
   },
-  planCardActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  planCardActive: { backgroundColor: "transparent", borderColor: "transparent", overflow: "hidden" },
   popularBadge: {
     position: "absolute",
     top: 0,
