@@ -136,6 +136,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     borderWidth: 0,
     gap: 0,
+    marginBottom: 16,
   },
   activeTab: {
     flex: 1.2,
