@@ -111,7 +111,7 @@ export default function TabLayout() {
   );
 }
 
-const BAR_WIDTH = SCREEN_WIDTH * 0.92;
+const BAR_WIDTH = SCREEN_WIDTH * 0.96;
 
 const styles = StyleSheet.create({
   wrapper: {
