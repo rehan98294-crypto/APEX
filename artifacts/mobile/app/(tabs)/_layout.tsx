@@ -104,8 +104,8 @@ export default function TabLayout() {
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="index" />
-      <Tabs.Screen name="earn" />
       <Tabs.Screen name="reserve" />
+      <Tabs.Screen name="earn" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );
