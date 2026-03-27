@@ -13,9 +13,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
 import { useWatchlist } from "@/context/WatchlistContext";
+
+const HEADER_HEIGHT = Platform.OS === "web" ? 80 : 100;
 
 const MENU_ITEMS = [
   { icon: "shopping-bag", label: "My Purchases", badge: null },
@@ -36,18 +39,13 @@ export default function ProfileScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
   return (
-    <ScrollView
-      style={[styles.container, { paddingTop: topPad }]}
-      contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 100 }]}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <Pressable style={styles.settingsBtn}>
-          <Feather name="settings" size={20} color={Colors.textSecondary} />
-        </Pressable>
-      </View>
+    <View style={[styles.containerWrap, { paddingBottom: bottomPad }]}>
+      <StickyGlassHeader showBalance={false} showMenu={false} />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingTop: HEADER_HEIGHT, paddingBottom: 100 }]}
+        showsVerticalScrollIndicator={false}
+      >
 
       {/* Avatar Card */}
       <LinearGradient
@@ -213,20 +211,15 @@ export default function ProfileScreen() {
         <Feather name="log-out" size={18} color={Colors.danger} />
         <Text style={styles.signOutText}>Sign Out</Text>
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  containerWrap: { flex: 1 },
   container: { flex: 1, backgroundColor: Colors.offWhite },
   content: { paddingHorizontal: 20 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  headerTitle: { fontSize: 26, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  settingsBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border,
-    alignItems: "center", justifyContent: "center",
-  },
   profileCard: { borderRadius: 20, padding: 20, alignItems: "center", gap: 6, marginBottom: 16 },
   avatarWrap: { position: "relative", marginBottom: 4 },
   avatar: {

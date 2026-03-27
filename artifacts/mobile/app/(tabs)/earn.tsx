@@ -21,6 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
 
@@ -85,22 +86,14 @@ export default function EarnScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Header */}
-        <LinearGradient
-          colors={["#E8FFF3", "#EBF8FF"]}
-          style={[styles.headerGradient, { paddingTop: topPad + 12 }]}
-        >
-          <Text style={styles.headerTitle}>Earn & Stake</Text>
-          <Text style={styles.headerSub}>Grow your TFT balance with rewards</Text>
-
-          {/* Balance Cards */}
-          <View style={styles.balanceGrid}>
-            <BalanceCard label="Available" value={balance} color={Colors.primary} icon="dollar-sign" />
-            <BalanceCard label="Staked" value={stakedTotal} color={Colors.accent} icon="lock" />
-            <BalanceCard label="Total Earned" value={earnedTotal} color={Colors.pink} icon="trending-up" />
-          </View>
-        </LinearGradient>
+      <StickyGlassHeader />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}>
+        {/* Balance Cards */}
+        <View style={styles.balanceGrid}>
+          <BalanceCard label="Available" value={balance} color={Colors.primary} icon="dollar-sign" />
+          <BalanceCard label="Staked" value={stakedTotal} color={Colors.accent} icon="lock" />
+          <BalanceCard label="Total Earned" value={earnedTotal} color={Colors.pink} icon="trending-up" />
+        </View>
 
         {/* Earn Tasks */}
         <View style={styles.section}>
@@ -314,11 +307,11 @@ function BalanceCard({ label, value, color, icon }: { label: string; value: numb
   );
 }
 
+const HEADER_HEIGHT = Platform.OS === "web" ? 80 : 100;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.offWhite },
-  headerGradient: { paddingHorizontal: 20, paddingBottom: 20 },
-  headerTitle: { fontSize: 26, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginBottom: 4 },
-  headerSub: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textSecondary, marginBottom: 16 },
+  scrollContent: { paddingTop: HEADER_HEIGHT, paddingHorizontal: 16 },
   balanceGrid: { flexDirection: "row", gap: 10 },
   balanceCard: {
     flex: 1,

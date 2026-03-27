@@ -26,6 +26,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
 import { NFTS } from "@/data/nfts";
@@ -123,24 +124,8 @@ export default function ReserveScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-        <Image
-          source={require("../../assets/images/logo.png")}
-          style={styles.logo}
-          contentFit="contain"
-        />
-        <View style={styles.headerRight}>
-          <Pressable style={styles.iconBtn}>
-            <Feather name="bell" size={20} color={Colors.textPrimary} />
-          </Pressable>
-          <Pressable style={styles.iconBtn}>
-            <Feather name="menu" size={20} color={Colors.textPrimary} />
-          </Pressable>
-        </View>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+      <StickyGlassHeader />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 110 }]}>
         {/* Top 3 stat cards */}
         <View style={styles.statsRow}>
           <StatCard label="Total Income" value={(totalIncome + liveTotal).toFixed(2)} color={Colors.accent} />
@@ -341,19 +326,11 @@ function InfoChip({ icon, label, value, color }: { icon: any; label: string; val
   );
 }
 
+const HEADER_HEIGHT = Platform.OS === "web" ? 80 : 100;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.offWhite },
-  header: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingHorizontal: 20, paddingBottom: 12,
-  },
-  logo: { width: 130, height: 34 },
-  headerRight: { flexDirection: "row", gap: 8 },
-  iconBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border,
-    alignItems: "center", justifyContent: "center",
-  },
+  scrollContent: { paddingTop: HEADER_HEIGHT },
 
   statsRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginBottom: 10 },
   statCard: {

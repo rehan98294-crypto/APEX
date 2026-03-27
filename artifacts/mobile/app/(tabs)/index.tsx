@@ -21,6 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
 import { useWatchlist } from "@/context/WatchlistContext";
@@ -41,18 +42,8 @@ export default function ExploreScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-          <Image source={require("../../assets/images/logo.png")} style={styles.logo} contentFit="contain" />
-          <View style={styles.headerRight}>
-            <BalancePill />
-            <Pressable style={styles.notifBtn}>
-              <Feather name="bell" size={20} color={Colors.textPrimary} />
-              <View style={styles.notifDot} />
-            </Pressable>
-          </View>
-        </View>
+      <StickyGlassHeader />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}>
 
         {/* Hero Banner */}
         <View style={styles.heroBanner}>
@@ -150,18 +141,6 @@ export default function ExploreScreen() {
   );
 }
 
-function BalancePill() {
-  const { balance } = useBalance();
-  return (
-    <View style={styles.balancePill}>
-      <View style={styles.tokenIconSm}>
-        <Text style={styles.tokenIconSmText}>T</Text>
-      </View>
-      <Text style={styles.balancePillText}>{balance.toFixed(0)}</Text>
-    </View>
-  );
-}
-
 function FeatureCard({ icon, color, title, sub }: { icon: any; color: string; title: string; sub: string }) {
   return (
     <View style={[styles.featureCard, { borderLeftColor: color }]}>
@@ -234,29 +213,11 @@ function NFTCard({ nft }: { nft: NFT }) {
   );
 }
 
+const HEADER_HEIGHT = Platform.OS === "web" ? 80 : 100;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.offWhite },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  logo: { width: 140, height: 36 },
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
-  balancePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: Colors.primary + "15",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: Colors.primary + "30",
-  },
-  balancePillText: { fontSize: 13, fontFamily: "Inter_700Bold", color: Colors.primary },
+  scrollContent: { paddingTop: HEADER_HEIGHT },
   tokenIcon: {
     width: 20,
     height: 20,
@@ -266,27 +227,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tokenIconText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
-  tokenIconSm: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tokenIconSmText: { fontSize: 8, fontFamily: "Inter_700Bold", color: "#fff" },
-  notifBtn: { position: "relative", padding: 4 },
-  notifDot: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.pink,
-    borderWidth: 1.5,
-    borderColor: Colors.offWhite,
-  },
   heroBanner: { marginHorizontal: 16, borderRadius: 20, overflow: "hidden", marginBottom: 16 },
   heroGradient: { padding: 20, flexDirection: "row", alignItems: "center" },
   heroLeft: { flex: 1 },
