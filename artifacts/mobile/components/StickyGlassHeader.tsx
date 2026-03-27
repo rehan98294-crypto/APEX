@@ -27,11 +27,13 @@ export default function StickyGlassHeader({
   return (
     <View style={[styles.headerContainer, { paddingTop: topPad }]}>
       <View style={styles.headerContent}>
-        <Image
-          source={require("../assets/images/logo.png")}
-          style={styles.logo}
-          contentFit="contain"
-        />
+        <View style={styles.logoCircle}>
+          <Image
+            source={require("../assets/images/logo-new.jpeg")}
+            style={styles.logo}
+            contentFit="cover"
+          />
+        </View>
         <View style={styles.headerRight}>
           {showBalance && (
             <View style={styles.balancePill}>
@@ -88,9 +90,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  logoCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: Colors.offWhite,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   logo: {
-    width: 130,
-    height: 34,
+    width: "100%",
+    height: "100%",
   },
   headerRight: {
     flexDirection: "row",
