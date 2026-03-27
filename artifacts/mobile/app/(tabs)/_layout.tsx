@@ -23,7 +23,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const TABS = [
   { name: "index",   icon: "home",         label: "Home"     },
   { name: "reserve", icon: "bookmark",     label: "Reserve"  },
-  { name: "earn",    icon: "box",          label: "Assets"   },
+  { name: "earn",    icon: "package",      label: "Assets"   },
   { name: "profile", icon: "user",         label: "My"       },
 ] as const;
 
