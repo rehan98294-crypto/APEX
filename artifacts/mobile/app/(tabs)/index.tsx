@@ -63,6 +63,38 @@ const FEATURED_COLLECTIONS = [
   },
 ];
 
+const HOT_HERO = {
+  id: "h1",
+  name: "CoolAPE_0069292",
+  price: "1.03K USDT",
+  image: require("../../assets/images/nft6.avif"),
+  creatorAvatar: require("../../assets/images/nft4.avif"),
+};
+
+const HOT_PICKS = [
+  {
+    id: "hp1",
+    name: "CoolAPE_0087392",
+    price: "1.04K",
+    image: require("../../assets/images/nft7.avif"),
+    creatorAvatar: require("../../assets/images/nft5.avif"),
+  },
+  {
+    id: "hp2",
+    name: "CoolAPE_0084755",
+    price: "1.04K",
+    image: require("../../assets/images/nft8.avif"),
+    creatorAvatar: require("../../assets/images/nft3.avif"),
+  },
+  {
+    id: "hp3",
+    name: "CoolAPE_0091038",
+    price: "1.05K",
+    image: require("../../assets/images/nft9.avif"),
+    creatorAvatar: require("../../assets/images/nft2.avif"),
+  },
+];
+
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const [selectedCat, setSelectedCat] = useState("All");
@@ -190,6 +222,47 @@ export default function ExploreScreen() {
           {FEATURED_COLLECTIONS.map((col) => (
             <FeaturedCollectionCard key={col.id} col={col} />
           ))}
+        </View>
+
+        {/* Hot Picks Section */}
+        <View style={styles.hotSection}>
+          <Text style={styles.sectionTitle}>Hot Picks</Text>
+          <View style={{ height: 12 }} />
+
+          {/* Hero NFT */}
+          <Image
+            source={HOT_HERO.image}
+            style={styles.hotHeroImg}
+            contentFit="cover"
+          />
+          <View style={styles.hotHeroInfo}>
+            <View style={styles.hotHeroLeft}>
+              <Image source={HOT_HERO.creatorAvatar} style={styles.hotHeroAvatar} contentFit="cover" />
+              <Text style={styles.hotHeroName}>{HOT_HERO.name}</Text>
+            </View>
+            <View style={styles.hotHeroRight}>
+              <Text style={styles.hotHeroBidLabel}>Highest Bid</Text>
+              <View style={styles.hotHeroPriceRow}>
+                <View style={styles.hotTIcon}><Text style={styles.hotTText}>T</Text></View>
+                <Text style={styles.hotHeroPrice}>{HOT_HERO.price}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Small cards row */}
+          <View style={styles.hotSmallRow}>
+            {HOT_PICKS.map((item) => (
+              <View key={item.id} style={styles.hotSmallCard}>
+                <Image source={item.image} style={styles.hotSmallImg} contentFit="cover" />
+                <Text style={styles.hotSmallName} numberOfLines={2}>{item.name}</Text>
+                <View style={styles.hotSmallBottom}>
+                  <Image source={item.creatorAvatar} style={styles.hotSmallAvatar} contentFit="cover" />
+                  <View style={styles.hotTIcon}><Text style={styles.hotTText}>T</Text></View>
+                  <Text style={styles.hotSmallPrice}>{item.price}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -504,4 +577,34 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   featTotalText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.3 },
+
+  hotSection: { paddingHorizontal: 16, marginTop: 8, marginBottom: 16 },
+  hotHeroImg: {
+    width: "100%",
+    height: 280,
+    borderRadius: 18,
+  },
+  hotHeroInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  hotHeroLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  hotHeroAvatar: { width: 32, height: 32, borderRadius: 16 },
+  hotHeroName: { fontSize: 15, fontFamily: "Inter_700Bold", color: Colors.textPrimary, flex: 1 },
+  hotHeroRight: { alignItems: "flex-end", gap: 4 },
+  hotHeroBidLabel: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  hotHeroPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  hotTIcon: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#2BD9A8", alignItems: "center", justifyContent: "center" },
+  hotTText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
+  hotHeroPrice: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  hotSmallRow: { flexDirection: "row", gap: 10 },
+  hotSmallCard: { flex: 1, gap: 6 },
+  hotSmallImg: { width: "100%", aspectRatio: 1, borderRadius: 14 },
+  hotSmallName: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, lineHeight: 16 },
+  hotSmallBottom: { flexDirection: "row", alignItems: "center", gap: 5 },
+  hotSmallAvatar: { width: 18, height: 18, borderRadius: 9 },
+  hotSmallPrice: { fontSize: 12, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
 });
