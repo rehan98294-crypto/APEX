@@ -205,6 +205,10 @@ importers:
         version: 4.21.0
 
   artifacts/mobile:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.100.0
+        version: 2.100.0
     devDependencies:
       '@babel/core':
         specifier: ^7.25.2

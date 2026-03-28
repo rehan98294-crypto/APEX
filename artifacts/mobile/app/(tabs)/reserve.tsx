@@ -1,9 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -11,12 +14,22 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeIn, FadeOut, useAnimatedStyle, withTiming } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
+import { fetchRandomNFT } from "@/lib/supabase";
 
 const { width } = Dimensions.get("window");
 
@@ -54,6 +67,49 @@ function calcAccumulated(r: ActiveReservation): number {
   return parseFloat((elapsed * r.incomeRate + r.claimed).toFixed(4));
 }
 
+function LoadingPulse() {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0.6);
+
+  useEffect(() => {
+    scale.value = withRepeat(withSequence(withTiming(1.15, { duration: 700 }), withTiming(1, { duration: 700 })), -1, false);
+    opacity.value = withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0.5, { duration: 700 })), -1, false);
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: opacity.value }));
+
+  return (
+    <View style={{ alignItems: "center", marginBottom: 20 }}>
+      <Animated.View style={[animStyle, { marginBottom: 16 }]}>
+        <View style={loadingStyles.outerRing}>
+          <View style={loadingStyles.innerRing}>
+            <ActivityIndicator size="large" color="#5CBFFE" />
+          </View>
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
+const loadingStyles = StyleSheet.create({
+  outerRing: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#E8F7FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  innerRing: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#C2EEFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
+
 export default function ReserveScreen() {
   const insets = useSafeAreaInsets();
   const { balance, earnReward } = useBalance();
@@ -72,6 +128,19 @@ export default function ReserveScreen() {
   const [, setTick] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [modalPhase, setModalPhase] = useState<"hidden" | "loading" | "result">("hidden");
+  const [resultNFT, setResultNFT] = useState<{ name: string; image: any } | null>(null);
+  const [resultProfit, setResultProfit] = useState(0);
+
+  const LOCAL_FALLBACKS = [
+    require("../../assets/images/nft1.avif"),
+    require("../../assets/images/nft2.avif"),
+    require("../../assets/images/nft3.avif"),
+    require("../../assets/images/nft4.avif"),
+    require("../../assets/images/nft5.avif"),
+    require("../../assets/images/nft6.avif"),
+  ];
+
   useEffect(() => {
     timerRef.current = setInterval(() => setTick((t) => t + 1), 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
@@ -81,9 +150,30 @@ export default function ReserveScreen() {
   const cumulativeIncome = parseFloat((totalIncome + liveTotal).toFixed(2));
   const balanceForReservation = parseFloat((balance * 0.001 + 0.01).toFixed(2));
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setModalPhase("loading");
+
+    const delay = 3000 + Math.random() * 2000;
+    const [nftData] = await Promise.all([
+      fetchRandomNFT(),
+      new Promise((res) => setTimeout(res, delay)),
+    ]);
+
+    const profit = parseFloat((Math.random() * 50 + 5).toFixed(2));
+    const fallback = LOCAL_FALLBACKS[Math.floor(Math.random() * LOCAL_FALLBACKS.length)];
+    setResultProfit(profit);
+    setResultNFT(
+      nftData
+        ? { name: nftData.name, image: { uri: nftData.image_url } }
+        : { name: `Stake_${Math.floor(Math.random() * 9000000 + 1000000)}`, image: fallback }
+    );
+    setModalPhase("result");
+  };
+
+  const handleResultConfirm = () => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const income = parseFloat(((balance * 0.001) * (selectedLevel.lv * 0.023)).toFixed(4));
+    const income = resultProfit;
     const ratePerSec = parseFloat((income / 86400).toFixed(10));
     const newR: ActiveReservation = {
       id: Date.now().toString(),
@@ -98,6 +188,8 @@ export default function ReserveScreen() {
     setTodayIncome((p) => parseFloat((p + income).toFixed(4)));
     setTotalIncome((p) => parseFloat((p + income).toFixed(4)));
     earnReward(income, `Reservation Lv${selectedLevel.lv}`);
+    setModalPhase("hidden");
+    setResultNFT(null);
   };
 
   const handleClaim = (id: string) => {
@@ -131,6 +223,60 @@ export default function ReserveScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
+
+      {/* Reservation Result Modal */}
+      <Modal
+        visible={modalPhase !== "hidden"}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+      >
+        <View style={styles.modalOverlay}>
+          {modalPhase === "loading" && (
+            <Animated.View entering={FadeIn.duration(300)} style={styles.modalCard}>
+              <LoadingPulse />
+              <Text style={styles.modalLoadingTitle}>Processing Reservation</Text>
+              <Text style={styles.modalLoadingSub}>Fetching your NFT allocation…</Text>
+            </Animated.View>
+          )}
+
+          {modalPhase === "result" && resultNFT && (
+            <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.modalCard}>
+              <View style={styles.modalTestBadge}>
+                <Text style={styles.modalTestText}>TEST MODE</Text>
+              </View>
+              <Text style={styles.modalResultTitle}>Reservation Matched!</Text>
+              <Image
+                source={resultNFT.image}
+                style={styles.modalNFTImage}
+                contentFit="cover"
+              />
+              <Text style={styles.modalNFTName}>{resultNFT.name}</Text>
+              <View style={styles.modalProfitBox}>
+                <Text style={styles.modalProfitLabel}>Estimated Profit</Text>
+                <View style={styles.modalProfitRow}>
+                  <View style={styles.modalTIcon}><Text style={styles.modalTText}>T</Text></View>
+                  <Text style={styles.modalProfitValue}>+{resultProfit.toFixed(2)} TFT</Text>
+                </View>
+              </View>
+              <Pressable onPress={handleResultConfirm} style={styles.modalConfirmBtn}>
+                <LinearGradient
+                  colors={CONFIRM_GRAD}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFill}
+                  borderRadius={14}
+                />
+                <Text style={styles.modalConfirmText}>Confirm & Collect</Text>
+              </Pressable>
+              <Pressable onPress={() => setModalPhase("hidden")} style={styles.modalCancelLink}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+            </Animated.View>
+          )}
+        </View>
+      </Modal>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 150 }}
@@ -504,4 +650,66 @@ const styles = StyleSheet.create({
   emptyBox: { alignItems: "center", paddingVertical: 40, gap: 10 },
   emptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
   emptySub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 28,
+    padding: 28,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  modalTestBadge: {
+    backgroundColor: "#FFF3E0",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FFB08A60",
+  },
+  modalTestText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#FF8C00", letterSpacing: 1 },
+  modalLoadingTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary, textAlign: "center", marginBottom: 8 },
+  modalLoadingSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
+  modalResultTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginBottom: 16, textAlign: "center" },
+  modalNFTImage: { width: 200, height: 200, borderRadius: 20, marginBottom: 14 },
+  modalNFTName: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, marginBottom: 16 },
+  modalProfitBox: {
+    width: "100%",
+    backgroundColor: "#F0FDF8",
+    borderRadius: 16,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#2BD9A830",
+  },
+  modalProfitLabel: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginBottom: 8 },
+  modalProfitRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  modalTIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#2BD9A8", alignItems: "center", justifyContent: "center" },
+  modalTText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
+  modalProfitValue: { fontSize: 26, fontFamily: "Inter_700Bold", color: "#2BD9A8" },
+  modalConfirmBtn: {
+    width: "100%",
+    height: 52,
+    borderRadius: 14,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  modalConfirmText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.3 },
+  modalCancelLink: { paddingVertical: 6 },
+  modalCancelText: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted },
 });
