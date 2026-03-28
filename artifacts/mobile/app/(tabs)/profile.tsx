@@ -20,16 +20,16 @@ const { width } = Dimensions.get("window");
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 
 const TEAM_STATS = [
-  { label: "Community\nRewards", value: "0.1" },
+  { label: "Community\nrewards", value: "0.1" },
   { label: "Valid\nMembers", value: "0" },
-  { label: "A\nEnthusiast", value: "0" },
-  { label: "B+C\nEnthusiasts", value: "0" },
+  { label: "A enthusiast", value: "0" },
+  { label: "B+C\nenthusiasts", value: "0" },
 ];
 
 const TEAM_LINKS = [
-  { icon: "users", label: "Community\nEnthusiasts" },
-  { icon: "award", label: "Community\nContribution" },
-  { icon: "list", label: "Community\nOrders" },
+  { icon: "users", label: "Community\nenthusiasts" },
+  { icon: "award", label: "Community\ncontribution" },
+  { icon: "list", label: "Community\norders" },
   { icon: "share-2", label: "Referral" },
 ];
 
@@ -77,75 +77,74 @@ export default function ProfileScreen() {
         {/* ── Profile Header ── */}
         <Animated.View entering={FadeInDown.duration(350)} style={styles.profileHeader}>
           <LinearGradient
-            colors={["#C8EEFF", "#E8F9F4", "#FFF0E8"]}
+            colors={["#D0F0FF", "#E6F8FF", "#F8F0FF"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
 
           <View style={styles.profileTopRow}>
-            {/* Avatar */}
             <View style={styles.avatarWrap}>
               <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarGrad}>
                 <Text style={styles.avatarInitials}>JD</Text>
               </LinearGradient>
               <View style={styles.avatarVerify}>
-                <Feather name="check" size={9} color="#fff" />
+                <Feather name="check" size={8} color="#fff" />
               </View>
             </View>
 
-            {/* Name + UID */}
-            <View style={{ flex: 1, gap: 8 }}>
+            <View style={{ flex: 1, gap: 6 }}>
               <View style={styles.nameRow}>
                 <Text style={styles.nameHidden}>{nameVisible ? "James Doe" : "•••••• "}</Text>
                 <Pressable onPress={() => setNameVisible((v) => !v)}>
-                  <Feather name={nameVisible ? "eye" : "eye-off"} size={17} color={Colors.textMuted} />
+                  <Feather name={nameVisible ? "eye" : "eye-off"} size={15} color={Colors.textMuted} />
                 </Pressable>
               </View>
               <View style={styles.uidRow}>
                 <Text style={styles.uidLabel}>UID : </Text>
                 <Text style={styles.uidValue}>{uidVisible ? "TF29834" : "••••••"}</Text>
-                <Pressable onPress={() => setUidVisible((v) => !v)} style={{ marginLeft: 6 }}>
-                  <Feather name={uidVisible ? "eye" : "eye-off"} size={14} color={Colors.textMuted} />
+                <Pressable onPress={() => setUidVisible((v) => !v)} style={{ marginLeft: 4 }}>
+                  <Feather name={uidVisible ? "eye" : "eye-off"} size={12} color={Colors.textMuted} />
                 </Pressable>
               </View>
             </View>
 
-            {/* Calendar */}
             <Pressable style={styles.calendarBtn}>
-              <Feather name="calendar" size={22} color={Colors.textSecondary} />
+              <Feather name="calendar" size={20} color={Colors.textSecondary} />
             </Pressable>
           </View>
 
-          {/* Level + Points pills */}
           <View style={styles.pillsRow}>
             <Pressable style={styles.pill}>
-              <Feather name="user" size={13} color={Colors.textSecondary} />
+              <Feather name="user" size={12} color={Colors.textSecondary} />
               <Text style={styles.pillText}>Level 2</Text>
-              <Feather name="chevron-right" size={13} color={Colors.textMuted} />
+              <Feather name="chevron-right" size={12} color={Colors.textMuted} />
             </Pressable>
             <Pressable style={styles.pill}>
               <Text style={styles.pillText}>350 Points</Text>
-              <Feather name="chevron-right" size={13} color={Colors.textMuted} />
+              <Feather name="chevron-right" size={12} color={Colors.textMuted} />
             </Pressable>
           </View>
         </Animated.View>
 
-        {/* ── Wallet Balance ── */}
-        <Animated.View entering={FadeInDown.duration(400).delay(60)} style={styles.section}>
-          <Text style={styles.sectionLabel}>Wallet Balance</Text>
-          <View style={styles.balanceBigRow}>
-            <View style={styles.tIconMd}><Text style={styles.tIconMdText}>T</Text></View>
-            <Text style={styles.balanceBig}>{balance.toFixed(1)}</Text>
+        {/* ── Wallet Balance Card ── */}
+        <Animated.View entering={FadeInDown.duration(400).delay(60)} style={styles.card}>
+          <View style={styles.balanceSection}>
+            <Text style={styles.balanceSectionLabel}>Wallet Balance</Text>
+            <View style={styles.balanceBigRow}>
+              <View style={styles.tIconMd}><Text style={styles.tIconMdText}>T</Text></View>
+              <Text style={styles.balanceBig}>{balance.toFixed(1)}</Text>
+            </View>
           </View>
 
           {/* Income Table */}
           <View style={styles.incomeTable}>
             <View style={styles.incomeTableHeader}>
-              <View style={{ flex: 1.8 }} />
-              <Text style={[styles.incomeColLabel, { flex: 1.2 }]}>Daily</Text>
-              <Text style={[styles.incomeColLabel, { flex: 1.2, textAlign: "right" }]}>Total</Text>
+              <View style={{ flex: 1.6 }} />
+              <Text style={[styles.incomeColLabel, { flex: 1.2 }]}>Daily income</Text>
+              <Text style={[styles.incomeColLabel, { flex: 1.2, textAlign: "right" }]}>Total income</Text>
             </View>
+
             {INCOME_ROWS.map((row, i) => (
               <View key={row.label} style={[styles.incomeRow, i < INCOME_ROWS.length - 1 && styles.incomeRowBorder]}>
                 <Text style={styles.incomeRowLabel}>{row.label}</Text>
@@ -159,7 +158,7 @@ export default function ProfileScreen() {
                   {row.star
                     ? <View style={styles.starIconXs}><Text style={styles.starIconXsText}>★</Text></View>
                     : <View style={styles.tIconXs}><Text style={styles.tIconXsText}>T</Text></View>}
-                  <Text style={[styles.incomeCellValue, parseFloat(row.total) > 0 && styles.incomeCellActive]}>
+                  <Text style={[styles.incomeCellValue, parseFloat(row.total) > 0 && { color: Colors.textPrimary, fontFamily: "Inter_700Bold" }]}>
                     {row.total}
                   </Text>
                 </View>
@@ -168,22 +167,20 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        <View style={styles.sectionDivider} />
-
         {/* ── My Team ── */}
-        <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.section}>
-          <Text style={styles.sectionTitle}>My Team</Text>
+        <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.card}>
+          <Text style={styles.cardTitle}>My Team</Text>
 
-          <View style={styles.statsRow}>
+          <View style={styles.teamStatsRow}>
             {TEAM_STATS.map((s) => (
-              <View key={s.label} style={styles.statItem}>
-                <Text style={styles.statValue}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
+              <View key={s.label} style={styles.teamStatItem}>
+                <Text style={styles.teamStatValue}>{s.value}</Text>
+                <Text style={styles.teamStatLabel}>{s.label}</Text>
               </View>
             ))}
           </View>
 
-          <View style={styles.innerDivider} />
+          <View style={styles.divider} />
 
           <View style={styles.linkGrid}>
             {TEAM_LINKS.map((link) => (
@@ -198,28 +195,26 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        <View style={styles.sectionDivider} />
-
         {/* ── My Orders ── */}
-        <Animated.View entering={FadeInDown.duration(400).delay(140)} style={styles.section}>
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>My Orders</Text>
+        <Animated.View entering={FadeInDown.duration(400).delay(140)} style={styles.card}>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.cardTitle}>My Orders</Text>
             <Pressable style={styles.checkOrdersBtn}>
               <Text style={styles.checkOrdersText}>Check Orders</Text>
-              <Feather name="chevron-right" size={15} color={Colors.textSecondary} />
+              <Feather name="chevron-right" size={14} color={Colors.textSecondary} />
             </Pressable>
           </View>
 
-          <View style={styles.statsRow}>
+          <View style={styles.teamStatsRow}>
             {ORDER_STATS.map((s) => (
-              <View key={s.label} style={styles.statItem}>
-                <Text style={styles.statValue}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
+              <View key={s.label} style={styles.teamStatItem}>
+                <Text style={styles.teamStatValue}>{s.value}</Text>
+                <Text style={styles.teamStatLabel}>{s.label}</Text>
               </View>
             ))}
           </View>
 
-          <View style={styles.innerDivider} />
+          <View style={styles.divider} />
 
           <View style={styles.linkGrid}>
             {ORDER_LINKS.map((link) => (
@@ -234,11 +229,9 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        <View style={styles.sectionDivider} />
-
         {/* ── Common Functions ── */}
-        <Animated.View entering={FadeInDown.duration(400).delay(180)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Common Functions</Text>
+        <Animated.View entering={FadeInDown.duration(400).delay(180)} style={styles.card}>
+          <Text style={styles.cardTitle}>Common Functions</Text>
           <View style={styles.linkGrid}>
             {COMMON_FUNCS.map((fn) => (
               <Pressable key={fn.label} style={styles.linkItem}>
@@ -260,105 +253,106 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.offWhite },
 
-  /* ── Profile Header ── */
   profileHeader: {
     marginHorizontal: 14,
-    marginBottom: 6,
-    borderRadius: 22,
+    marginBottom: 14,
+    borderRadius: 20,
     overflow: "hidden",
-    padding: 20,
-    gap: 16,
+    padding: 18,
+    gap: 14,
   },
-  profileTopRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  profileTopRow: { flexDirection: "row", alignItems: "center", gap: 14 },
 
   avatarWrap: { position: "relative" },
   avatarGrad: {
-    width: 72, height: 72, borderRadius: 36,
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 2.5, borderColor: "#fff",
-  },
-  avatarInitials: { fontSize: 26, fontFamily: "Inter_700Bold", color: "#fff" },
-  avatarVerify: {
-    position: "absolute", bottom: 1, right: 1,
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: "#5CBFFE",
+    width: 64, height: 64, borderRadius: 32,
     alignItems: "center", justifyContent: "center",
     borderWidth: 2, borderColor: "#fff",
   },
+  avatarInitials: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#fff" },
+  avatarVerify: {
+    position: "absolute", bottom: 1, right: 1,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: "#5CBFFE",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: "#fff",
+  },
 
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  nameHidden: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary, letterSpacing: 2 },
+  nameHidden: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, letterSpacing: 2 },
   uidRow: { flexDirection: "row", alignItems: "center" },
-  uidLabel: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
-  uidValue: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary, letterSpacing: 2 },
+  uidLabel: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
+  uidValue: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary, letterSpacing: 2 },
 
   calendarBtn: {
-    width: 42, height: 42, borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.65)",
+    width: 38, height: 38, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.6)",
     alignItems: "center", justifyContent: "center",
   },
 
   pillsRow: { flexDirection: "row", gap: 10 },
   pill: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row", alignItems: "center", gap: 5,
     backgroundColor: "rgba(255,255,255,0.75)",
-    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
     borderWidth: 1, borderColor: "rgba(255,255,255,0.9)",
   },
-  pillText: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  pillText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
 
-  /* ── Flat Sections ── */
-  section: {
-    paddingHorizontal: 20,
-    paddingVertical: 22,
-    gap: 18,
+  card: {
+    marginHorizontal: 14,
+    marginBottom: 14,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    gap: 16,
   },
-  sectionLabel: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
-  sectionTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  sectionTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  checkOrdersBtn: { flexDirection: "row", alignItems: "center", gap: 3 },
-  checkOrdersText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
+  cardTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  checkOrdersBtn: { flexDirection: "row", alignItems: "center", gap: 2 },
+  checkOrdersText: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
 
-  sectionDivider: { height: 8, backgroundColor: Colors.border, opacity: 0.4 },
-  innerDivider: { height: 1, backgroundColor: Colors.border },
-
-  /* ── Wallet Balance ── */
-  balanceBigRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  tIconMd: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
+  balanceSection: { gap: 8 },
+  balanceSectionLabel: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  balanceBigRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  tIconMd: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
   tIconMdText: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff" },
-  balanceBig: { fontSize: 40, fontFamily: "Inter_700Bold", color: Colors.textPrimary, letterSpacing: -1 },
+  balanceBig: { fontSize: 36, fontFamily: "Inter_700Bold", color: Colors.textPrimary, letterSpacing: -0.5 },
 
-  /* ── Income Table ── */
   incomeTable: { borderRadius: 14, overflow: "hidden", borderWidth: 1, borderColor: Colors.border },
   incomeTableHeader: {
     flexDirection: "row",
-    paddingHorizontal: 16, paddingVertical: 11,
+    paddingHorizontal: 14, paddingVertical: 12,
     backgroundColor: Colors.offWhite,
     borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
   incomeColLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textMuted },
   incomeRow: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 13,
+    paddingHorizontal: 14, paddingVertical: 14,
     backgroundColor: "#fff",
   },
   incomeRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
-  incomeRowLabel: { flex: 1.8, fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  incomeRowLabel: { flex: 1.6, fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
   incomeCell: { flexDirection: "row", alignItems: "center", gap: 5 },
-  incomeCellValue: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
-  incomeCellActive: { color: Colors.textPrimary, fontFamily: "Inter_700Bold" },
-  tIconXs: { width: 17, height: 17, borderRadius: 9, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
+  incomeCellValue: { fontSize: 15, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  tIconXs: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
   tIconXsText: { fontSize: 8, fontFamily: "Inter_700Bold", color: "#fff" },
-  starIconXs: { width: 17, height: 17, borderRadius: 9, backgroundColor: "#FFB800", alignItems: "center", justifyContent: "center" },
+  starIconXs: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#FFB800", alignItems: "center", justifyContent: "center" },
   starIconXsText: { fontSize: 9, color: "#fff" },
 
-  /* ── Stats Row ── */
-  statsRow: { flexDirection: "row", justifyContent: "space-between" },
-  statItem: { flex: 1, alignItems: "center", gap: 6 },
-  statValue: { fontSize: 26, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  statLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textMuted, textAlign: "center" },
+  teamStatsRow: { flexDirection: "row", justifyContent: "space-between" },
+  teamStatItem: { flex: 1, alignItems: "center", gap: 5 },
+  teamStatValue: { fontSize: 24, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  teamStatLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted, textAlign: "center" },
 
-  /* ── Link Grid ── */
+  divider: { height: 1, backgroundColor: Colors.border },
+
   linkGrid: { flexDirection: "row", justifyContent: "space-between" },
   linkItem: { flex: 1, alignItems: "center", gap: 10 },
   linkIconBox: {
@@ -368,8 +362,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   linkLabel: {
-    fontSize: 13, fontFamily: "Inter_600SemiBold",
+    fontSize: 12, fontFamily: "Inter_600SemiBold",
     color: Colors.textSecondary, textAlign: "center",
-    lineHeight: 17,
+    lineHeight: 16,
   },
 });
