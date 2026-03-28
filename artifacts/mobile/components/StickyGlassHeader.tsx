@@ -6,28 +6,21 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { useBalance } from "@/context/BalanceContext";
 
 interface StickyGlassHeaderProps {
   title?: string;
-  subtitle?: string;
   showBalance?: boolean;
   showMenu?: boolean;
 }
 
-export default function StickyGlassHeader({
-  title,
-  subtitle,
-  showBalance = true,
-  showMenu = true,
-}: StickyGlassHeaderProps) {
+export default function StickyGlassHeader({}: StickyGlassHeaderProps) {
   const insets = useSafeAreaInsets();
-  const { balance } = useBalance();
-  const topPad = Platform.OS === "web" ? 12 : insets.top;
+  const topPad = Platform.OS === "web" ? 8 : insets.top;
 
   return (
     <View style={[styles.headerContainer, { paddingTop: topPad }]}>
       <View style={styles.headerContent}>
+        {/* Logo + Brand */}
         <View style={styles.logoBox}>
           <LinearGradient
             colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
@@ -42,42 +35,30 @@ export default function StickyGlassHeader({
           />
         </View>
         <Text style={styles.brandName}>Apex.NFT</Text>
+
         <View style={styles.spacer} />
+
+        {/* Bell + Airdrop + Menu */}
         <View style={styles.headerRight}>
-          {showBalance && (
-            <View style={styles.balancePill}>
-              <View style={styles.tokenIconSm}>
-                <LinearGradient
-                  colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                  borderRadius={8}
-                />
-                <Text style={styles.tokenIconSmText}>T</Text>
-              </View>
-              <Text style={styles.balancePillText}>{balance.toFixed(0)}</Text>
-            </View>
-          )}
-          {showMenu && (
-            <>
-              <Pressable style={styles.iconBtn}>
-                <Feather
-                  name="bell"
-                  size={20}
-                  color={Colors.textPrimary}
-                />
-                <View style={styles.notifDot} />
-              </Pressable>
-              <Pressable style={styles.iconBtn}>
-                <Feather
-                  name="menu"
-                  size={20}
-                  color={Colors.textPrimary}
-                />
-              </Pressable>
-            </>
-          )}
+          <Pressable style={styles.iconBtn}>
+            <Feather name="bell" size={18} color={Colors.textPrimary} />
+            <View style={styles.notifDot} />
+          </Pressable>
+
+          <Pressable style={styles.airdropBtn}>
+            <LinearGradient
+              colors={["#5CBFFE", "#2BD9A8"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+              borderRadius={16}
+            />
+            <Text style={styles.airdropText}>Airdrop</Text>
+          </Pressable>
+
+          <Pressable style={styles.iconBtn}>
+            <Feather name="menu" size={18} color={Colors.textPrimary} />
+          </Pressable>
         </View>
       </View>
     </View>
@@ -87,83 +68,46 @@ export default function StickyGlassHeader({
 const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: Colors.white,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingBottom: 8,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
   headerContent: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   logoBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
-  logo: {
-    width: "100%",
-    height: "100%",
-  },
+  logo: { width: "100%", height: "100%" },
   brandName: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: "Inter_700Bold",
     color: Colors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
-  spacer: {
-    flex: 1,
-  },
+  spacer: { flex: 1 },
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-  },
-  balancePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: Colors.primary + "15",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: Colors.primary + "30",
-  },
-  balancePillText: {
-    fontSize: 13,
-    fontFamily: "Inter_700Bold",
-    color: Colors.primary,
-  },
-  tokenIconSm: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    overflow: "hidden",
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tokenIconSmText: {
-    fontSize: 8,
-    fontFamily: "Inter_700Bold",
-    color: "#fff",
+    gap: 8,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.white + "80",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.offWhite,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.05)",
     alignItems: "center",
@@ -171,13 +115,25 @@ const styles = StyleSheet.create({
   },
   notifDot: {
     position: "absolute",
-    top: 4,
-    right: 4,
-    width: 8,
-    height: 8,
+    top: 5,
+    right: 5,
+    width: 7,
+    height: 7,
     borderRadius: 4,
-    backgroundColor: Colors.pink,
-    borderWidth: 1.5,
-    borderColor: Colors.offWhite,
+    backgroundColor: "#FF4D4F",
+    borderWidth: 1,
+    borderColor: Colors.white,
+  },
+  airdropBtn: {
+    overflow: "hidden",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    position: "relative",
+  },
+  airdropText: {
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
   },
 });

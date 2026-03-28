@@ -186,8 +186,8 @@ export default function ProfileScreen() {
             {TEAM_LINKS.map((link) => (
               <Pressable key={link.label} style={styles.linkItem}>
                 <View style={styles.linkIconBox}>
-                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={32} />
-                  <Feather name={link.icon as any} size={26} color="#fff" />
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
+                  <Feather name={link.icon as any} size={22} color="#fff" />
                 </View>
                 <Text style={styles.linkLabel}>{link.label}</Text>
               </Pressable>
@@ -220,8 +220,8 @@ export default function ProfileScreen() {
             {ORDER_LINKS.map((link) => (
               <Pressable key={link.label} style={styles.linkItem}>
                 <View style={styles.linkIconBox}>
-                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={32} />
-                  <Feather name={link.icon as any} size={26} color="#fff" />
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
+                  <Feather name={link.icon as any} size={22} color="#fff" />
                 </View>
                 <Text style={styles.linkLabel}>{link.label}</Text>
               </Pressable>
@@ -236,8 +236,8 @@ export default function ProfileScreen() {
             {COMMON_FUNCS.map((fn) => (
               <Pressable key={fn.label} style={styles.linkItem}>
                 <View style={styles.linkIconBox}>
-                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={32} />
-                  <Feather name={fn.icon as any} size={26} color="#fff" />
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
+                  <Feather name={fn.icon as any} size={22} color="#fff" />
                 </View>
                 <Text style={styles.linkLabel}>{fn.label}</Text>
               </Pressable>
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   linkGrid: { flexDirection: "row", justifyContent: "space-between" },
   linkItem: { flex: 1, alignItems: "center", gap: 10 },
   linkIconBox: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 52, height: 52, borderRadius: 26,
     overflow: "hidden",
     alignItems: "center", justifyContent: "center",
     position: "relative",

@@ -420,8 +420,8 @@ export default function ReserveScreen() {
         <View style={styles.boxGrid}>
           {STAT_BOXES.map((box, i) => (
             <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor }]}>
-              <Text style={styles.boxLabel}>{box.label}</Text>
-              <Text style={styles.boxValue}>{box.value}</Text>
+              <Text style={styles.boxLabel} numberOfLines={2}>{box.label}</Text>
+              <Text style={styles.boxValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{box.value}</Text>
             </View>
           ))}
         </View>
@@ -444,53 +444,54 @@ export default function ReserveScreen() {
           {/* ── RESERVE TAB ── */}
           {activeTab === "reserve" && (
             <View style={styles.reserveBody}>
+              {/* Selectors row */}
               <View style={styles.selectorsRow}>
-                <View style={{ flex: 1 }}>
-                  <Pressable style={styles.selectorBtn} onPress={() => { setLevelOpen((o) => !o); setAmountOpen(false); }}>
-                    <Text style={styles.selectorLvLabel}>{selectedLevel.label}</Text>
-                    <Text style={styles.selectorRate}>{selectedLevel.rate}</Text>
-                    <Feather name={levelOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
-                  </Pressable>
-                  {levelOpen && (
-                    <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.dropdown}>
-                      <View style={styles.dropdownHeader}>
-                        <Text style={styles.dropdownHdrLv}>LV</Text>
-                        <Text style={styles.dropdownHdrInc}>Income(%)</Text>
-                      </View>
-                      {LEVELS.map((lvl) => {
-                        const isSel = lvl.lv === selectedLevel.lv;
-                        return (
-                          <Pressable key={lvl.lv} style={[styles.dropdownRow, isSel && styles.dropdownRowActive]} onPress={() => { setSelectedLevel(lvl); setLevelOpen(false); }}>
-                            <Text style={[styles.dropdownLv, isSel && styles.dropdownLvActive]}>{lvl.label}</Text>
-                            <Text style={[styles.dropdownRate, isSel && styles.dropdownRateActive]}>{lvl.rate}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </Animated.View>
-                  )}
-                </View>
+                <Pressable style={[styles.selectorBtn, { flex: 1 }]} onPress={() => { setLevelOpen((o) => !o); setAmountOpen(false); }}>
+                  <Text style={styles.selectorLvLabel}>{selectedLevel.label}</Text>
+                  <Text style={styles.selectorRate}>{selectedLevel.rate}</Text>
+                  <Feather name={levelOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
+                </Pressable>
 
-                <View style={{ flex: 1 }}>
-                  <Pressable style={styles.selectorBtn} onPress={() => { setAmountOpen((o) => !o); setLevelOpen(false); }}>
-                    <View style={styles.tokenBadge}><Text style={styles.tokenBadgeText}>T</Text></View>
-                    <Text style={styles.selectorAmountText}>{selectedAmount.token}</Text>
-                    <Feather name={amountOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
-                  </Pressable>
-                  {amountOpen && (
-                    <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.dropdown}>
-                      {AMOUNTS.map((amt) => {
-                        const isSel = amt.token === selectedAmount.token;
-                        return (
-                          <Pressable key={amt.token} style={[styles.dropdownRow, isSel && styles.dropdownRowActive]} onPress={() => { setSelectedAmount(amt); setAmountOpen(false); }}>
-                            <View style={styles.tokenBadgeSm}><Text style={styles.tokenBadgeSmText}>T</Text></View>
-                            <Text style={[styles.dropdownAmtText, isSel && styles.dropdownRateActive]}>{amt.token}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </Animated.View>
-                  )}
-                </View>
+                <Pressable style={[styles.selectorBtn, { flex: 1 }]} onPress={() => { setAmountOpen((o) => !o); setLevelOpen(false); }}>
+                  <View style={styles.tokenBadge}><Text style={styles.tokenBadgeText}>T</Text></View>
+                  <Text style={styles.selectorAmountText}>{selectedAmount.token}</Text>
+                  <Feather name={amountOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
+                </Pressable>
               </View>
+
+              {/* Inline level dropdown */}
+              {levelOpen && (
+                <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.inlineDropdown}>
+                  <View style={styles.dropdownHeader}>
+                    <Text style={styles.dropdownHdrLv}>LV</Text>
+                    <Text style={styles.dropdownHdrInc}>Income (%)</Text>
+                  </View>
+                  {LEVELS.map((lvl) => {
+                    const isSel = lvl.lv === selectedLevel.lv;
+                    return (
+                      <Pressable key={lvl.lv} style={[styles.dropdownRow, isSel && styles.dropdownRowActive]} onPress={() => { setSelectedLevel(lvl); setLevelOpen(false); }}>
+                        <Text style={[styles.dropdownLv, isSel && styles.dropdownLvActive]}>{lvl.label}</Text>
+                        <Text style={[styles.dropdownRate, isSel && styles.dropdownRateActive]}>{lvl.rate}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </Animated.View>
+              )}
+
+              {/* Inline amount dropdown */}
+              {amountOpen && (
+                <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.inlineDropdown}>
+                  {AMOUNTS.map((amt) => {
+                    const isSel = amt.token === selectedAmount.token;
+                    return (
+                      <Pressable key={amt.token} style={[styles.dropdownRow, isSel && styles.dropdownRowActive]} onPress={() => { setSelectedAmount(amt); setAmountOpen(false); }}>
+                        <View style={styles.tokenBadgeSm}><Text style={styles.tokenBadgeSmText}>T</Text></View>
+                        <Text style={[styles.dropdownAmtText, isSel && styles.dropdownRateActive]}>{amt.token}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </Animated.View>
+              )}
 
               <Pressable onPress={handleReserve} style={styles.gradBtn}>
                 <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
@@ -713,25 +714,37 @@ const styles = StyleSheet.create({
   gradBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff", zIndex: 1 },
 
   // Stat boxes
-  boxGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 14, gap: 10, marginBottom: 20 },
+  boxGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 14, gap: 10, marginBottom: 16 },
   statBox: {
     width: (width - 48) / 3,
+    minHeight: 74,
     backgroundColor: Colors.white,
     borderRadius: 12,
     borderLeftWidth: 4,
-    padding: 12,
+    padding: 10,
     paddingLeft: 10,
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
-    gap: 6,
+    justifyContent: "space-between",
   },
-  boxLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, lineHeight: 14 },
-  boxValue: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  boxLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, lineHeight: 13 },
+  boxValue: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginTop: 4 },
 
-  card: { marginHorizontal: 14, paddingBottom: 20 },
+  card: {
+    marginHorizontal: 14,
+    paddingBottom: 20,
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    minHeight: 280,
+  },
 
   tabsRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: Colors.border, paddingHorizontal: 16 },
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 14, position: "relative" },
@@ -740,7 +753,7 @@ const styles = StyleSheet.create({
   tabUnderline: { position: "absolute", bottom: 0, left: "15%", right: "15%", height: 3, borderRadius: 2, backgroundColor: "#5CBFFE" },
 
   reserveBody: { padding: 16, gap: 14 },
-  selectorsRow: { flexDirection: "row", gap: 10, zIndex: 10 },
+  selectorsRow: { flexDirection: "row", gap: 10 },
   selectorBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -760,22 +773,16 @@ const styles = StyleSheet.create({
   tokenBadgeSm: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#5CBFFE", alignItems: "center", justifyContent: "center" },
   tokenBadgeSmText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
 
-  dropdown: {
-    position: "absolute",
-    top: "100%",
-    left: 0,
-    right: 0,
-    marginTop: 4,
+  inlineDropdown: {
     backgroundColor: Colors.white,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: "#000",
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 12,
-    zIndex: 999,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
     overflow: "hidden",
   },
   dropdownHeader: { flexDirection: "row", paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 20 },
