@@ -195,7 +195,8 @@ export default function ProfileScreen() {
             {TEAM_LINKS.map((link) => (
               <Pressable key={link.label} style={styles.linkItem}>
                 <View style={styles.linkIconBox}>
-                  <Feather name={link.icon as any} size={20} color="#5CBFFE" />
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={25} />
+                  <Feather name={link.icon as any} size={20} color="#fff" />
                 </View>
                 <Text style={styles.linkLabel}>{link.label}</Text>
               </Pressable>
@@ -228,7 +229,8 @@ export default function ProfileScreen() {
             {ORDER_LINKS.map((link) => (
               <Pressable key={link.label} style={styles.linkItem}>
                 <View style={styles.linkIconBox}>
-                  <Feather name={link.icon as any} size={20} color="#5CBFFE" />
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={25} />
+                  <Feather name={link.icon as any} size={20} color="#fff" />
                 </View>
                 <Text style={styles.linkLabel}>{link.label}</Text>
               </Pressable>
@@ -243,7 +245,8 @@ export default function ProfileScreen() {
             {COMMON_FUNCS.map((fn) => (
               <Pressable key={fn.label} style={styles.linkItem}>
                 <View style={styles.linkIconBox}>
-                  <Feather name={fn.icon as any} size={20} color="#5CBFFE" />
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={25} />
+                  <Feather name={fn.icon as any} size={20} color="#fff" />
                 </View>
                 <Text style={styles.linkLabel}>{fn.label}</Text>
               </Pressable>
@@ -366,8 +369,9 @@ const styles = StyleSheet.create({
   linkItem: { flex: 1, alignItems: "center", gap: 8 },
   linkIconBox: {
     width: 50, height: 50, borderRadius: 25,
-    backgroundColor: "#EFF9FF",
+    overflow: "hidden",
     alignItems: "center", justifyContent: "center",
+    position: "relative",
   },
   linkLabel: {
     fontSize: 11, fontFamily: "Inter_400Regular",

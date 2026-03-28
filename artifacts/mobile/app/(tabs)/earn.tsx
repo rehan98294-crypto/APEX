@@ -170,7 +170,8 @@ export default function AssetsScreen() {
             ].map((action) => (
               <Pressable key={action.label} style={styles.actionItem}>
                 <View style={styles.actionIconBox}>
-                  <Feather name={action.icon as any} size={22} color="#5CBFFE" />
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
+                  <Feather name={action.icon as any} size={22} color="#fff" />
                 </View>
                 <Text style={styles.actionLabel}>{action.label}</Text>
               </Pressable>
@@ -412,9 +413,10 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#EFF9FF",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
   },
   actionLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
 
@@ -447,9 +449,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#E6FBF5",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+    backgroundColor: "#E6FBF5",
   },
   historyLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
   historyDate: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted },
