@@ -107,6 +107,7 @@ export default function ExploreScreen() {
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <StickyGlassHeader />
+        <View style={{ height: 20 }} />
 
         {/* Hero Banner */}
         <View style={styles.heroBanner}>

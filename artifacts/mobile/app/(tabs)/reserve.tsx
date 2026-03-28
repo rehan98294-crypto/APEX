@@ -31,7 +31,7 @@ import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
 import { fetchRandomNFT } from "@/lib/supabase";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
-    minHeight: 280,
+    minHeight: height * 0.62,
   },
 
   tabsRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: Colors.border, paddingHorizontal: 16 },
