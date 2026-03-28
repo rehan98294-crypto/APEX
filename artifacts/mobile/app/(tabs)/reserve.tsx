@@ -33,7 +33,7 @@ import { fetchRandomNFT } from "@/lib/supabase";
 
 const { width } = Dimensions.get("window");
 
-const CONFIRM_GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
+const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 
 const LEVELS = [
   { lv: 1, label: "Lv1", rate: "1.8-1.95%" },
@@ -52,6 +52,15 @@ const AMOUNTS = [
   { label: "5K-20K", token: "5K-20K" },
 ];
 
+const LOCAL_FALLBACKS = [
+  require("../../assets/images/nft1.avif"),
+  require("../../assets/images/nft2.avif"),
+  require("../../assets/images/nft3.avif"),
+  require("../../assets/images/nft4.avif"),
+  require("../../assets/images/nft5.avif"),
+  require("../../assets/images/nft6.avif"),
+];
+
 interface ActiveReservation {
   id: string;
   level: (typeof LEVELS)[0];
@@ -62,53 +71,55 @@ interface ActiveReservation {
   lastClaim: number;
 }
 
+interface CollectedNFT {
+  id: string;
+  name: string;
+  imageSource: any;
+  price: number;
+  profit: number;
+  level: number;
+  sold: boolean;
+}
+
+type ReservePhase = "idle" | "opening" | "nft_reveal";
+type SellPhase = "idle" | "sell_sheet" | "listed" | "matchmaking" | "profit";
+
 function calcAccumulated(r: ActiveReservation): number {
   const elapsed = (Date.now() - r.lastClaim) / 1000;
   return parseFloat((elapsed * r.incomeRate + r.claimed).toFixed(4));
 }
 
-function LoadingPulse() {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.6);
-
+function SpinnerRing() {
+  const rotate = useSharedValue(0);
   useEffect(() => {
-    scale.value = withRepeat(withSequence(withTiming(1.15, { duration: 700 }), withTiming(1, { duration: 700 })), -1, false);
-    opacity.value = withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0.5, { duration: 700 })), -1, false);
+    rotate.value = withRepeat(withTiming(360, { duration: 900 }), -1, false);
   }, []);
-
-  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: opacity.value }));
-
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotate.value}deg` }] }));
   return (
-    <View style={{ alignItems: "center", marginBottom: 20 }}>
-      <Animated.View style={[animStyle, { marginBottom: 16 }]}>
-        <View style={loadingStyles.outerRing}>
-          <View style={loadingStyles.innerRing}>
-            <ActivityIndicator size="large" color="#5CBFFE" />
-          </View>
-        </View>
-      </Animated.View>
-    </View>
+    <Animated.View style={[style, { width: 60, height: 60, borderRadius: 30, borderWidth: 4, borderColor: "#E0F4FF", borderTopColor: "#5CBFFE" }]} />
   );
 }
 
-const loadingStyles = StyleSheet.create({
-  outerRing: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "#E8F7FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  innerRing: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: "#C2EEFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+function DotsLoader() {
+  const dot1 = useSharedValue(0.3);
+  const dot2 = useSharedValue(0.3);
+  const dot3 = useSharedValue(0.3);
+  useEffect(() => {
+    dot1.value = withRepeat(withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })), -1, false);
+    setTimeout(() => { dot2.value = withRepeat(withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })), -1, false); }, 150);
+    setTimeout(() => { dot3.value = withRepeat(withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })), -1, false); }, 300);
+  }, []);
+  const s1 = useAnimatedStyle(() => ({ opacity: dot1.value }));
+  const s2 = useAnimatedStyle(() => ({ opacity: dot2.value }));
+  const s3 = useAnimatedStyle(() => ({ opacity: dot3.value }));
+  return (
+    <View style={{ flexDirection: "row", gap: 6, justifyContent: "center", marginTop: 60 }}>
+      <Animated.View style={[s1, { width: 8, height: 8, borderRadius: 4, backgroundColor: "#5CBFFE" }]} />
+      <Animated.View style={[s2, { width: 8, height: 8, borderRadius: 4, backgroundColor: "#5CBFFE" }]} />
+      <Animated.View style={[s3, { width: 8, height: 8, borderRadius: 4, backgroundColor: "#5CBFFE" }]} />
+    </View>
+  );
+}
 
 export default function ReserveScreen() {
   const insets = useSafeAreaInsets();
@@ -121,25 +132,24 @@ export default function ReserveScreen() {
   const [levelOpen, setLevelOpen] = useState(false);
   const [amountOpen, setAmountOpen] = useState(false);
   const [activeReservations, setActiveReservations] = useState<ActiveReservation[]>([]);
-  const [collected, setCollected] = useState<ActiveReservation[]>([]);
   const [totalIncome, setTotalIncome] = useState(0);
   const [todayIncome, setTodayIncome] = useState(0);
   const [teamBenefits] = useState(0.1);
   const [, setTick] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [modalPhase, setModalPhase] = useState<"hidden" | "loading" | "result">("hidden");
-  const [resultNFT, setResultNFT] = useState<{ name: string; image: any } | null>(null);
-  const [resultProfit, setResultProfit] = useState(0);
+  // Reserve modal state
+  const [reservePhase, setReservePhase] = useState<ReservePhase>("idle");
+  const [pendingNFT, setPendingNFT] = useState<{ name: string; imageSource: any; price: number; profit: number; level: number } | null>(null);
+  const [expectedIncome, setExpectedIncome] = useState<[number, number]>([18, 19.5]);
 
-  const LOCAL_FALLBACKS = [
-    require("../../assets/images/nft1.avif"),
-    require("../../assets/images/nft2.avif"),
-    require("../../assets/images/nft3.avif"),
-    require("../../assets/images/nft4.avif"),
-    require("../../assets/images/nft5.avif"),
-    require("../../assets/images/nft6.avif"),
-  ];
+  // Collected tab state
+  const [collectedNFTs, setCollectedNFTs] = useState<CollectedNFT[]>([]);
+  const [collectedLoading, setCollectedLoading] = useState(false);
+
+  // Sell flow state
+  const [sellPhase, setSellPhase] = useState<SellPhase>("idle");
+  const [activeSellNFT, setActiveSellNFT] = useState<CollectedNFT | null>(null);
 
   useEffect(() => {
     timerRef.current = setInterval(() => setTick((t) => t + 1), 1000);
@@ -148,68 +158,94 @@ export default function ReserveScreen() {
 
   const liveTotal = activeReservations.reduce((sum, r) => sum + calcAccumulated(r), 0);
   const cumulativeIncome = parseFloat((totalIncome + liveTotal).toFixed(2));
-  const balanceForReservation = parseFloat((balance * 0.001 + 0.01).toFixed(2));
 
-  const handleConfirm = async () => {
+  // ─── STEP 1: Tap Confirm on Reserve tab ──────────────────────────────────
+  const handleReserve = async () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setModalPhase("loading");
 
-    const delay = 3000 + Math.random() * 2000;
+    // Show expected income based on level
+    const base = 10 + selectedLevel.lv * 3;
+    setExpectedIncome([parseFloat((base).toFixed(1)), parseFloat((base + 1.5).toFixed(1))]);
+    setReservePhase("opening");
+
+    const openingDelay = 5000 + Math.random() * 5000; // 5–10s
     const [nftData] = await Promise.all([
       fetchRandomNFT(),
-      new Promise((res) => setTimeout(res, delay)),
+      new Promise((res) => setTimeout(res, openingDelay)),
     ]);
 
     const profit = parseFloat((Math.random() * 50 + 5).toFixed(2));
     const fallback = LOCAL_FALLBACKS[Math.floor(Math.random() * LOCAL_FALLBACKS.length)];
-    setResultProfit(profit);
-    setResultNFT(
+    const price = parseFloat((Math.random() * 200 + 80).toFixed(2));
+
+    setPendingNFT(
       nftData
-        ? { name: nftData.name, image: { uri: nftData.image_url } }
-        : { name: `Stake_${Math.floor(Math.random() * 9000000 + 1000000)}`, image: fallback }
+        ? { name: nftData.name, imageSource: { uri: nftData.image_url }, price, profit, level: nftData.level }
+        : { name: `Apex_${Math.floor(Math.random() * 900000 + 100000)}`, imageSource: fallback, price, profit, level: selectedLevel.lv }
     );
-    setModalPhase("result");
+    setReservePhase("nft_reveal");
   };
 
-  const handleResultConfirm = () => {
+  // ─── STEP 2: Confirm after NFT reveal ────────────────────────────────────
+  const handleNFTConfirm = () => {
+    if (!pendingNFT) return;
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const income = resultProfit;
-    const ratePerSec = parseFloat((income / 86400).toFixed(10));
-    const newR: ActiveReservation = {
+
+    const newCollected: CollectedNFT = {
       id: Date.now().toString(),
-      level: selectedLevel,
-      amount: selectedAmount.token,
-      startTime: Date.now(),
-      incomeRate: ratePerSec,
-      claimed: 0,
-      lastClaim: Date.now(),
+      name: pendingNFT.name,
+      imageSource: pendingNFT.imageSource,
+      price: pendingNFT.price,
+      profit: pendingNFT.profit,
+      level: pendingNFT.level,
+      sold: false,
     };
-    setActiveReservations((prev) => [newR, ...prev]);
-    setTodayIncome((p) => parseFloat((p + income).toFixed(4)));
-    setTotalIncome((p) => parseFloat((p + income).toFixed(4)));
-    earnReward(income, `Reservation Lv${selectedLevel.lv}`);
-    setModalPhase("hidden");
-    setResultNFT(null);
+
+    setReservePhase("idle");
+    setPendingNFT(null);
+    setCollectedLoading(true);
+    setActiveTab("collected");
+
+    setTimeout(() => {
+      setCollectedNFTs((prev) => [newCollected, ...prev]);
+      setCollectedLoading(false);
+    }, 2000);
   };
 
-  const handleClaim = (id: string) => {
+  // ─── STEP 3: Tap Sell on collected card ──────────────────────────────────
+  const handleSell = (nft: CollectedNFT) => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveSellNFT(nft);
+    setSellPhase("sell_sheet");
+  };
+
+  // ─── STEP 4: Tap Completed on sell sheet ─────────────────────────────────
+  const handleCompleted = () => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setActiveReservations((prev) =>
-      prev.map((r) => {
-        if (r.id !== id) return r;
-        const acc = calcAccumulated(r);
-        earnReward(acc, "Claimed reservation income");
-        setTodayIncome((t) => parseFloat((t + acc).toFixed(4)));
-        setTotalIncome((t) => parseFloat((t + acc).toFixed(4)));
-        return { ...r, claimed: 0, lastClaim: Date.now() };
-      })
-    );
+    setSellPhase("listed");
+
+    // Auto-dismiss listed success after 1.5s → start matchmaking
+    setTimeout(() => {
+      setSellPhase("matchmaking");
+      const matchDelay = 5000 + Math.random() * 2000; // 5–7s
+      setTimeout(() => {
+        setSellPhase("profit");
+      }, matchDelay);
+    }, 1500);
   };
 
-  const handleCancel = (id: string) => {
-    const r = activeReservations.find((x) => x.id === id);
-    if (r) setCollected((prev) => [{ ...r, claimed: calcAccumulated(r) }, ...prev]);
-    setActiveReservations((prev) => prev.filter((x) => x.id !== id));
+  // ─── STEP 5: Confirm profit ───────────────────────────────────────────────
+  const handleProfitConfirm = () => {
+    if (!activeSellNFT) return;
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    earnReward(activeSellNFT.profit, `NFT Sale: ${activeSellNFT.name}`);
+    setTodayIncome((p) => parseFloat((p + activeSellNFT.profit).toFixed(4)));
+    setTotalIncome((p) => parseFloat((p + activeSellNFT.profit).toFixed(4)));
+    setCollectedNFTs((prev) => prev.map((n) => n.id === activeSellNFT.id ? { ...n, sold: true } : n));
+
+    setSellPhase("idle");
+    setActiveSellNFT(null);
   };
 
   const STAT_BOXES = [
@@ -224,70 +260,163 @@ export default function ReserveScreen() {
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
 
-      {/* Reservation Result Modal */}
-      <Modal
-        visible={modalPhase !== "hidden"}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-      >
-        <View style={styles.modalOverlay}>
-          {modalPhase === "loading" && (
+      {/* ─── RESERVE MODALS ─────────────────────────────────────────── */}
+      <Modal visible={reservePhase !== "idle"} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.overlay}>
+
+          {/* Phase 1: Opening */}
+          {reservePhase === "opening" && (
             <Animated.View entering={FadeIn.duration(300)} style={styles.modalCard}>
-              <LoadingPulse />
-              <Text style={styles.modalLoadingTitle}>Processing Reservation</Text>
-              <Text style={styles.modalLoadingSub}>Fetching your NFT allocation…</Text>
+              <View style={{ alignItems: "center", marginBottom: 20 }}>
+                <SpinnerRing />
+              </View>
+
+              <View style={styles.incomeBox}>
+                <Text style={styles.incomeBoxLabel}>Expected income</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  <View style={styles.tBadge}><Text style={styles.tBadgeText}>T</Text></View>
+                  <Text style={styles.incomeRange}>{expectedIncome[0]}~{expectedIncome[1]}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.openingTitle}>Opening...</Text>
+
+              <View style={[styles.gradBtn, { opacity: 0.5 }]}>
+                <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                <Text style={styles.gradBtnText}>Confirm</Text>
+              </View>
             </Animated.View>
           )}
 
-          {modalPhase === "result" && resultNFT && (
+          {/* Phase 2: NFT Revealed */}
+          {reservePhase === "nft_reveal" && pendingNFT && (
             <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.modalCard}>
-              <View style={styles.modalTestBadge}>
-                <Text style={styles.modalTestText}>TEST MODE</Text>
-              </View>
-              <Text style={styles.modalResultTitle}>Reservation Matched!</Text>
-              <Image
-                source={resultNFT.image}
-                style={styles.modalNFTImage}
-                contentFit="cover"
-              />
-              <Text style={styles.modalNFTName}>{resultNFT.name}</Text>
-              <View style={styles.modalProfitBox}>
-                <Text style={styles.modalProfitLabel}>Estimated Profit</Text>
-                <View style={styles.modalProfitRow}>
-                  <View style={styles.modalTIcon}><Text style={styles.modalTText}>T</Text></View>
-                  <Text style={styles.modalProfitValue}>+{resultProfit.toFixed(2)} TFT</Text>
+              <Text style={styles.revealTitle}>NFT Matched!</Text>
+
+              <Image source={pendingNFT.imageSource} style={styles.revealImage} contentFit="cover" />
+
+              <Text style={styles.revealName} numberOfLines={1}>{pendingNFT.name}</Text>
+
+              <View style={styles.incomeBox}>
+                <Text style={styles.incomeBoxLabel}>Estimated Profit</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  <View style={styles.tBadge}><Text style={styles.tBadgeText}>T</Text></View>
+                  <Text style={styles.incomeRange}>+{pendingNFT.profit.toFixed(2)} TFT</Text>
                 </View>
               </View>
-              <Pressable onPress={handleResultConfirm} style={styles.modalConfirmBtn}>
-                <LinearGradient
-                  colors={CONFIRM_GRAD}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                  borderRadius={14}
-                />
-                <Text style={styles.modalConfirmText}>Confirm & Collect</Text>
-              </Pressable>
-              <Pressable onPress={() => setModalPhase("hidden")} style={styles.modalCancelLink}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
+
+              <Pressable onPress={handleNFTConfirm} style={styles.gradBtn}>
+                <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                <Text style={styles.gradBtnText}>Confirm</Text>
               </Pressable>
             </Animated.View>
           )}
         </View>
       </Modal>
 
+      {/* ─── SELL MODALS ────────────────────────────────────────────── */}
+      <Modal visible={sellPhase !== "idle"} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.overlay}>
+
+          {/* Sell Sheet */}
+          {sellPhase === "sell_sheet" && activeSellNFT && (
+            <Animated.View entering={FadeInDown.duration(350).springify()} style={styles.sellCard}>
+              <Pressable onPress={() => { setSellPhase("idle"); setActiveSellNFT(null); }} style={styles.closeBtn}>
+                <Feather name="x" size={20} color={Colors.textPrimary} />
+              </Pressable>
+
+              <Image source={activeSellNFT.imageSource} style={styles.sellImage} contentFit="cover" />
+
+              <Text style={styles.sellNFTName} numberOfLines={1}>{activeSellNFT.name}</Text>
+              <Text style={styles.sellHeading}>Sell</Text>
+
+              <View style={styles.sellPriceRow}>
+                <Text style={styles.sellFieldLabel}>Price</Text>
+              </View>
+              <View style={styles.sellInputRow}>
+                <View style={styles.sellCurrencyPill}>
+                  <View style={styles.tBadgeSm}><Text style={styles.tBadgeSmText}>T</Text></View>
+                  <Text style={styles.sellCurrencyText}>USDT</Text>
+                  <Feather name="chevron-down" size={14} color={Colors.textSecondary} />
+                </View>
+                <View style={styles.sellAmountBox}>
+                  <Text style={styles.sellAmountText}>{activeSellNFT.price.toFixed(2)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.feesRow}>
+                <Text style={styles.feesLabel}>Fees</Text>
+              </View>
+              <View style={styles.royaltyRow}>
+                <Text style={styles.royaltyLabel}>Royalty</Text>
+                <Text style={styles.royaltyValue}>0.2 %</Text>
+              </View>
+
+              <Pressable onPress={handleCompleted} style={styles.gradBtn}>
+                <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                <Text style={styles.gradBtnText}>Completed</Text>
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* Listed Successfully */}
+          {sellPhase === "listed" && (
+            <Animated.View entering={FadeIn.duration(300)} style={styles.successCard}>
+              <View style={styles.successCircle}>
+                <Feather name="check" size={36} color="#fff" />
+              </View>
+              <Text style={styles.successText}>Listed Successfully</Text>
+            </Animated.View>
+          )}
+
+          {/* Matchmaking */}
+          {sellPhase === "matchmaking" && (
+            <Animated.View entering={FadeIn.duration(300)} style={styles.modalCard}>
+              <View style={{ alignItems: "center", marginBottom: 20 }}>
+                <SpinnerRing />
+              </View>
+              <Text style={styles.openingTitle}>Matching buyer...</Text>
+              <Text style={styles.matchingSub}>Finding the best offer for your NFT</Text>
+            </Animated.View>
+          )}
+
+          {/* Profit Popup */}
+          {sellPhase === "profit" && activeSellNFT && (
+            <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.modalCard}>
+              <Text style={styles.revealTitle}>Sale Complete!</Text>
+
+              <Image source={activeSellNFT.imageSource} style={styles.revealImage} contentFit="cover" />
+
+              <View style={styles.incomeBox}>
+                <Text style={styles.incomeBoxLabel}>Profit Received</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  <View style={styles.tBadge}><Text style={styles.tBadgeText}>T</Text></View>
+                  <Text style={[styles.incomeRange, { color: "#2BD9A8" }]}>+{activeSellNFT.profit.toFixed(2)} TFT</Text>
+                </View>
+              </View>
+
+              <Pressable onPress={handleProfitConfirm} style={styles.gradBtn}>
+                <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                <Text style={styles.gradBtnText}>Confirm</Text>
+              </Pressable>
+            </Animated.View>
+          )}
+
+        </View>
+      </Modal>
+
+      {/* ─── MAIN SCROLL ────────────────────────────────────────────── */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 150 }}
         onScrollBeginDrag={() => { setLevelOpen(false); setAmountOpen(false); }}
       >
         <StickyGlassHeader />
-
-        {/* Gap between header and boxes */}
         <View style={{ height: 20 }} />
 
-        {/* 6 stat boxes — 2 rows × 3 */}
+        {/* Stat Boxes */}
         <View style={styles.boxGrid}>
           {STAT_BOXES.map((box, i) => (
             <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor }]}>
@@ -297,9 +426,8 @@ export default function ReserveScreen() {
           ))}
         </View>
 
-        {/* Section card */}
+        {/* Tabs Card */}
         <View style={styles.card}>
-          {/* Tabs row */}
           <View style={styles.tabsRow}>
             {(["todays", "reserve", "collected"] as const).map((tab) => {
               const label = tab === "todays" ? "Today's" : tab === "reserve" ? "Reserve" : "Collected";
@@ -313,22 +441,16 @@ export default function ReserveScreen() {
             })}
           </View>
 
-          {/* --- RESERVE TAB --- */}
+          {/* ── RESERVE TAB ── */}
           {activeTab === "reserve" && (
             <View style={styles.reserveBody}>
-              {/* Selectors row */}
               <View style={styles.selectorsRow}>
-                {/* Level dropdown */}
                 <View style={{ flex: 1 }}>
-                  <Pressable
-                    style={styles.selectorBtn}
-                    onPress={() => { setLevelOpen((o) => !o); setAmountOpen(false); }}
-                  >
+                  <Pressable style={styles.selectorBtn} onPress={() => { setLevelOpen((o) => !o); setAmountOpen(false); }}>
                     <Text style={styles.selectorLvLabel}>{selectedLevel.label}</Text>
                     <Text style={styles.selectorRate}>{selectedLevel.rate}</Text>
                     <Feather name={levelOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
                   </Pressable>
-
                   {levelOpen && (
                     <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.dropdown}>
                       <View style={styles.dropdownHeader}>
@@ -338,11 +460,7 @@ export default function ReserveScreen() {
                       {LEVELS.map((lvl) => {
                         const isSel = lvl.lv === selectedLevel.lv;
                         return (
-                          <Pressable
-                            key={lvl.lv}
-                            style={[styles.dropdownRow, isSel && styles.dropdownRowActive]}
-                            onPress={() => { setSelectedLevel(lvl); setLevelOpen(false); }}
-                          >
+                          <Pressable key={lvl.lv} style={[styles.dropdownRow, isSel && styles.dropdownRowActive]} onPress={() => { setSelectedLevel(lvl); setLevelOpen(false); }}>
                             <Text style={[styles.dropdownLv, isSel && styles.dropdownLvActive]}>{lvl.label}</Text>
                             <Text style={[styles.dropdownRate, isSel && styles.dropdownRateActive]}>{lvl.rate}</Text>
                           </Pressable>
@@ -352,32 +470,18 @@ export default function ReserveScreen() {
                   )}
                 </View>
 
-                {/* Amount dropdown */}
                 <View style={{ flex: 1 }}>
-                  <Pressable
-                    style={styles.selectorBtn}
-                    onPress={() => { setAmountOpen((o) => !o); setLevelOpen(false); }}
-                  >
-                    <View style={styles.tokenBadge}>
-                      <Text style={styles.tokenBadgeText}>T</Text>
-                    </View>
+                  <Pressable style={styles.selectorBtn} onPress={() => { setAmountOpen((o) => !o); setLevelOpen(false); }}>
+                    <View style={styles.tokenBadge}><Text style={styles.tokenBadgeText}>T</Text></View>
                     <Text style={styles.selectorAmountText}>{selectedAmount.token}</Text>
                     <Feather name={amountOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
-                    <Pressable style={styles.infoIcon} onPress={() => {}}>
-                      <Feather name="info" size={14} color={Colors.textMuted} />
-                    </Pressable>
                   </Pressable>
-
                   {amountOpen && (
                     <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.dropdown}>
                       {AMOUNTS.map((amt) => {
                         const isSel = amt.token === selectedAmount.token;
                         return (
-                          <Pressable
-                            key={amt.token}
-                            style={[styles.dropdownRow, isSel && styles.dropdownRowActive]}
-                            onPress={() => { setSelectedAmount(amt); setAmountOpen(false); }}
-                          >
+                          <Pressable key={amt.token} style={[styles.dropdownRow, isSel && styles.dropdownRowActive]} onPress={() => { setSelectedAmount(amt); setAmountOpen(false); }}>
                             <View style={styles.tokenBadgeSm}><Text style={styles.tokenBadgeSmText}>T</Text></View>
                             <Text style={[styles.dropdownAmtText, isSel && styles.dropdownRateActive]}>{amt.token}</Text>
                           </Pressable>
@@ -388,25 +492,14 @@ export default function ReserveScreen() {
                 </View>
               </View>
 
-              {/* Confirm button */}
-              <Pressable
-                onPress={handleConfirm}
-                style={styles.confirmWrap}
-                onPressIn={() => {}}
-              >
-                <LinearGradient
-                  colors={CONFIRM_GRAD}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.confirmGrad}
-                >
-                  <Text style={styles.confirmText}>Confirm</Text>
-                </LinearGradient>
+              <Pressable onPress={handleReserve} style={styles.gradBtn}>
+                <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                <Text style={styles.gradBtnText}>Confirm</Text>
               </Pressable>
             </View>
           )}
 
-          {/* --- TODAY'S TAB --- */}
+          {/* ── TODAY'S TAB ── */}
           {activeTab === "todays" && (
             <View style={styles.listBody}>
               {activeReservations.length === 0 ? (
@@ -423,15 +516,7 @@ export default function ReserveScreen() {
                       <View style={styles.resCardRight}>
                         <Text style={styles.resIncomeVal}>+{accumulated.toFixed(4)}</Text>
                         <Text style={styles.resIncomeLabel}>income</Text>
-                        <Pressable onPress={() => handleClaim(r.id)} style={styles.claimBtn}>
-                          <LinearGradient colors={CONFIRM_GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.claimBtnGrad}>
-                            <Text style={styles.claimBtnText}>Claim</Text>
-                          </LinearGradient>
-                        </Pressable>
                       </View>
-                      <Pressable onPress={() => handleCancel(r.id)} style={styles.cancelBtn}>
-                        <Feather name="x" size={14} color={Colors.danger} />
-                      </Pressable>
                     </View>
                   );
                 })
@@ -439,24 +524,40 @@ export default function ReserveScreen() {
             </View>
           )}
 
-          {/* --- COLLECTED TAB --- */}
+          {/* ── COLLECTED TAB ── */}
           {activeTab === "collected" && (
             <View style={styles.listBody}>
-              {collected.length === 0 ? (
-                <EmptyState icon="check-circle" title="Nothing collected yet" sub="Claim your reservation income to see it here" />
+              {collectedLoading ? (
+                <DotsLoader />
+              ) : collectedNFTs.length === 0 ? (
+                <EmptyState icon="package" title="No collected NFTs" sub="Complete a reservation to collect NFTs" />
               ) : (
-                collected.map((r) => (
-                  <View key={r.id} style={[styles.resCard, { opacity: 0.75 }]}>
-                    <View style={styles.resCardLeft}>
-                      <Text style={styles.resLvBadge}>{r.level.label}</Text>
-                      <Text style={styles.resAmount}>{r.amount}</Text>
-                    </View>
-                    <View style={styles.resCardRight}>
-                      <Text style={styles.resIncomeVal}>+{r.claimed.toFixed(4)}</Text>
-                      <Text style={styles.resIncomeLabel}>collected</Text>
-                    </View>
-                  </View>
-                ))
+                <View style={styles.collectedGrid}>
+                  {collectedNFTs.map((nft) => (
+                    <Animated.View key={nft.id} entering={FadeInDown.duration(400).springify()} style={styles.collectedCard}>
+                      <Image source={nft.imageSource} style={styles.collectedImage} contentFit="cover" />
+                      <Text style={styles.collectedName} numberOfLines={1}>{nft.name}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
+                        <View style={styles.tBadgeSm}><Text style={styles.tBadgeSmText}>T</Text></View>
+                        <Text style={styles.collectedPrice}>{nft.price.toFixed(2)}</Text>
+                      </View>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                        <Feather name="trending-up" size={12} color="#2BD9A8" />
+                        <Text style={styles.collectedProfit}>+{nft.profit.toFixed(2)}</Text>
+                      </View>
+                      {!nft.sold ? (
+                        <Pressable onPress={() => handleSell(nft)} style={[styles.gradBtn, { marginTop: 10, paddingVertical: 10 }]}>
+                          <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={12} />
+                          <Text style={[styles.gradBtnText, { fontSize: 14 }]}>Sell</Text>
+                        </Pressable>
+                      ) : (
+                        <View style={[styles.soldBadge]}>
+                          <Text style={styles.soldText}>Sold ✓</Text>
+                        </View>
+                      )}
+                    </Animated.View>
+                  ))}
+                </View>
               )}
             </View>
           )}
@@ -479,13 +580,140 @@ function EmptyState({ icon, title, sub }: { icon: any; title: string; sub: strin
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.offWhite },
 
-  boxGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 14,
-    gap: 10,
-    marginBottom: 20,
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
   },
+
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 28,
+    alignItems: "center",
+    gap: 16,
+  },
+
+  sellCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 28,
+    paddingTop: 48,
+    alignItems: "center",
+    gap: 12,
+    position: "relative",
+  },
+
+  successCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    paddingVertical: 40,
+    paddingHorizontal: 48,
+    alignItems: "center",
+    gap: 16,
+  },
+  successCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#00C853",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successText: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+
+  closeBtn: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.offWhite,
+    borderRadius: 16,
+  },
+
+  // Opening modal
+  incomeBox: {
+    width: "100%",
+    backgroundColor: Colors.offWhite,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  incomeBoxLabel: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
+  incomeRange: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#5CBFFE" },
+  openingTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  matchingSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
+
+  // NFT Reveal
+  revealTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginBottom: 4 },
+  revealImage: { width: 180, height: 180, borderRadius: 16 },
+  revealName: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, maxWidth: "90%", textAlign: "center" },
+
+  // Sell sheet
+  sellImage: { width: 180, height: 180, borderRadius: 16 },
+  sellNFTName: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, textAlign: "center" },
+  sellHeading: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary, alignSelf: "flex-start" },
+  sellPriceRow: { width: "100%", marginBottom: 4 },
+  sellFieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  sellInputRow: { width: "100%", flexDirection: "row", gap: 10 },
+  sellCurrencyPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flex: 1,
+  },
+  sellCurrencyText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, flex: 1 },
+  sellAmountBox: {
+    flex: 1.4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sellAmountText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  divider: { width: "100%", height: 1, backgroundColor: Colors.border },
+  feesRow: { width: "100%", marginBottom: 4 },
+  feesLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  royaltyRow: { width: "100%", flexDirection: "row", justifyContent: "space-between" },
+  royaltyLabel: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  royaltyValue: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+
+  // Badges
+  tBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
+  tBadgeText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" },
+  tBadgeSm: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
+  tBadgeSmText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
+
+  // Gradient button
+  gradBtn: {
+    width: "100%",
+    overflow: "hidden",
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  gradBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff", zIndex: 1 },
+
+  // Stat boxes
+  boxGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 14, gap: 10, marginBottom: 20 },
   statBox: {
     width: (width - 48) / 3,
     backgroundColor: Colors.white,
@@ -503,32 +731,15 @@ const styles = StyleSheet.create({
   boxLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, lineHeight: 14 },
   boxValue: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
 
-  card: {
-    marginHorizontal: 14,
-    paddingBottom: 20,
-  },
+  card: { marginHorizontal: 14, paddingBottom: 20 },
 
-  tabsRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    paddingHorizontal: 16,
-  },
+  tabsRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: Colors.border, paddingHorizontal: 16 },
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 14, position: "relative" },
   tabText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textMuted },
   tabTextActive: { fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  tabUnderline: {
-    position: "absolute",
-    bottom: 0,
-    left: "15%",
-    right: "15%",
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "#5CBFFE",
-  },
+  tabUnderline: { position: "absolute", bottom: 0, left: "15%", right: "15%", height: 3, borderRadius: 2, backgroundColor: "#5CBFFE" },
 
   reserveBody: { padding: 16, gap: 14 },
-
   selectorsRow: { flexDirection: "row", gap: 10, zIndex: 10 },
   selectorBtn: {
     flexDirection: "row",
@@ -540,28 +751,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
   },
   selectorLvLabel: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
   selectorRate: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#5CBFFE", flex: 1 },
   selectorAmountText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, flex: 1 },
-
-  tokenBadge: {
-    width: 22, height: 22, borderRadius: 11,
-    backgroundColor: "#5CBFFE", alignItems: "center", justifyContent: "center",
-  },
+  tokenBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#5CBFFE", alignItems: "center", justifyContent: "center" },
   tokenBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
-  tokenBadgeSm: {
-    width: 18, height: 18, borderRadius: 9,
-    backgroundColor: "#5CBFFE", alignItems: "center", justifyContent: "center",
-  },
+  tokenBadgeSm: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#5CBFFE", alignItems: "center", justifyContent: "center" },
   tokenBadgeSmText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
-
-  infoIcon: { padding: 2 },
 
   dropdown: {
     position: "absolute",
@@ -581,135 +778,60 @@ const styles = StyleSheet.create({
     zIndex: 999,
     overflow: "hidden",
   },
-  dropdownHeader: {
-    flexDirection: "row",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    gap: 20,
-  },
+  dropdownHeader: { flexDirection: "row", paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border, gap: 20 },
   dropdownHdrLv: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textMuted, width: 40 },
   dropdownHdrInc: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textMuted },
-  dropdownRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 20,
-  },
-  dropdownRowActive: { backgroundColor: "#EEF9FF" },
-  dropdownLv: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, width: 40 },
+  dropdownRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, gap: 16 },
+  dropdownRowActive: { backgroundColor: "#F0F9FF" },
+  dropdownLv: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary, width: 40 },
   dropdownLvActive: { color: "#5CBFFE" },
-  dropdownRate: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
-  dropdownRateActive: { color: "#5CBFFE", fontFamily: "Inter_700Bold" },
-  dropdownAmtText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  dropdownRate: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
+  dropdownRateActive: { color: "#5CBFFE", fontFamily: "Inter_600SemiBold" },
+  dropdownAmtText: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
 
-  confirmWrap: { borderRadius: 16, overflow: "hidden", marginTop: 4 },
-  confirmGrad: { paddingVertical: 17, alignItems: "center", justifyContent: "center" },
-  confirmText: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.5 },
-
-  listBody: { padding: 16, gap: 10 },
+  listBody: { padding: 16 },
+  emptyBox: { alignItems: "center", gap: 10, paddingVertical: 40 },
+  emptyTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
+  emptySub: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
 
   resCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.offWhite,
+    backgroundColor: Colors.white,
     borderRadius: 14,
     padding: 14,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   resCardLeft: { flex: 1, gap: 4 },
-  resLvBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#EEF9FF",
-    color: "#5CBFFE",
-    fontSize: 12,
-    fontFamily: "Inter_700Bold",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  resAmount: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
   resCardRight: { alignItems: "flex-end", gap: 4 },
-  resIncomeVal: { fontSize: 16, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  resIncomeLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted },
-  claimBtn: { borderRadius: 10, overflow: "hidden", height: 30, minWidth: 64 },
-  claimBtnGrad: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
-  claimBtnText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" },
-  cancelBtn: {
-    width: 30, height: 30, borderRadius: 8,
-    backgroundColor: Colors.danger + "12",
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: Colors.danger + "30",
-  },
+  resLvBadge: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#5CBFFE" },
+  resAmount: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  resIncomeVal: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#2BD9A8" },
+  resIncomeLabel: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted },
 
-  emptyBox: { alignItems: "center", paddingVertical: 40, gap: 10 },
-  emptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  emptySub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  modalCard: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 28,
-    padding: 28,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 12,
-  },
-  modalTestBadge: {
-    backgroundColor: "#FFF3E0",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#FFB08A60",
-  },
-  modalTestText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#FF8C00", letterSpacing: 1 },
-  modalLoadingTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary, textAlign: "center", marginBottom: 8 },
-  modalLoadingSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
-  modalResultTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginBottom: 16, textAlign: "center" },
-  modalNFTImage: { width: 200, height: 200, borderRadius: 20, marginBottom: 14 },
-  modalNFTName: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, marginBottom: 16 },
-  modalProfitBox: {
-    width: "100%",
-    backgroundColor: "#F0FDF8",
+  // Collected grid
+  collectedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  collectedCard: {
+    width: (width - 56) / 2,
+    backgroundColor: Colors.white,
     borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#2BD9A830",
-  },
-  modalProfitLabel: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginBottom: 8 },
-  modalProfitRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  modalTIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#2BD9A8", alignItems: "center", justifyContent: "center" },
-  modalTText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
-  modalProfitValue: { fontSize: 26, fontFamily: "Inter_700Bold", color: "#2BD9A8" },
-  modalConfirmBtn: {
-    width: "100%",
-    height: 52,
-    borderRadius: 14,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
     overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
   },
-  modalConfirmText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 0.3 },
-  modalCancelLink: { paddingVertical: 6 },
-  modalCancelText: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  collectedImage: { width: "100%", height: 130, borderRadius: 12, marginBottom: 8 },
+  collectedName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  collectedPrice: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  collectedProfit: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#2BD9A8" },
+  soldBadge: { marginTop: 10, backgroundColor: "#F0FFF4", borderRadius: 10, paddingVertical: 8, alignItems: "center" },
+  soldText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#00C853" },
 });
