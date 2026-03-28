@@ -10,13 +10,13 @@ export async function fetchRandomNFT(): Promise<{ name: string; image_url: strin
   try {
     const { data, error } = await supabase
       .from("nfts")
-      .select("name, image_url")
+      .select("title, image_url")
       .limit(50);
 
     if (error || !data || data.length === 0) return null;
 
     const random = data[Math.floor(Math.random() * data.length)];
-    return random;
+    return { name: random.title, image_url: random.image_url };
   } catch {
     return null;
   }
