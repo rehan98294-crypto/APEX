@@ -1,9 +1,7 @@
 import { Feather } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
   Dimensions,
   Platform,
   Pressable,
@@ -190,162 +188,47 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ── My Orders ── */}
-        <Animated.View entering={FadeInDown.duration(400).delay(140)} style={[styles.card, { gap: 0, padding: 0, overflow: "hidden" }]}>
-          {/* Header */}
-          <View style={styles.ordersHeader}>
+        <Animated.View entering={FadeInDown.duration(400).delay(140)} style={styles.card}>
+          <View style={styles.cardTitleRow}>
             <Text style={styles.cardTitle}>My Orders</Text>
-            <View style={styles.ordersBadgeRow}>
-              <View style={[styles.statusBadge, { backgroundColor: "#FFF3E0" }]}>
-                <Text style={[styles.statusBadgeText, { color: "#FF8A00" }]}>{processingOrders.length} Processing</Text>
-              </View>
-              <View style={[styles.statusBadge, { backgroundColor: "#E8F5E9" }]}>
-                <Text style={[styles.statusBadgeText, { color: "#2BD9A8" }]}>{boughtOrders.length} Bought</Text>
-              </View>
-              <View style={[styles.statusBadge, { backgroundColor: "#E8F0FE" }]}>
-                <Text style={[styles.statusBadgeText, { color: "#5CBFFE" }]}>{soldOrders.length} Sold</Text>
-              </View>
-            </View>
+            <Pressable style={styles.checkOrdersBtn}>
+              <Text style={styles.checkOrdersText}>Check Orders</Text>
+              <Feather name="chevron-right" size={14} color={Colors.textSecondary} />
+            </Pressable>
           </View>
 
-          {/* Summary stats */}
-          <View style={styles.ordersSummaryRow}>
+          <View style={styles.teamStatsRow}>
             {[
-              { label: "Total", value: orders.length },
-              { label: "Processing", value: processingOrders.length },
-              { label: "Bought", value: boughtOrders.length },
-              { label: "Sold", value: soldOrders.length },
+              { label: "Orders", value: String(orders.length) },
+              { label: "Processing", value: String(processingOrders.length) },
+              { label: "Bought", value: String(boughtOrders.length) },
+              { label: "Sold", value: String(soldOrders.length) },
             ].map((s) => (
-              <View key={s.label} style={styles.ordersStat}>
-                <Text style={styles.ordersStatValue}>{s.value}</Text>
-                <Text style={styles.ordersStatLabel}>{s.label}</Text>
+              <View key={s.label} style={styles.teamStatItem}>
+                <Text style={styles.teamStatValue}>{s.value}</Text>
+                <Text style={styles.teamStatLabel}>{s.label}</Text>
               </View>
             ))}
           </View>
 
           <View style={styles.divider} />
 
-          {/* Empty state */}
-          {orders.length === 0 && (
-            <View style={styles.ordersEmptyState}>
-              <Feather name="inbox" size={34} color={Colors.textMuted} />
-              <Text style={styles.ordersEmptyText}>No orders yet</Text>
-              <Text style={styles.ordersEmptySubtext}>Reserve an NFT to create your first order</Text>
-            </View>
-          )}
-
-          {/* Processing section */}
-          {processingOrders.length > 0 && (
-            <View style={styles.orderSection}>
-              <View style={styles.orderSectionHeader}>
-                <View style={[styles.orderSectionDot, { backgroundColor: "#FF8A00" }]} />
-                <Text style={styles.orderSectionTitle}>Processing</Text>
-                <Text style={styles.orderSectionCount}>{processingOrders.length}</Text>
-              </View>
-              {processingOrders.map((order) => (
-                <View key={order.order_id} style={styles.orderRow}>
-                  {/* Shimmer placeholder image */}
-                  <View style={styles.orderImgPlaceholder}>
-                    <LinearGradient
-                      colors={["#f0f0f0", "#e0e0e0", "#f0f0f0"]}
-                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <ActivityIndicator size="small" color="#5CBFFE" />
-                  </View>
-                  <View style={styles.orderInfo}>
-                    <Text style={styles.orderIdText}>{order.order_id}</Text>
-                    <Text style={styles.orderSubtext}>Opening box · Level {order.level}</Text>
-                    <View style={[styles.orderStatusPill, { backgroundColor: "#FFF3E0" }]}>
-                      <View style={[styles.orderStatusDot, { backgroundColor: "#FF8A00" }]} />
-                      <Text style={[styles.orderStatusLabel, { color: "#FF8A00" }]}>Processing</Text>
-                    </View>
-                  </View>
+          <View style={styles.linkGrid}>
+            {[
+              { icon: "user", label: "My Bid" },
+              { icon: "file-text", label: "Details" },
+              { icon: "credit-card", label: "Deposit" },
+              { icon: "download", label: "Withdraw" },
+            ].map((link) => (
+              <Pressable key={link.label} style={styles.linkItem}>
+                <View style={styles.linkIconBox}>
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
+                  <Feather name={link.icon as any} size={22} color="#fff" />
                 </View>
-              ))}
-            </View>
-          )}
-
-          {processingOrders.length > 0 && (boughtOrders.length > 0 || soldOrders.length > 0) && (
-            <View style={styles.divider} />
-          )}
-
-          {/* Bought section */}
-          {boughtOrders.length > 0 && (
-            <View style={styles.orderSection}>
-              <View style={styles.orderSectionHeader}>
-                <View style={[styles.orderSectionDot, { backgroundColor: "#2BD9A8" }]} />
-                <Text style={styles.orderSectionTitle}>Bought</Text>
-                <Text style={styles.orderSectionCount}>{boughtOrders.length}</Text>
-              </View>
-              {boughtOrders.map((order) => (
-                <View key={order.order_id} style={styles.orderRow}>
-                  <View style={styles.orderImgBox}>
-                    {order.image_source ? (
-                      <Image source={order.image_source} style={styles.orderImg} contentFit="cover" />
-                    ) : (
-                      <View style={[styles.orderImgBox, { backgroundColor: "#e8f5e9", alignItems: "center", justifyContent: "center" }]}>
-                        <Feather name="image" size={20} color="#2BD9A8" />
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.orderInfo}>
-                    <Text style={styles.orderNftName} numberOfLines={1}>{order.nft_name || "NFT"}</Text>
-                    <Text style={styles.orderIdText}>{order.order_id}</Text>
-                    <View style={styles.orderProfitRow}>
-                      <View style={styles.orderTIcon}><Text style={styles.orderTIconText}>T</Text></View>
-                      <Text style={styles.orderProfitText}>+{order.profit.toFixed(2)} TFT</Text>
-                    </View>
-                  </View>
-                  <View style={[styles.orderStatusPill, { backgroundColor: "#E8F5E9", alignSelf: "flex-start", marginTop: 2 }]}>
-                    <View style={[styles.orderStatusDot, { backgroundColor: "#2BD9A8" }]} />
-                    <Text style={[styles.orderStatusLabel, { color: "#2BD9A8" }]}>Bought</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {boughtOrders.length > 0 && soldOrders.length > 0 && (
-            <View style={styles.divider} />
-          )}
-
-          {/* Sold section */}
-          {soldOrders.length > 0 && (
-            <View style={styles.orderSection}>
-              <View style={styles.orderSectionHeader}>
-                <View style={[styles.orderSectionDot, { backgroundColor: "#5CBFFE" }]} />
-                <Text style={styles.orderSectionTitle}>Sold</Text>
-                <Text style={styles.orderSectionCount}>{soldOrders.length}</Text>
-              </View>
-              {soldOrders.map((order) => (
-                <View key={order.order_id} style={[styles.orderRow, { opacity: 0.85 }]}>
-                  <View style={styles.orderImgBox}>
-                    {order.image_source ? (
-                      <Image source={order.image_source} style={[styles.orderImg, { opacity: 0.7 }]} contentFit="cover" />
-                    ) : (
-                      <View style={[styles.orderImgBox, { backgroundColor: "#E8F0FE", alignItems: "center", justifyContent: "center" }]}>
-                        <Feather name="check-circle" size={20} color="#5CBFFE" />
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.orderInfo}>
-                    <Text style={styles.orderNftName} numberOfLines={1}>{order.nft_name || "NFT"}</Text>
-                    <Text style={styles.orderIdText}>{order.order_id}</Text>
-                    <View style={styles.orderProfitRow}>
-                      <View style={styles.orderTIcon}><Text style={styles.orderTIconText}>T</Text></View>
-                      <Text style={[styles.orderProfitText, { color: "#5CBFFE" }]}>+{order.profit.toFixed(2)} TFT</Text>
-                    </View>
-                  </View>
-                  <View style={[styles.orderStatusPill, { backgroundColor: "#E8F0FE", alignSelf: "flex-start", marginTop: 2 }]}>
-                    <View style={[styles.orderStatusDot, { backgroundColor: "#5CBFFE" }]} />
-                    <Text style={[styles.orderStatusLabel, { color: "#5CBFFE" }]}>Sold</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <View style={{ height: 4 }} />
+                <Text style={styles.linkLabel}>{link.label}</Text>
+              </Pressable>
+            ))}
+          </View>
         </Animated.View>
 
         {/* ── Common Functions ── */}
@@ -471,86 +354,6 @@ const styles = StyleSheet.create({
   teamStatLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted, textAlign: "center" },
 
   divider: { height: 1, backgroundColor: Colors.border },
-
-  ordersHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 12,
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  ordersBadgeRow: { flexDirection: "row", gap: 6 },
-  statusBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
-  statusBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-
-  ordersSummaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingBottom: 14,
-  },
-  ordersStat: { flex: 1, alignItems: "center", gap: 4 },
-  ordersStatValue: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
-  ordersStatLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted, textAlign: "center" },
-
-  ordersEmptyState: {
-    alignItems: "center",
-    paddingVertical: 28,
-    gap: 8,
-  },
-  ordersEmptyText: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
-  ordersEmptySubtext: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center", paddingHorizontal: 20 },
-
-  orderSection: { paddingHorizontal: 18, paddingVertical: 10, gap: 10 },
-  orderSectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  orderSectionDot: { width: 8, height: 8, borderRadius: 4 },
-  orderSectionTitle: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textPrimary, flex: 1 },
-  orderSectionCount: {
-    fontSize: 12, fontFamily: "Inter_600SemiBold",
-    color: Colors.textMuted,
-    backgroundColor: Colors.offWhite,
-    paddingHorizontal: 8, paddingVertical: 2,
-    borderRadius: 10,
-  },
-
-  orderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: Colors.offWhite,
-    borderRadius: 14,
-    padding: 12,
-  },
-  orderImgPlaceholder: {
-    width: 56, height: 56, borderRadius: 12,
-    overflow: "hidden",
-    alignItems: "center", justifyContent: "center",
-    backgroundColor: "#f0f0f0",
-  },
-  orderImgBox: { width: 56, height: 56, borderRadius: 12, overflow: "hidden" },
-  orderImg: { width: 56, height: 56 },
-  orderInfo: { flex: 1, gap: 4 },
-  orderNftName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
-  orderIdText: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted },
-  orderSubtext: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
-  orderProfitRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  orderProfitText: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#2BD9A8" },
-  orderStatusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  orderStatusDot: { width: 6, height: 6, borderRadius: 3 },
-  orderStatusLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-
-  orderTIcon: { width: 16, height: 16, borderRadius: 8, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
-  orderTIconText: { fontSize: 7, fontFamily: "Inter_700Bold", color: "#fff" },
 
   linkGrid: { flexDirection: "row", justifyContent: "space-between" },
   linkItem: { flex: 1, alignItems: "center", gap: 10 },
