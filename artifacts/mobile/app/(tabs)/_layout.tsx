@@ -22,10 +22,11 @@ import Colors from "@/constants/colors";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const TABS = [
-  { name: "index",   icon: "home",         label: "Home"     },
-  { name: "reserve", icon: "bookmark",     label: "Reserve"  },
-  { name: "earn",    icon: "package",      label: "Assets"   },
-  { name: "profile", icon: "user",         label: "My"       },
+  { name: "stake",   icon: "bar-chart-2", label: "Stake"    },
+  { name: "index",   icon: "home",        label: "Home"     },
+  { name: "reserve", icon: "bookmark",    label: "Reserve"  },
+  { name: "earn",    icon: "package",     label: "Assets"   },
+  { name: "profile", icon: "user",        label: "My"       },
 ] as const;
 
 function PillTabBar({ state, navigation }: BottomTabBarProps) {
@@ -112,6 +113,7 @@ export default function TabLayout() {
       tabBar={(props) => <PillTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
+      <Tabs.Screen name="stake" />
       <Tabs.Screen name="index" />
       <Tabs.Screen name="reserve" />
       <Tabs.Screen name="earn" />
