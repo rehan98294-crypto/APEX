@@ -17,6 +17,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Colors from "@/constants/colors";
 import { BalanceProvider } from "@/context/BalanceContext";
 import { OrderProvider } from "@/context/OrderContext";
+import { StakeProvider } from "@/context/StakeContext";
 import { WatchlistProvider } from "@/context/WatchlistContext";
 
 SplashScreen.preventAutoHideAsync();
@@ -63,6 +64,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
             <BalanceProvider>
+              <StakeProvider>
               <OrderProvider>
               <WatchlistProvider>
                 <KeyboardProvider>
@@ -70,6 +72,7 @@ export default function RootLayout() {
                 </KeyboardProvider>
               </WatchlistProvider>
               </OrderProvider>
+              </StakeProvider>
             </BalanceProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

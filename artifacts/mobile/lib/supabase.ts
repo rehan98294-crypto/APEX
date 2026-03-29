@@ -6,6 +6,19 @@ const SUPABASE_ANON_KEY =
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+export async function fetchAllNFTs(): Promise<{ name: string; image_url: string; level: number }[]> {
+  try {
+    const { data, error } = await supabase
+      .from("nfts")
+      .select("title, image_url, level")
+      .limit(30);
+    if (error || !data) return [];
+    return data.map((r) => ({ name: r.title, image_url: r.image_url, level: r.level ?? 1 }));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchRandomNFT(): Promise<{ name: string; image_url: string; level: number } | null> {
   try {
     const { data, error } = await supabase

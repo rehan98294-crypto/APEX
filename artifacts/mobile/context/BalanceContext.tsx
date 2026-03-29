@@ -40,6 +40,8 @@ interface BalanceContextType {
   stakeTokens: (amount: number, lockDays: number, apy: number) => boolean;
   unstakeTokens: (stakeId: string) => boolean;
   earnReward: (amount: number, description: string) => void;
+  spendBalance: (amount: number, description: string) => boolean;
+  creditBalance: (amount: number, description: string) => void;
   addReservation: (r: Omit<Reservation, "id" | "reserveDate">) => boolean;
   cancelReservation: (id: string) => void;
 }
@@ -54,6 +56,8 @@ const BalanceContext = createContext<BalanceContextType>({
   stakeTokens: () => false,
   unstakeTokens: () => false,
   earnReward: () => {},
+  spendBalance: () => false,
+  creditBalance: () => {},
   addReservation: () => false,
   cancelReservation: () => {},
 });
@@ -180,6 +184,30 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const spendBalance = (amount: number, description: string): boolean => {
+    if (amount > balance || amount <= 0) return false;
+    const tx: Transaction = {
+      id: genId(),
+      type: "reserve",
+      amount,
+      description,
+      timestamp: Date.now(),
+    };
+    persist(balance - amount, earnedTotal, [tx, ...transactions].slice(0, 50), stakes, reservations);
+    return true;
+  };
+
+  const creditBalance = (amount: number, description: string): void => {
+    const tx: Transaction = {
+      id: genId(),
+      type: "earn",
+      amount,
+      description,
+      timestamp: Date.now(),
+    };
+    persist(balance + amount, earnedTotal, [tx, ...transactions].slice(0, 50), stakes, reservations);
+  };
+
   const addReservation = (r: Omit<Reservation, "id" | "reserveDate">): boolean => {
     if (r.reservePrice > balance) return false;
     const reservation: Reservation = {
@@ -231,6 +259,8 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
         stakeTokens,
         unstakeTokens,
         earnReward,
+        spendBalance,
+        creditBalance,
         addReservation,
         cancelReservation,
       }}
