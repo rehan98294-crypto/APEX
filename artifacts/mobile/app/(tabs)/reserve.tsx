@@ -29,6 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
+import { useOrders } from "@/context/OrderContext";
 import { fetchRandomNFT } from "@/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
@@ -73,6 +74,7 @@ interface ActiveReservation {
 
 interface CollectedNFT {
   id: string;
+  order_id: string;
   name: string;
   imageSource: any;
   price: number;
@@ -124,6 +126,8 @@ function DotsLoader() {
 export default function ReserveScreen() {
   const insets = useSafeAreaInsets();
   const { balance, earnReward } = useBalance();
+  const { createOrder, updateOrder } = useOrders();
+  const currentOrderIdRef = useRef<string>("");
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
   const [activeTab, setActiveTab] = useState<"todays" | "reserve" | "collected">("reserve");
@@ -163,6 +167,16 @@ export default function ReserveScreen() {
   const handleReserve = async () => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    const orderId = createOrder({
+      nft_name: "",
+      image_source: null,
+      status: "processing",
+      profit: 0,
+      price: 0,
+      level: selectedLevel.lv,
+    });
+    currentOrderIdRef.current = orderId;
+
     // Show expected income based on level
     const base = 10 + selectedLevel.lv * 3;
     setExpectedIncome([parseFloat((base).toFixed(1)), parseFloat((base + 1.5).toFixed(1))]);
@@ -193,6 +207,7 @@ export default function ReserveScreen() {
 
     const newCollected: CollectedNFT = {
       id: Date.now().toString(),
+      order_id: currentOrderIdRef.current,
       name: pendingNFT.name,
       imageSource: pendingNFT.imageSource,
       price: pendingNFT.price,
@@ -200,6 +215,15 @@ export default function ReserveScreen() {
       level: pendingNFT.level,
       sold: false,
     };
+
+    updateOrder(currentOrderIdRef.current, {
+      status: "bought",
+      nft_name: pendingNFT.name,
+      image_source: pendingNFT.imageSource,
+      profit: pendingNFT.profit,
+      price: pendingNFT.price,
+      level: pendingNFT.level,
+    });
 
     setReservePhase("idle");
     setPendingNFT(null);
@@ -243,6 +267,7 @@ export default function ReserveScreen() {
     setTodayIncome((p) => parseFloat((p + activeSellNFT.profit).toFixed(4)));
     setTotalIncome((p) => parseFloat((p + activeSellNFT.profit).toFixed(4)));
     setCollectedNFTs((prev) => prev.map((n) => n.id === activeSellNFT.id ? { ...n, sold: true } : n));
+    updateOrder(activeSellNFT.order_id, { status: "sold" });
 
     setSellPhase("idle");
     setActiveSellNFT(null);

@@ -16,6 +16,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Colors from "@/constants/colors";
 import { BalanceProvider } from "@/context/BalanceContext";
+import { OrderProvider } from "@/context/OrderContext";
 import { WatchlistProvider } from "@/context/WatchlistContext";
 
 SplashScreen.preventAutoHideAsync();
@@ -62,11 +63,13 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
             <BalanceProvider>
+              <OrderProvider>
               <WatchlistProvider>
                 <KeyboardProvider>
                   <RootLayoutNav />
                 </KeyboardProvider>
               </WatchlistProvider>
+              </OrderProvider>
             </BalanceProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
