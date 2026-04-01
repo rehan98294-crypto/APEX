@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Dimensions,
@@ -16,6 +17,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { useOrders } from "@/context/OrderContext";
 
@@ -46,6 +48,8 @@ const COMMON_FUNCS = [
 export default function ProfileScreen() {
   const { balance, earnedTotal } = useBalance();
   const { orders } = useOrders();
+  const { user, signOut } = useAuth();
+  const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
   const processingOrders = orders.filter((o) => o.status === "processing");
@@ -309,7 +313,14 @@ export default function ProfileScreen() {
             <Text style={stScreen.versionText}>Version v3.0.6</Text>
 
             {/* Log out */}
-            <Pressable style={stScreen.actionBtn} onPress={() => setSettingsOpen(false)}>
+            <Pressable
+              style={stScreen.actionBtn}
+              onPress={async () => {
+                setSettingsOpen(false);
+                await signOut();
+                router.replace("/auth/login");
+              }}
+            >
               <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={30} />
               <Text style={stScreen.actionBtnText}>Log out</Text>
             </Pressable>

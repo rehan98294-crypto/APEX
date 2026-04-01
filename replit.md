@@ -55,14 +55,24 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
 
 - Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Supabase client: `src/lib/supabase.ts` — initializes `@supabase/supabase-js` from `SUPABASE_URL` + `SUPABASE_API_KEY` env vars
-- DB service layer: `src/services/db.ts` — reusable CRUD functions (`findAll`, `findOne`, `insertOne`, `insertMany`, `updateOne`, `updateMany`, `deleteOne`, `rpc`) with error handling + logging. All database reads/writes go through this layer.
-- Depends on: `@workspace/db`, `@workspace/api-zod`, `@supabase/supabase-js`
+- App setup: `src/app.ts` — mounts CORS (all origins), JSON/urlencoded parsing, routes at `/api`
+- Routes: `src/routes/index.ts` mounts sub-routers including `auth.ts`
+- Supabase client: `src/lib/supabase.ts` — falls back to hardcoded anon key if env vars missing
+- Auth routes: `src/routes/auth.ts` — POST /api/auth/send-code, /verify-code, /register, /login, /forgot-password, /reset-password
+- Auth service: `src/services/auth.service.ts` — bcryptjs password hashing, SHA-256 OTP hashing, JWT signing (30d expiry)
+- Email service: `src/services/email.ts` — nodemailer with SMTP env vars (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
+- Required env vars: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, JWT_SECRET (optional, has fallback)
+- Depends on: `@workspace/db`, `@workspace/api-zod`, `@supabase/supabase-js`, `bcryptjs`, `nodemailer`, `jsonwebtoken`
 - `pnpm --filter @workspace/api-server run dev` — run the dev server
 - `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+
+### `artifacts/mobile` auth system
+
+- `context/AuthContext.tsx` — AuthProvider with user/token state, signIn/signOut, persisted in AsyncStorage
+- `lib/authApi.ts` — typed fetch wrapper calling API server at `https://${EXPO_PUBLIC_DOMAIN}/api-server/api`
+- `app/auth/` — login, register, forgot password screens (dark theme, no white cards, gradient buttons)
+- `app/_layout.tsx` — auth guard using useSegments + useRouter to redirect unauthenticated users to /auth/login
+- SQL migration: `artifacts/mobile/supabase/create_auth_tables.sql` — run in Supabase SQL Editor to create `users` and `otps` tables
 
 ### `lib/db` (`@workspace/db`)
 

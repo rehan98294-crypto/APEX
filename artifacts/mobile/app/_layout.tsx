@@ -6,7 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -19,14 +19,32 @@ import { BalanceProvider } from "@/context/BalanceContext";
 import { OrderProvider } from "@/context/OrderContext";
 import { StakeProvider } from "@/context/StakeContext";
 import { WatchlistProvider } from "@/context/WatchlistContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (loading) return;
+    const inAuth = segments[0] === "auth";
+    if (!user && !inAuth) {
+      router.replace("/auth/login");
+    } else if (user && inAuth) {
+      router.replace("/(tabs)/");
+    }
+  }, [user, loading, segments]);
+
+  if (loading) return null;
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="auth" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="nft/[id]"
@@ -63,17 +81,19 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
-            <BalanceProvider>
-              <StakeProvider>
-              <OrderProvider>
-              <WatchlistProvider>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-              </WatchlistProvider>
-              </OrderProvider>
-              </StakeProvider>
-            </BalanceProvider>
+            <AuthProvider>
+              <BalanceProvider>
+                <StakeProvider>
+                  <OrderProvider>
+                    <WatchlistProvider>
+                      <KeyboardProvider>
+                        <RootLayoutNav />
+                      </KeyboardProvider>
+                    </WatchlistProvider>
+                  </OrderProvider>
+                </StakeProvider>
+              </BalanceProvider>
+            </AuthProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
       </ErrorBoundary>
