@@ -19,6 +19,52 @@ export async function fetchAllNFTs(): Promise<{ name: string; image_url: string;
   }
 }
 
+// ─── Order persistence ────────────────────────────────────────────────────────
+
+export interface DBOrder {
+  order_id: string;
+  user_id: string;
+  nft_id: string;
+  status: "processing" | "bought" | "sold";
+  profit: number;
+  price: number;
+  level: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function insertOrderToDB(order: DBOrder): Promise<void> {
+  try {
+    const { error } = await supabase.from("orders").insert([order]);
+    if (error) {
+      console.error("[Supabase] insertOrder error:", error.message);
+    } else {
+      console.log("[Supabase] Order inserted:", order.order_id, "status:", order.status);
+    }
+  } catch (err) {
+    console.error("[Supabase] insertOrder exception:", err);
+  }
+}
+
+export async function updateOrderInDB(
+  order_id: string,
+  updates: Partial<Pick<DBOrder, "status" | "nft_id" | "profit" | "price" | "level">>
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from("orders")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("order_id", order_id);
+    if (error) {
+      console.error("[Supabase] updateOrder error:", error.message);
+    } else {
+      console.log("[Supabase] Order updated:", order_id, "→", updates.status ?? "(no status change)");
+    }
+  } catch (err) {
+    console.error("[Supabase] updateOrder exception:", err);
+  }
+}
+
 export async function fetchRandomNFT(): Promise<{ name: string; image_url: string; level: number } | null> {
   try {
     const { data, error } = await supabase
