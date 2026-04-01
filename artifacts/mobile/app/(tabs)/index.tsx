@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -27,7 +27,9 @@ import { useBalance } from "@/context/BalanceContext";
 import { useWatchlist } from "@/context/WatchlistContext";
 import { NFT, NFTS, TOP_COLLECTIONS, RARITY_COLORS } from "@/data/nfts";
 
-const VERIFIED_BADGE = require("@/assets/verified-badge.png");
+function VerifiedBadge({ size = 16 }: { size?: number }) {
+  return <MaterialCommunityIcons name="check-decagram" size={size} color="#4DA8F0" />;
+}
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 52) / 2;
@@ -179,9 +181,7 @@ export default function ExploreScreen() {
                 <View style={styles.topColInfo}>
                   <View style={styles.topColNameRow}>
                     <Text style={styles.topColName}>{col.name}</Text>
-                    {col.name === "Penguin Pals" && (
-                      <Image source={VERIFIED_BADGE} style={styles.verifiedBadgeSm} contentFit="contain" />
-                    )}
+                    <VerifiedBadge size={16} />
                   </View>
                   <View style={styles.topColVolRow}>
                     <View style={styles.topColTIcon}>
@@ -273,7 +273,7 @@ export default function ExploreScreen() {
             <View style={styles.hotHeroLeft}>
               <Image source={HOT_HERO.creatorAvatar} style={styles.hotHeroAvatar} contentFit="cover" />
               <Text style={styles.hotHeroName}>{HOT_HERO.name}</Text>
-              <Image source={VERIFIED_BADGE} style={styles.verifiedBadgeSm} contentFit="contain" />
+              <VerifiedBadge size={16} />
             </View>
             <View style={styles.hotHeroRight}>
               <Text style={styles.hotHeroBidLabel}>Highest Bid</Text>
@@ -343,9 +343,7 @@ function FeaturedCollectionCard({ col }: { col: typeof FEATURED_COLLECTIONS[0] }
       {/* Info row */}
       <View style={styles.featColNameRow}>
         <Text style={styles.featColName}>{col.name}</Text>
-        {col.verified && (
-          <Image source={VERIFIED_BADGE} style={styles.verifiedBadgeMd} contentFit="contain" />
-        )}
+        {col.verified && <VerifiedBadge size={20} />}
       </View>
       <View style={styles.featInfoRow}>
         <View style={styles.featCreatorRow}>
