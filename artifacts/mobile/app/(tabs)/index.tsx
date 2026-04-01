@@ -27,6 +27,8 @@ import { useBalance } from "@/context/BalanceContext";
 import { useWatchlist } from "@/context/WatchlistContext";
 import { NFT, NFTS, TOP_COLLECTIONS, RARITY_COLORS } from "@/data/nfts";
 
+const VERIFIED_BADGE = require("@/assets/verified-badge.png");
+
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 52) / 2;
 
@@ -46,6 +48,7 @@ const FEATURED_COLLECTIONS = [
     ],
     creatorAvatar: require("../../assets/images/nft5.avif"),
     gradColors: ["#C2EEFF", "#D4F7EC", "#FFE8D6"] as [string, string, string],
+    verified: true,
   },
   {
     id: "fc2",
@@ -60,6 +63,7 @@ const FEATURED_COLLECTIONS = [
     ],
     creatorAvatar: require("../../assets/images/nft10.avif"),
     gradColors: ["#E0D4FF", "#C2EEFF", "#FFD6EF"] as [string, string, string],
+    verified: true,
   },
 ];
 
@@ -173,7 +177,12 @@ export default function ExploreScreen() {
                 <Text style={styles.topColRank}>{idx + 1}</Text>
                 <Image source={col.image} style={styles.topColAvatar} contentFit="cover" />
                 <View style={styles.topColInfo}>
-                  <Text style={styles.topColName}>{col.name}</Text>
+                  <View style={styles.topColNameRow}>
+                    <Text style={styles.topColName}>{col.name}</Text>
+                    {col.name === "Penguin Pals" && (
+                      <Image source={VERIFIED_BADGE} style={styles.verifiedBadgeSm} contentFit="contain" />
+                    )}
+                  </View>
                   <View style={styles.topColVolRow}>
                     <View style={styles.topColTIcon}>
                       <Text style={styles.topColTText}>T</Text>
@@ -264,6 +273,7 @@ export default function ExploreScreen() {
             <View style={styles.hotHeroLeft}>
               <Image source={HOT_HERO.creatorAvatar} style={styles.hotHeroAvatar} contentFit="cover" />
               <Text style={styles.hotHeroName}>{HOT_HERO.name}</Text>
+              <Image source={VERIFIED_BADGE} style={styles.verifiedBadgeSm} contentFit="contain" />
             </View>
             <View style={styles.hotHeroRight}>
               <Text style={styles.hotHeroBidLabel}>Highest Bid</Text>
@@ -331,7 +341,12 @@ function FeaturedCollectionCard({ col }: { col: typeof FEATURED_COLLECTIONS[0] }
       </View>
 
       {/* Info row */}
-      <Text style={styles.featColName}>{col.name}</Text>
+      <View style={styles.featColNameRow}>
+        <Text style={styles.featColName}>{col.name}</Text>
+        {col.verified && (
+          <Image source={VERIFIED_BADGE} style={styles.verifiedBadgeMd} contentFit="contain" />
+        )}
+      </View>
       <View style={styles.featInfoRow}>
         <View style={styles.featCreatorRow}>
           <Image source={col.creatorAvatar} style={styles.featAvatar} contentFit="cover" />
@@ -486,7 +501,10 @@ const styles = StyleSheet.create({
   topColRank: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.textPrimary, width: 22, textAlign: "center" },
   topColAvatar: { width: 52, height: 52, borderRadius: 26 },
   topColInfo: { flex: 1 },
-  topColName: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, marginBottom: 4 },
+  topColNameRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 4 },
+  topColName: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  verifiedBadgeSm: { width: 15, height: 15 },
+  verifiedBadgeMd: { width: 20, height: 20 },
   topColVolRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   topColTIcon: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#2BD9A8", alignItems: "center", justifyContent: "center" },
   topColTText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
@@ -580,6 +598,7 @@ const styles = StyleSheet.create({
   featMainImg: { borderRadius: 14 },
   featSmallCol: { flex: 1, gap: 4 },
   featSmallImg: { borderRadius: 10 },
+  featColNameRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   featColName: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
   featInfoRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   featCreatorRow: { flexDirection: "row", alignItems: "center", gap: 6 },
