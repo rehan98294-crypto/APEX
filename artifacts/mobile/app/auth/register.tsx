@@ -22,6 +22,9 @@ import { useAuth } from "@/context/AuthContext";
 
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 
+type OtpPhase = "idle" | "sent" | "verified";
+
+// ─── Country list ─────────────────────────────────────────────────────────────
 const COUNTRIES = [
   { code: "US", flag: "🇺🇸", name: "United States", dial: "+1" },
   { code: "GB", flag: "🇬🇧", name: "United Kingdom", dial: "+44" },
@@ -49,12 +52,12 @@ const COUNTRIES = [
   { code: "AE", flag: "🇦🇪", name: "UAE", dial: "+971" },
   { code: "NG", flag: "🇳🇬", name: "Nigeria", dial: "+234" },
   { code: "ZA", flag: "🇿🇦", name: "South Africa", dial: "+27" },
-  { code: "AR", flag: "🇦🇷", name: "Argentina", dial: "+54" },
   { code: "PK", flag: "🇵🇰", name: "Pakistan", dial: "+92" },
   { code: "BD", flag: "🇧🇩", name: "Bangladesh", dial: "+880" },
   { code: "EG", flag: "🇪🇬", name: "Egypt", dial: "+20" },
 ];
 
+// ─── Country picker modal ─────────────────────────────────────────────────────
 function CountryPickerModal({
   visible,
   onSelect,
@@ -72,14 +75,14 @@ function CountryPickerModal({
   );
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <Pressable style={styles.modalOverlay} onPress={onClose} />
-      <View style={styles.modalSheet}>
-        <View style={styles.modalHandle} />
-        <Text style={styles.modalTitle}>Select Country</Text>
-        <View style={styles.searchWrap}>
+      <Pressable style={s.modalOverlay} onPress={onClose} />
+      <View style={s.modalSheet}>
+        <View style={s.modalHandle} />
+        <Text style={s.modalTitle}>Select Country</Text>
+        <View style={s.searchWrap}>
           <MaterialCommunityIcons name="magnify" size={18} color="rgba(255,255,255,0.4)" />
           <TextInput
-            style={styles.searchInput}
+            style={s.searchInput}
             placeholder="Search country or code"
             placeholderTextColor="rgba(255,255,255,0.3)"
             value={search}
@@ -91,10 +94,13 @@ function CountryPickerModal({
           keyExtractor={(item) => item.code}
           style={{ flex: 1 }}
           renderItem={({ item }) => (
-            <Pressable style={styles.countryRow} onPress={() => { onSelect(item); onClose(); }}>
-              <Text style={styles.countryFlag}>{item.flag}</Text>
-              <Text style={styles.countryName}>{item.name}</Text>
-              <Text style={styles.countryDial}>{item.dial}</Text>
+            <Pressable
+              style={s.countryRow}
+              onPress={() => { onSelect(item); onClose(); }}
+            >
+              <Text style={s.countryFlag}>{item.flag}</Text>
+              <Text style={s.countryName}>{item.name}</Text>
+              <Text style={s.countryDial}>{item.dial}</Text>
             </Pressable>
           )}
         />
@@ -103,42 +109,60 @@ function CountryPickerModal({
   );
 }
 
+// ─── Success loading overlay (4-second) ──────────────────────────────────────
 function LoadingOverlay({ visible }: { visible: boolean }) {
   const spin = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.8)).current;
-
   useEffect(() => {
     if (visible) {
       Animated.loop(
-        Animated.timing(spin, { toValue: 1, duration: 1200, useNativeDriver: true })
+        Animated.timing(spin, { toValue: 1, duration: 1000, useNativeDriver: true })
       ).start();
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
     }
   }, [visible]);
-
   if (!visible) return null;
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
   return (
-    <View style={styles.loadingOverlay}>
-      <Animated.View style={[styles.loadingCircle, { transform: [{ rotate }, { scale }] }]}>
-        <LinearGradient colors={GRAD} style={StyleSheet.absoluteFill} />
+    <View style={s.loadingOverlay}>
+      <Animated.View style={[s.loadingRing, { transform: [{ rotate }] }]}>
+        <LinearGradient colors={GRAD} style={StyleSheet.absoluteFill} borderRadius={40} />
       </Animated.View>
-      <Text style={styles.loadingText}>Creating your account…</Text>
-      <Text style={styles.loadingSubText}>Just a moment</Text>
+      <Text style={s.loadingTitle}>Creating account…</Text>
+      <Text style={s.loadingSubText}>Just a moment</Text>
     </View>
   );
 }
 
+// ─── Field ─────────────────────────────────────────────────────────────────────
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <Text style={s.label}>
+        {label}
+        {required && <Text style={{ color: "#FF6B6B" }}> *</Text>}
+      </Text>
+      {children}
+    </View>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function RegisterScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
+  const otpRef = useRef<TextInput>(null);
 
+  // form values
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [timer, setTimer] = useState(0);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -146,20 +170,28 @@ export default function RegisterScreen() {
   const [country, setCountry] = useState(COUNTRIES[0]);
   const [phone, setPhone] = useState("");
   const [referral, setReferral] = useState("");
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
+
+  // OTP flow
+  const [otpPhase, setOtpPhase] = useState<OtpPhase>("idle");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [emailDelivered, setEmailDelivered] = useState(true);
   const [sendingCode, setSendingCode] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  function startTimer() {
-    setTimer(120);
+  // overall form
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+
+  function startResendTimer() {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setResendTimer(120);
     timerRef.current = setInterval(() => {
-      setTimer((t) => {
-        if (t <= 1) {
-          clearInterval(timerRef.current!);
-          return 0;
-        }
+      setResendTimer((t) => {
+        if (t <= 1) { clearInterval(timerRef.current!); return 0; }
         return t - 1;
       });
     }, 1000);
@@ -171,11 +203,16 @@ export default function RegisterScreen() {
       return;
     }
     setError("");
+    setOtpError("");
     setSendingCode(true);
     try {
-      await authApi.sendCode(email.trim(), "verify");
-      setOtpSent(true);
-      startTimer();
+      const result = await authApi.sendCode(email.trim(), "verify");
+      setEmailDelivered(result.emailDelivered);
+      setOtpPhase("sent");
+      setOtpCode("");
+      startResendTimer();
+      // auto-focus OTP input
+      setTimeout(() => otpRef.current?.focus(), 200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send code.");
     } finally {
@@ -183,13 +220,35 @@ export default function RegisterScreen() {
     }
   }
 
-  async function handleRegister() {
-    if (!username.trim() || !email.trim() || !phone.trim() || !password || !confirmPassword) {
-      setError("Please fill in all required fields.");
+  async function handleVerifyCode() {
+    if (otpCode.trim().length !== 6) {
+      setOtpError("Enter the full 6-digit code.");
       return;
     }
-    if (!otpSent || !otpCode.trim()) {
-      setError("Please get and enter the email verification code.");
+    setOtpError("");
+    setVerifyingCode(true);
+    try {
+      const result = await authApi.verifyCode(email.trim(), otpCode.trim());
+      if (result.success) {
+        setOtpPhase("verified");
+        if (timerRef.current) clearInterval(timerRef.current);
+      } else {
+        setOtpError("Incorrect code. Please try again.");
+      }
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : "Verification failed.");
+    } finally {
+      setVerifyingCode(false);
+    }
+  }
+
+  async function handleRegister() {
+    if (otpPhase !== "verified") {
+      setError("Please verify your email first.");
+      return;
+    }
+    if (!username.trim() || !phone.trim() || !password || !confirmPassword) {
+      setError("Please fill in all required fields.");
       return;
     }
     if (password !== confirmPassword) {
@@ -203,12 +262,6 @@ export default function RegisterScreen() {
     setError("");
     setLoading(true);
     try {
-      const verify = await authApi.verifyCode(email.trim(), otpCode.trim());
-      if (!verify.success) {
-        setError("Incorrect verification code.");
-        setLoading(false);
-        return;
-      }
       const result = await authApi.register({
         username: username.trim(),
         email: email.trim(),
@@ -217,6 +270,7 @@ export default function RegisterScreen() {
         confirmPassword,
         referralCode: referral.trim() || undefined,
       });
+      // 4-second loading animation, then navigate
       await new Promise((r) => setTimeout(r, 4000));
       await signIn(result.token, result.user);
       router.replace("/(tabs)/");
@@ -227,198 +281,284 @@ export default function RegisterScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={s.root}>
       <LoadingOverlay visible={loading} />
       <CountryPickerModal
         visible={showCountryPicker}
         onSelect={setCountry}
         onClose={() => setShowCountryPicker(false)}
       />
+
+      <LinearGradient colors={["#0A0E1A", "#0D1525", "#0A0E1A"]} style={StyleSheet.absoluteFill} />
       <LinearGradient
-        colors={["#0A0E1A", "#0D1525", "#0A0E1A"]}
-        style={StyleSheet.absoluteFill}
-      />
-      <LinearGradient
-        colors={["rgba(43,217,168,0.12)", "transparent", "rgba(92,191,254,0.08)"]}
-        style={[StyleSheet.absoluteFill, { height: 300 }]}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        colors={["rgba(43,217,168,0.10)", "transparent", "rgba(92,191,254,0.06)"]}
+        style={[StyleSheet.absoluteFill, { height: 280 }]}
+        start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }}
       />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
+          contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.logoRow}>
-            <LinearGradient colors={GRAD} style={styles.logoCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Text style={styles.logoText}>TF</Text>
+          {/* Logo */}
+          <View style={s.logoRow}>
+            <LinearGradient colors={GRAD} style={s.logoCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+              <Text style={s.logoText}>TF</Text>
             </LinearGradient>
-            <Text style={styles.brandName}>TreasureFun</Text>
+            <Text style={s.brandName}>TreasureFun</Text>
           </View>
 
-          <Text style={styles.heading}>Sign up</Text>
-          <Text style={styles.subheading}>Create your account and start earning</Text>
+          <Text style={s.heading}>Sign up</Text>
+          <Text style={s.subheading}>Create your account and start earning</Text>
 
-          {error ? (
-            <View style={styles.errorBox}>
-              <MaterialCommunityIcons name="alert-circle" size={16} color="#FF6B6B" />
-              <Text style={styles.errorText}>{error}</Text>
+          {/* Global error */}
+          {!!error && (
+            <View style={s.errorBox}>
+              <MaterialCommunityIcons name="alert-circle" size={15} color="#FF6B6B" />
+              <Text style={s.errorText}>{error}</Text>
             </View>
-          ) : null}
+          )}
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Username <Text style={{ color: "#FF6B6B" }}>*</Text></Text>
-            <View style={styles.inputWrap}>
-              <MaterialCommunityIcons name="account-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+          {/* ── Username ─────────────────────────── */}
+          <Field label="Username" required>
+            <View style={s.inputWrap}>
+              <MaterialCommunityIcons name="account-outline" size={19} color="rgba(255,255,255,0.35)" style={s.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={s.input}
                 placeholder="Choose a username"
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholderTextColor="rgba(255,255,255,0.28)"
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
               />
             </View>
+          </Field>
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Email <Text style={{ color: "#FF6B6B" }}>*</Text></Text>
-            <View style={styles.inputWrap}>
-              <MaterialCommunityIcons name="email-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+          {/* ── Email + OTP section ───────────────── */}
+          <Field label="Email" required>
+            {/* Email row */}
+            <View style={s.inputWrap}>
+              <MaterialCommunityIcons name="email-outline" size={19} color="rgba(255,255,255,0.35)" style={s.inputIcon} />
               <TextInput
-                style={[styles.input, { paddingRight: 88 }]}
+                style={[s.input, { paddingRight: 90 }]}
                 placeholder="Enter your email"
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholderTextColor="rgba(255,255,255,0.28)"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(v) => {
+                  setEmail(v);
+                  if (otpPhase !== "idle") {
+                    setOtpPhase("idle");
+                    setOtpCode("");
+                    setOtpError("");
+                  }
+                }}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                editable={otpPhase === "idle"}
               />
-              <Pressable
-                style={[styles.codeBtn, (sendingCode || timer > 0) && { opacity: 0.6 }]}
-                onPress={handleSendCode}
-                disabled={sendingCode || timer > 0}
-              >
-                {sendingCode ? (
-                  <ActivityIndicator size="small" color="#5CBFFE" />
-                ) : timer > 0 ? (
-                  <Text style={styles.codeBtnText}>{timer}s</Text>
-                ) : (
-                  <Text style={styles.codeBtnText}>Get</Text>
-                )}
-              </Pressable>
-            </View>
-
-            {otpSent && (
-              <>
-                <Text style={[styles.label, { marginTop: 16 }]}>Verification Code <Text style={{ color: "#FF6B6B" }}>*</Text></Text>
-                <View style={styles.inputWrap}>
-                  <MaterialCommunityIcons name="shield-key-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter 6-digit code"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={otpCode}
-                    onChangeText={setOtpCode}
-                    keyboardType="number-pad"
-                    maxLength={6}
+              {otpPhase === "idle" && (
+                <Pressable
+                  style={[s.getCodeBtn, sendingCode && { opacity: 0.6 }]}
+                  onPress={handleSendCode}
+                  disabled={sendingCode}
+                >
+                  {sendingCode ? (
+                    <ActivityIndicator size="small" color="#5CBFFE" />
+                  ) : (
+                    <Text style={s.getCodeText}>Get Code</Text>
+                  )}
+                </Pressable>
+              )}
+              {otpPhase !== "idle" && (
+                <View style={s.verifiedBadgeSmall}>
+                  <MaterialCommunityIcons
+                    name={otpPhase === "verified" ? "check-circle" : "clock-outline"}
+                    size={16}
+                    color={otpPhase === "verified" ? "#2BD9A8" : "#FFB08A"}
                   />
                 </View>
-                {timer > 0 && (
-                  <Text style={styles.timerText}>Resend code in {timer}s</Text>
+              )}
+            </View>
+
+            {/* OTP input — visible when phase is "sent" */}
+            {otpPhase === "sent" && (
+              <View style={s.otpSection}>
+                {/* Email delivery notice */}
+                {!emailDelivered && (
+                  <View style={s.noEmailBanner}>
+                    <MaterialCommunityIcons name="email-off-outline" size={14} color="#FFB08A" />
+                    <Text style={s.noEmailText}>
+                      Email not delivered — check server console for your OTP code
+                    </Text>
+                  </View>
                 )}
-                {timer === 0 && otpSent && (
-                  <Pressable onPress={handleSendCode} style={styles.resendBtn}>
-                    <Text style={styles.resendText}>Resend code</Text>
+                {emailDelivered && (
+                  <View style={s.emailSentBanner}>
+                    <MaterialCommunityIcons name="email-check-outline" size={14} color="#2BD9A8" />
+                    <Text style={s.emailSentText}>Code sent to {email}</Text>
+                  </View>
+                )}
+
+                {/* Code input row */}
+                <View style={s.otpRow}>
+                  <TextInput
+                    ref={otpRef}
+                    style={[s.otpInput, !!otpError && s.otpInputError]}
+                    placeholder="_ _ _ _ _ _"
+                    placeholderTextColor="rgba(255,255,255,0.25)"
+                    value={otpCode}
+                    onChangeText={(v) => {
+                      setOtpCode(v.replace(/[^0-9]/g, "").slice(0, 6));
+                      setOtpError("");
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    autoFocus
+                  />
+                  <Pressable
+                    style={[s.verifyBtn, (verifyingCode || otpCode.length < 6) && { opacity: 0.55 }]}
+                    onPress={handleVerifyCode}
+                    disabled={verifyingCode || otpCode.length < 6}
+                  >
+                    <LinearGradient colors={GRAD} style={[StyleSheet.absoluteFill, { borderRadius: 11 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+                    {verifyingCode ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={s.verifyBtnText}>Verify</Text>
+                    )}
                   </Pressable>
+                </View>
+
+                {/* OTP error */}
+                {!!otpError && (
+                  <Text style={s.otpErrorText}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={12} color="#FF6B6B" /> {otpError}
+                  </Text>
                 )}
-              </>
+
+                {/* Resend */}
+                <View style={s.resendRow}>
+                  {resendTimer > 0 ? (
+                    <Text style={s.timerText}>Resend in {resendTimer}s</Text>
+                  ) : (
+                    <Pressable onPress={handleSendCode} disabled={sendingCode}>
+                      <Text style={s.resendText}>
+                        {sendingCode ? "Sending…" : "Resend code"}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              </View>
             )}
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Password <Text style={{ color: "#FF6B6B" }}>*</Text></Text>
-            <View style={styles.inputWrap}>
-              <MaterialCommunityIcons name="lock-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+            {/* Verified badge */}
+            {otpPhase === "verified" && (
+              <View style={s.verifiedBadge}>
+                <MaterialCommunityIcons name="check-circle" size={16} color="#2BD9A8" />
+                <Text style={s.verifiedText}>Email verified</Text>
+                <Pressable onPress={() => { setOtpPhase("idle"); setOtpCode(""); }} style={s.changeEmailBtn}>
+                  <Text style={s.changeEmailText}>Change</Text>
+                </Pressable>
+              </View>
+            )}
+          </Field>
+
+          {/* ── Password ─────────────────────────── */}
+          <Field label="Password" required>
+            <View style={s.inputWrap}>
+              <MaterialCommunityIcons name="lock-outline" size={19} color="rgba(255,255,255,0.35)" style={s.inputIcon} />
               <TextInput
-                style={[styles.input, { paddingRight: 44 }]}
+                style={[s.input, { paddingRight: 44 }]}
                 placeholder="Min. 8 characters"
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholderTextColor="rgba(255,255,255,0.28)"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPw}
                 autoCapitalize="none"
               />
-              <Pressable style={styles.eyeBtn} onPress={() => setShowPw((v) => !v)}>
-                <MaterialCommunityIcons name={showPw ? "eye" : "eye-off"} size={20} color="rgba(255,255,255,0.4)" />
+              <Pressable style={s.eyeBtn} onPress={() => setShowPw((v) => !v)}>
+                <MaterialCommunityIcons name={showPw ? "eye" : "eye-off"} size={19} color="rgba(255,255,255,0.35)" />
               </Pressable>
             </View>
+          </Field>
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Confirm Password <Text style={{ color: "#FF6B6B" }}>*</Text></Text>
-            <View style={styles.inputWrap}>
-              <MaterialCommunityIcons name="lock-check-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+          <Field label="Confirm Password" required>
+            <View style={s.inputWrap}>
+              <MaterialCommunityIcons name="lock-check-outline" size={19} color="rgba(255,255,255,0.35)" style={s.inputIcon} />
               <TextInput
-                style={[styles.input, { paddingRight: 44 }]}
+                style={[s.input, { paddingRight: 44 }]}
                 placeholder="Re-enter password"
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholderTextColor="rgba(255,255,255,0.28)"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showCpw}
                 autoCapitalize="none"
               />
-              <Pressable style={styles.eyeBtn} onPress={() => setShowCpw((v) => !v)}>
-                <MaterialCommunityIcons name={showCpw ? "eye" : "eye-off"} size={20} color="rgba(255,255,255,0.4)" />
+              <Pressable style={s.eyeBtn} onPress={() => setShowCpw((v) => !v)}>
+                <MaterialCommunityIcons name={showCpw ? "eye" : "eye-off"} size={19} color="rgba(255,255,255,0.35)" />
               </Pressable>
             </View>
+          </Field>
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Mobile Number <Text style={{ color: "#FF6B6B" }}>*</Text></Text>
-            <View style={styles.phoneRow}>
-              <Pressable style={styles.countryBtn} onPress={() => setShowCountryPicker(true)}>
-                <Text style={styles.countryBtnFlag}>{country.flag}</Text>
-                <Text style={styles.countryBtnDial}>{country.dial}</Text>
-                <MaterialCommunityIcons name="chevron-down" size={16} color="rgba(255,255,255,0.5)" />
+          {/* ── Phone ────────────────────────────── */}
+          <Field label="Mobile Number" required>
+            <View style={s.phoneRow}>
+              <Pressable style={s.countryBtn} onPress={() => setShowCountryPicker(true)}>
+                <Text style={s.countryBtnFlag}>{country.flag}</Text>
+                <Text style={s.countryBtnDial}>{country.dial}</Text>
+                <MaterialCommunityIcons name="chevron-down" size={15} color="rgba(255,255,255,0.5)" />
               </Pressable>
-              <View style={[styles.inputWrap, { flex: 1 }]}>
+              <View style={[s.inputWrap, { flex: 1 }]}>
                 <TextInput
-                  style={[styles.input, { paddingLeft: 14 }]}
+                  style={[s.input, { paddingLeft: 14 }]}
                   placeholder="Phone number"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholderTextColor="rgba(255,255,255,0.28)"
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
                 />
               </View>
             </View>
+          </Field>
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Referral Code <Text style={{ color: "rgba(255,255,255,0.35)" }}>(optional)</Text></Text>
-            <View style={styles.inputWrap}>
-              <MaterialCommunityIcons name="ticket-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+          {/* ── Referral ─────────────────────────── */}
+          <Field label="Referral Code">
+            <View style={s.inputWrap}>
+              <MaterialCommunityIcons name="ticket-outline" size={19} color="rgba(255,255,255,0.35)" style={s.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Enter referral code"
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                style={s.input}
+                placeholder="Optional"
+                placeholderTextColor="rgba(255,255,255,0.28)"
                 value={referral}
                 onChangeText={setReferral}
                 autoCapitalize="characters"
               />
             </View>
-          </View>
+          </Field>
 
+          {/* ── Register button ───────────────────── */}
           <Pressable
-            style={[styles.submitWrap, loading && { opacity: 0.7 }]}
+            style={[s.submitWrap, (loading || otpPhase !== "verified") && { opacity: otpPhase !== "verified" ? 0.45 : 0.7 }]}
             onPress={handleRegister}
-            disabled={loading}
+            disabled={loading || otpPhase !== "verified"}
           >
-            <LinearGradient colors={GRAD} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <LinearGradient colors={GRAD} style={s.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.submitText}>Sign up</Text>
+                <Text style={s.submitText}>
+                  {otpPhase !== "verified" ? "Verify email to continue" : "Sign up"}
+                </Text>
               )}
             </LinearGradient>
           </Pressable>
 
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Have an account? </Text>
+          <View style={s.switchRow}>
+            <Text style={s.switchLabel}>Have an account? </Text>
             <Pressable onPress={() => router.push("/auth/login")}>
-              <Text style={styles.switchLink}>Log in</Text>
+              <Text style={s.switchLink}>Log in</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -427,50 +567,71 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#0A0E1A" },
-  scroll: { paddingHorizontal: 24 },
-  logoRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 36 },
+  scroll: { paddingHorizontal: 22 },
+  logoRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 32 },
   logoCircle: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   logoText: { color: "#fff", fontWeight: "800", fontSize: 14 },
-  brandName: { color: "#fff", fontSize: 19, fontWeight: "700", letterSpacing: 0.3 },
-  heading: { color: "#fff", fontSize: 28, fontWeight: "800", marginBottom: 6, letterSpacing: -0.5 },
-  subheading: { color: "rgba(255,255,255,0.4)", fontSize: 14, marginBottom: 28, lineHeight: 20 },
-  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,107,107,0.12)", borderRadius: 10, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: "rgba(255,107,107,0.25)" },
+  brandName: { color: "#fff", fontSize: 19, fontWeight: "700" },
+  heading: { color: "#fff", fontSize: 26, fontWeight: "800", marginBottom: 5, letterSpacing: -0.4 },
+  subheading: { color: "rgba(255,255,255,0.38)", fontSize: 14, marginBottom: 26, lineHeight: 20 },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,107,107,0.1)", borderRadius: 10, padding: 12, marginBottom: 18, borderWidth: 1, borderColor: "rgba(255,107,107,0.22)" },
   errorText: { color: "#FF6B6B", fontSize: 13, flex: 1 },
-  fieldGroup: { gap: 0 },
-  label: { color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: "600", marginBottom: 8, letterSpacing: 0.2 },
-  inputWrap: { backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 13, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", flexDirection: "row", alignItems: "center", height: 52 },
-  inputIcon: { marginLeft: 14, marginRight: 2 },
-  input: { flex: 1, color: "#fff", fontSize: 15, paddingHorizontal: 12, height: "100%" },
+  label: { color: "rgba(255,255,255,0.6)", fontSize: 12.5, fontWeight: "600", marginBottom: 7, letterSpacing: 0.2 },
+  inputWrap: { backgroundColor: "rgba(255,255,255,0.055)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.09)", flexDirection: "row", alignItems: "center", height: 50, overflow: "hidden" },
+  inputIcon: { marginLeft: 13, marginRight: 2 },
+  input: { flex: 1, color: "#fff", fontSize: 15, paddingHorizontal: 11, height: "100%" },
   eyeBtn: { position: "absolute", right: 12, padding: 4 },
-  codeBtn: { position: "absolute", right: 6, backgroundColor: "rgba(92,191,254,0.12)", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(92,191,254,0.3)" },
-  codeBtnText: { color: "#5CBFFE", fontWeight: "700", fontSize: 13 },
-  timerText: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 6, textAlign: "right" },
-  resendBtn: { alignSelf: "flex-end", marginTop: 6 },
-  resendText: { color: "#5CBFFE", fontSize: 13, fontWeight: "600" },
+  // Email / OTP
+  getCodeBtn: { position: "absolute", right: 6, backgroundColor: "rgba(92,191,254,0.10)", borderRadius: 8, paddingHorizontal: 11, paddingVertical: 7, borderWidth: 1, borderColor: "rgba(92,191,254,0.25)" },
+  getCodeText: { color: "#5CBFFE", fontWeight: "700", fontSize: 13 },
+  verifiedBadgeSmall: { position: "absolute", right: 12 },
+  otpSection: { marginTop: 10, gap: 8 },
+  noEmailBanner: { flexDirection: "row", alignItems: "flex-start", gap: 7, backgroundColor: "rgba(255,176,138,0.10)", borderRadius: 9, padding: 10, borderWidth: 1, borderColor: "rgba(255,176,138,0.22)" },
+  noEmailText: { color: "#FFB08A", fontSize: 12, flex: 1, lineHeight: 18 },
+  emailSentBanner: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(43,217,168,0.08)", borderRadius: 9, padding: 10, borderWidth: 1, borderColor: "rgba(43,217,168,0.18)" },
+  emailSentText: { color: "#2BD9A8", fontSize: 12, flex: 1 },
+  otpRow: { flexDirection: "row", gap: 10 },
+  otpInput: { flex: 1, backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 20, fontWeight: "700", textAlign: "center", height: 52, letterSpacing: 6 },
+  otpInputError: { borderColor: "rgba(255,107,107,0.5)" },
+  verifyBtn: { width: 90, height: 52, borderRadius: 11, overflow: "hidden", alignItems: "center", justifyContent: "center", position: "relative" },
+  verifyBtnText: { color: "#fff", fontWeight: "700", fontSize: 14, zIndex: 1 },
+  otpErrorText: { color: "#FF6B6B", fontSize: 12, marginTop: 2 },
+  resendRow: { flexDirection: "row", justifyContent: "flex-end" },
+  timerText: { color: "rgba(255,255,255,0.38)", fontSize: 12 },
+  resendText: { color: "#5CBFFE", fontSize: 12, fontWeight: "600" },
+  verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(43,217,168,0.08)", borderRadius: 9, padding: 10, marginTop: 8, borderWidth: 1, borderColor: "rgba(43,217,168,0.18)" },
+  verifiedText: { color: "#2BD9A8", fontSize: 13, fontWeight: "600", flex: 1 },
+  changeEmailBtn: { paddingHorizontal: 8 },
+  changeEmailText: { color: "#5CBFFE", fontSize: 12, fontWeight: "600" },
+  // Phone
   phoneRow: { flexDirection: "row", gap: 10 },
-  countryBtn: { backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 13, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", flexDirection: "row", alignItems: "center", height: 52, paddingHorizontal: 12, gap: 6 },
-  countryBtnFlag: { fontSize: 20 },
-  countryBtnDial: { color: "#fff", fontWeight: "600", fontSize: 14 },
-  submitWrap: { borderRadius: 16, overflow: "hidden", marginTop: 28, marginBottom: 24 },
-  submitBtn: { height: 56, alignItems: "center", justifyContent: "center" },
-  submitText: { color: "#fff", fontSize: 17, fontWeight: "700", letterSpacing: 0.3 },
+  countryBtn: { backgroundColor: "rgba(255,255,255,0.055)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.09)", flexDirection: "row", alignItems: "center", height: 50, paddingHorizontal: 10, gap: 5 },
+  countryBtnFlag: { fontSize: 18 },
+  countryBtnDial: { color: "#fff", fontWeight: "600", fontSize: 13 },
+  // Submit
+  submitWrap: { borderRadius: 14, overflow: "hidden", marginTop: 20, marginBottom: 22 },
+  submitBtn: { height: 54, alignItems: "center", justifyContent: "center" },
+  submitText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  switchLabel: { color: "rgba(255,255,255,0.5)", fontSize: 14 },
+  switchLabel: { color: "rgba(255,255,255,0.45)", fontSize: 14 },
   switchLink: { color: "#5CBFFE", fontSize: 14, fontWeight: "700" },
-  modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.6)" },
-  modalSheet: { position: "absolute", bottom: 0, left: 0, right: 0, height: "70%", backgroundColor: "#111827", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 },
-  modalHandle: { width: 40, height: 4, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 2, alignSelf: "center", marginBottom: 16 },
-  modalTitle: { color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 16 },
-  searchWrap: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 10, paddingHorizontal: 12, gap: 8, marginBottom: 12, height: 44 },
+  // Country modal
+  modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },
+  modalSheet: { position: "absolute", bottom: 0, left: 0, right: 0, height: "70%", backgroundColor: "#111827", borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18 },
+  modalHandle: { width: 38, height: 4, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 2, alignSelf: "center", marginBottom: 14 },
+  modalTitle: { color: "#fff", fontSize: 17, fontWeight: "700", marginBottom: 14 },
+  searchWrap: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 9, paddingHorizontal: 11, gap: 7, marginBottom: 10, height: 42 },
   searchInput: { flex: 1, color: "#fff", fontSize: 14 },
-  countryRow: { flexDirection: "row", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderColor: "rgba(255,255,255,0.05)", gap: 12 },
-  countryFlag: { fontSize: 24 },
-  countryName: { flex: 1, color: "#fff", fontSize: 15 },
-  countryDial: { color: "rgba(255,255,255,0.5)", fontSize: 14 },
+  countryRow: { flexDirection: "row", alignItems: "center", paddingVertical: 13, borderBottomWidth: 1, borderColor: "rgba(255,255,255,0.05)", gap: 11 },
+  countryFlag: { fontSize: 22 },
+  countryName: { flex: 1, color: "#fff", fontSize: 14 },
+  countryDial: { color: "rgba(255,255,255,0.45)", fontSize: 13 },
+  // Loading overlay
   loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(10,14,26,0.97)", zIndex: 100, alignItems: "center", justifyContent: "center", gap: 20 },
-  loadingCircle: { width: 80, height: 80, borderRadius: 40, overflow: "hidden" },
-  loadingText: { color: "#fff", fontSize: 20, fontWeight: "700" },
-  loadingSubText: { color: "rgba(255,255,255,0.45)", fontSize: 14 },
+  loadingRing: { width: 76, height: 76, borderRadius: 38, overflow: "hidden" },
+  loadingTitle: { color: "#fff", fontSize: 20, fontWeight: "700" },
+  loadingSubText: { color: "rgba(255,255,255,0.4)", fontSize: 14 },
 });

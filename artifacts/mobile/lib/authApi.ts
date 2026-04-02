@@ -28,7 +28,7 @@ async function request<T>(
 
 export const authApi = {
   sendCode: (email: string, action: "verify" | "reset" = "verify") =>
-    request<{ success: boolean }>("/auth/send-code", { email, action }),
+    request<{ success: boolean; emailDelivered: boolean }>("/auth/send-code", { email, action }),
 
   verifyCode: (email: string, code: string) =>
     request<{ success: boolean }>("/auth/verify-code", { email, code }),

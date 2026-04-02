@@ -14,8 +14,8 @@ router.post("/auth/send-code", async (req, res) => {
     const { email, action } = req.body as { email?: string; action?: string };
     if (!email) return res.status(400).json({ error: "Email is required." });
     const act = action === "reset" ? "reset" : "verify";
-    await sendOtp(email, act);
-    return res.json({ success: true });
+    const emailDelivered = await sendOtp(email, act);
+    return res.json({ success: true, emailDelivered });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to send code.";
     return res.status(400).json({ error: msg });
