@@ -35,6 +35,8 @@ export async function sendOtp(email: string, action: "verify" | "reset"): Promis
   const hashed = hashOtp(otp);
   const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000).toISOString();
 
+  console.log(`[Auth] Generating OTP for ${email} (action: ${action})`);
+
   await supabase.from("otps").delete().eq("email", email);
 
   const { error } = await supabase
@@ -43,7 +45,17 @@ export async function sendOtp(email: string, action: "verify" | "reset"): Promis
 
   if (error) throw new Error("Failed to store OTP: " + error.message);
 
-  await sendEmail(email, action === "verify" ? "TreasureFun – Email Verification" : "TreasureFun – Password Reset", buildOtpEmail(otp, action));
+  console.log(`[Auth] OTP stored for ${email}, expires at ${expiresAt}`);
+  if (process.env["NODE_ENV"] !== "production") {
+    console.log(`[Auth][DEV] OTP for ${email}: ${otp}`);
+  }
+
+  const subject =
+    action === "verify"
+      ? "TreasureFun – Email Verification"
+      : "TreasureFun – Password Reset";
+  await sendEmail(email, subject, buildOtpEmail(otp, action));
+  console.log(`[Auth] OTP email dispatched to ${email}`);
 }
 
 export async function verifyOtp(email: string, code: string): Promise<boolean> {

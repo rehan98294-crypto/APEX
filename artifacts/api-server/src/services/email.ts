@@ -1,22 +1,47 @@
 import nodemailer from "nodemailer";
 
-const transporter = nodemailer.createTransport({
-  host: process.env["SMTP_HOST"] ?? "smtp.gmail.com",
-  port: Number(process.env["SMTP_PORT"] ?? 587),
-  secure: Number(process.env["SMTP_PORT"] ?? 587) === 465,
-  auth: {
-    user: process.env["SMTP_USER"] ?? "",
-    pass: process.env["SMTP_PASS"] ?? "",
-  },
-});
+const SMTP_HOST = process.env["SMTP_HOST"] ?? "smtp.gmail.com";
+const SMTP_PORT = Number(process.env["SMTP_PORT"] ?? 587);
+const SMTP_USER = process.env["SMTP_USER"] ?? "";
+const SMTP_PASS = process.env["SMTP_PASS"] ?? "";
+
+function createTransporter() {
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+}
 
 export async function sendEmail(
   to: string,
   subject: string,
   htmlContent: string
 ): Promise<void> {
-  const from = process.env["SMTP_USER"] ?? "noreply@treasurefun.app";
-  await transporter.sendMail({ from, to, subject, html: htmlContent });
+  if (!SMTP_USER || !SMTP_PASS) {
+    console.error("[Email] SMTP_USER or SMTP_PASS not set. Cannot send email.");
+    throw new Error(
+      "Email service is not configured. Please set SMTP_USER and SMTP_PASS."
+    );
+  }
+
+  console.log(`[Email] Sending "${subject}" to ${to} via ${SMTP_HOST}:${SMTP_PORT}`);
+
+  try {
+    const transporter = createTransporter();
+    const info = await transporter.sendMail({
+      from: `"TreasureFun" <${SMTP_USER}>`,
+      to,
+      subject,
+      html: htmlContent,
+    });
+    console.log(`[Email] ✓ Sent successfully. MessageId: ${info.messageId}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Email] ✗ Failed to send: ${msg}`);
+    throw new Error(`Email delivery failed: ${msg}`);
+  }
 }
 
 export function buildOtpEmail(code: string, action: "verify" | "reset"): string {
