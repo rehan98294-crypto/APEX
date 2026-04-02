@@ -15,7 +15,10 @@ function hashOtp(otp: string): string {
   return crypto.createHash("sha256").update(otp).digest("hex");
 }
 
-export async function sendOtp(email: string, action: "verify" | "reset"): Promise<boolean> {
+export async function sendOtp(
+  email: string,
+  action: "verify" | "reset"
+): Promise<{ emailDelivered: boolean; devOtp?: string }> {
   const { data: existing } = await supabase
     .from("otps")
     .select("created_at")
@@ -46,7 +49,6 @@ export async function sendOtp(email: string, action: "verify" | "reset"): Promis
   if (error) throw new Error("Failed to store OTP: " + error.message);
 
   console.log(`[Auth] OTP stored for ${email}, expires at ${expiresAt}`);
-  // Always log OTP in dev so it can be used even without email
   console.log(`[Auth][DEV] OTP for ${email}: ${otp}`);
 
   const subject =
@@ -62,10 +64,13 @@ export async function sendOtp(email: string, action: "verify" | "reset"): Promis
   } catch (emailErr) {
     const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
     console.warn(`[Auth] Email delivery failed (OTP still valid): ${msg}`);
-    console.warn(`[Auth] Use the OTP logged above to test without email.`);
   }
 
-  return emailDelivered;
+  const isDev = process.env["NODE_ENV"] !== "production";
+  return {
+    emailDelivered,
+    devOtp: isDev && !emailDelivered ? otp : undefined,
+  };
 }
 
 export async function verifyOtp(email: string, code: string): Promise<boolean> {

@@ -146,6 +146,7 @@ export default function RegisterScreen() {
   // OTP states
   const [codeSent, setCodeSent] = useState(false);
   const [emailDelivered, setEmailDelivered] = useState(false);
+  const [devOtp, setDevOtp] = useState<string | undefined>(undefined);
   const [sendingCode, setSendingCode] = useState(false);
   const [timer, setTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -178,6 +179,7 @@ export default function RegisterScreen() {
       const res = await authApi.sendCode(trimmedEmail, "verify");
       setCodeSent(true);
       setEmailDelivered(res.emailDelivered);
+      setDevOtp(res.devOtp);
       setCode("");
       startTimer();
       setTimeout(() => codeRef.current?.focus(), 200);
@@ -408,12 +410,31 @@ export default function RegisterScreen() {
           </View>
 
           {/* Email delivery status */}
-          {codeSent && (
-            <Text style={[s.codeHint, { color: emailDelivered ? "#2BD9A8" : "#FFB08A" }]}>
-              {emailDelivered
-                ? `✓ Code sent to ${email}`
-                : "⚠ Email not delivered — check the server console for your OTP"}
-            </Text>
+          {codeSent && emailDelivered && (
+            <Text style={[s.codeHint, { color: "#2BD9A8" }]}>✓ Code sent to {email}</Text>
+          )}
+
+          {/* Dev OTP box — shown only when email isn't delivered */}
+          {codeSent && !emailDelivered && (
+            <View style={s.devBox}>
+              <View style={s.devBoxHeader}>
+                <MaterialCommunityIcons name="wrench-outline" size={13} color="#FFB08A" />
+                <Text style={s.devBoxLabel}>Dev mode — email not configured</Text>
+              </View>
+              <Text style={s.devBoxSub}>Your OTP code:</Text>
+              <Pressable
+                style={s.devOtpRow}
+                onPress={() => {
+                  if (devOtp) { setCode(devOtp); }
+                }}
+              >
+                <Text style={s.devOtpCode}>{devOtp ?? "—"}</Text>
+                <View style={s.devOtpCopyBtn}>
+                  <MaterialCommunityIcons name="content-copy" size={13} color="#FFB08A" />
+                  <Text style={s.devOtpCopyText}>tap to fill</Text>
+                </View>
+              </Pressable>
+            </View>
           )}
 
           {/* ── Referral code ── */}
@@ -510,6 +531,33 @@ const s = StyleSheet.create({
   },
   getBtnText: { color: "#fff", fontWeight: "700", fontSize: 14, zIndex: 1 },
   codeHint: { fontSize: 12, marginTop: 7 },
+
+  devBox: {
+    marginTop: 8,
+    backgroundColor: "rgba(255,176,138,0.08)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,176,138,0.25)",
+    padding: 14,
+    gap: 6,
+  },
+  devBoxHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  devBoxLabel: { color: "#FFB08A", fontSize: 12, fontWeight: "600" },
+  devBoxSub: { color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 },
+  devOtpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,176,138,0.18)",
+  },
+  devOtpCode: { color: "#FFB08A", fontSize: 26, fontWeight: "800", letterSpacing: 6 },
+  devOtpCopyBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  devOtpCopyText: { color: "#FFB08A", fontSize: 11, fontWeight: "600" },
 
   signUpWrap: { borderRadius: 14, overflow: "hidden", marginTop: 28, marginBottom: 20 },
   signUpBtn: { height: 56, alignItems: "center", justifyContent: "center" },
