@@ -46,10 +46,7 @@ export default function ForgotScreen() {
   }
 
   async function handleSendCode() {
-    if (!email.trim().includes("@")) {
-      setError("Please enter a valid email address.");
-      return;
-    }
+    if (!email.trim().includes("@")) { setError("Please enter a valid email."); return; }
     setError("");
     setSendingCode(true);
     try {
@@ -57,7 +54,7 @@ export default function ForgotScreen() {
       setStep("reset");
       startTimer();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset code.");
+      setError(err instanceof Error ? err.message : "Failed to send code.");
     } finally {
       setSendingCode(false);
     }
@@ -78,18 +75,9 @@ export default function ForgotScreen() {
   }
 
   async function handleReset() {
-    if (!code.trim() || !newPassword || !confirmPassword) {
-      setError("Please fill in all fields.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
+    if (!code.trim() || !newPassword || !confirmPassword) { setError("Please fill in all fields."); return; }
+    if (newPassword !== confirmPassword) { setError("Passwords do not match."); return; }
+    if (newPassword.length < 8) { setError("Password must be at least 8 characters."); return; }
     setError("");
     setLoading(true);
     try {
@@ -103,66 +91,63 @@ export default function ForgotScreen() {
   }
 
   return (
-    <View style={styles.root}>
-      <LinearGradient colors={["#0A0E1A", "#0D1525", "#0A0E1A"]} style={StyleSheet.absoluteFill} />
-      <LinearGradient
-        colors={["rgba(255,176,138,0.12)", "transparent", "rgba(92,191,254,0.08)"]}
-        style={[StyleSheet.absoluteFill, { height: 300 }]}
-        start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }}
-      />
-
+    <View style={s.root}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 }]}
+          contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="rgba(255,255,255,0.7)" />
-          </Pressable>
-
           {step === "done" ? (
-            <View style={styles.doneContainer}>
-              <LinearGradient colors={GRAD} style={styles.doneCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                <MaterialCommunityIcons name="check-bold" size={36} color="#fff" />
+            /* ── Done state ── */
+            <View style={s.doneWrap}>
+              <LinearGradient colors={GRAD} style={s.doneCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <MaterialCommunityIcons name="check-bold" size={38} color="#fff" />
               </LinearGradient>
-              <Text style={styles.doneTitle}>Password Reset!</Text>
-              <Text style={styles.doneSub}>Your password has been updated successfully.</Text>
-              <Pressable style={styles.submitWrap} onPress={() => router.replace("/auth/login")}>
-                <LinearGradient colors={GRAD} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  <Text style={styles.submitText}>Back to Login</Text>
+              <Text style={s.doneTitle}>Password Reset!</Text>
+              <Text style={s.doneSub}>Your password has been updated successfully. You can now log in with your new password.</Text>
+              <Pressable style={s.btnWrap} onPress={() => router.replace("/auth/login")}>
+                <LinearGradient colors={GRAD} style={s.btn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                  <Text style={s.btnText}>Back to Login</Text>
                 </LinearGradient>
               </Pressable>
             </View>
           ) : (
             <>
-              <View style={styles.iconCircle}>
+              {/* Back button */}
+              <Pressable style={s.backBtn} onPress={() => router.back()}>
+                <MaterialCommunityIcons name="arrow-left" size={22} color="#3D4A5C" />
+              </Pressable>
+
+              {/* Icon */}
+              <View style={s.iconCircle}>
                 <LinearGradient colors={GRAD} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-                <MaterialCommunityIcons name="lock-reset" size={28} color="#fff" />
+                <MaterialCommunityIcons name="lock-reset" size={26} color="#fff" />
               </View>
 
-              <Text style={styles.heading}>Reset Password</Text>
-              <Text style={styles.subheading}>
+              <Text style={s.heading}>Reset Password</Text>
+              <Text style={s.subheading}>
                 {step === "email"
                   ? "Enter your email to receive a verification code"
-                  : `We sent a code to ${email}. Enter it below with your new password.`}
+                  : `Code sent to ${email}. Enter it below with your new password.`}
               </Text>
 
-              {error ? (
-                <View style={styles.errorBox}>
-                  <MaterialCommunityIcons name="alert-circle" size={16} color="#FF6B6B" />
-                  <Text style={styles.errorText}>{error}</Text>
+              {!!error && (
+                <View style={s.errorBox}>
+                  <MaterialCommunityIcons name="alert-circle-outline" size={15} color="#E53935" />
+                  <Text style={s.errorText}>{error}</Text>
                 </View>
-              ) : null}
+              )}
 
               {step === "email" && (
                 <>
-                  <Text style={styles.label}>Email Address</Text>
-                  <View style={styles.inputWrap}>
-                    <MaterialCommunityIcons name="email-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+                  <Text style={s.label}>Email Address</Text>
+                  <View style={s.inputBox}>
+                    <MaterialCommunityIcons name="email-outline" size={19} color="#B0B7C3" style={s.inputIcon} />
                     <TextInput
-                      style={styles.input}
+                      style={s.input}
                       placeholder="Enter your registered email"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      placeholderTextColor="#C4CAD4"
                       value={email}
                       onChangeText={setEmail}
                       autoCapitalize="none"
@@ -170,12 +155,12 @@ export default function ForgotScreen() {
                     />
                   </View>
                   <Pressable
-                    style={[styles.submitWrap, sendingCode && { opacity: 0.7 }, { marginTop: 28 }]}
+                    style={[s.btnWrap, { marginTop: 28 }, sendingCode && { opacity: 0.7 }]}
                     onPress={handleSendCode}
                     disabled={sendingCode}
                   >
-                    <LinearGradient colors={GRAD} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                      {sendingCode ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Send Code</Text>}
+                    <LinearGradient colors={GRAD} style={s.btn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                      {sendingCode ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Send Code</Text>}
                     </LinearGradient>
                   </Pressable>
                 </>
@@ -183,78 +168,79 @@ export default function ForgotScreen() {
 
               {step === "reset" && (
                 <>
-                  <Text style={styles.label}>Verification Code</Text>
-                  <View style={styles.inputWrap}>
-                    <MaterialCommunityIcons name="shield-key-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+                  <Text style={s.label}>Verification Code</Text>
+                  <View style={s.inputBox}>
+                    <MaterialCommunityIcons name="shield-key-outline" size={19} color="#B0B7C3" style={s.inputIcon} />
                     <TextInput
-                      style={styles.input}
+                      style={[s.input, { letterSpacing: 4, fontWeight: "700" }]}
                       placeholder="6-digit code"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      placeholderTextColor="#C4CAD4"
                       value={code}
-                      onChangeText={setCode}
+                      onChangeText={(v) => setCode(v.replace(/[^0-9]/g, "").slice(0, 6))}
                       keyboardType="number-pad"
                       maxLength={6}
+                      autoFocus
                     />
                   </View>
-                  {timer > 0 ? (
-                    <Text style={styles.timerText}>Resend in {timer}s</Text>
-                  ) : (
-                    <Pressable onPress={handleResend} style={styles.resendBtn}>
-                      <Text style={styles.resendText}>
-                        {sendingCode ? "Sending…" : "Resend code"}
-                      </Text>
-                    </Pressable>
-                  )}
+                  <View style={s.resendRow}>
+                    {timer > 0 ? (
+                      <Text style={s.timerText}>Resend in {timer}s</Text>
+                    ) : (
+                      <Pressable onPress={handleResend}>
+                        <Text style={s.resendText}>{sendingCode ? "Sending…" : "Resend code"}</Text>
+                      </Pressable>
+                    )}
+                  </View>
 
-                  <Text style={[styles.label, { marginTop: 18 }]}>New Password</Text>
-                  <View style={styles.inputWrap}>
-                    <MaterialCommunityIcons name="lock-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+                  <Text style={[s.label, { marginTop: 18 }]}>New Password</Text>
+                  <View style={s.inputBox}>
+                    <MaterialCommunityIcons name="lock-outline" size={19} color="#B0B7C3" style={s.inputIcon} />
                     <TextInput
-                      style={[styles.input, { paddingRight: 44 }]}
+                      style={[s.input, { paddingRight: 44 }]}
                       placeholder="Min. 8 characters"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      placeholderTextColor="#C4CAD4"
                       value={newPassword}
                       onChangeText={setNewPassword}
                       secureTextEntry={!showPw}
                       autoCapitalize="none"
                     />
-                    <Pressable style={styles.eyeBtn} onPress={() => setShowPw((v) => !v)}>
-                      <MaterialCommunityIcons name={showPw ? "eye" : "eye-off"} size={20} color="rgba(255,255,255,0.4)" />
+                    <Pressable style={s.eyeBtn} onPress={() => setShowPw((v) => !v)}>
+                      <MaterialCommunityIcons name={showPw ? "eye-outline" : "eye-off-outline"} size={19} color="#B0B7C3" />
                     </Pressable>
                   </View>
 
-                  <Text style={[styles.label, { marginTop: 16 }]}>Confirm New Password</Text>
-                  <View style={styles.inputWrap}>
-                    <MaterialCommunityIcons name="lock-check-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+                  <Text style={[s.label, { marginTop: 16 }]}>Confirm New Password</Text>
+                  <View style={s.inputBox}>
+                    <MaterialCommunityIcons name="lock-check-outline" size={19} color="#B0B7C3" style={s.inputIcon} />
                     <TextInput
-                      style={[styles.input, { paddingRight: 44 }]}
+                      style={[s.input, { paddingRight: 44 }]}
                       placeholder="Re-enter new password"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      placeholderTextColor="#C4CAD4"
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
                       secureTextEntry={!showCpw}
                       autoCapitalize="none"
                     />
-                    <Pressable style={styles.eyeBtn} onPress={() => setShowCpw((v) => !v)}>
-                      <MaterialCommunityIcons name={showCpw ? "eye" : "eye-off"} size={20} color="rgba(255,255,255,0.4)" />
+                    <Pressable style={s.eyeBtn} onPress={() => setShowCpw((v) => !v)}>
+                      <MaterialCommunityIcons name={showCpw ? "eye-outline" : "eye-off-outline"} size={19} color="#B0B7C3" />
                     </Pressable>
                   </View>
 
                   <Pressable
-                    style={[styles.submitWrap, loading && { opacity: 0.7 }, { marginTop: 28 }]}
+                    style={[s.btnWrap, { marginTop: 28 }, loading && { opacity: 0.7 }]}
                     onPress={handleReset}
                     disabled={loading}
                   >
-                    <LinearGradient colors={GRAD} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                      {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Reset Password</Text>}
+                    <LinearGradient colors={GRAD} style={s.btn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                      {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Reset Password</Text>}
                     </LinearGradient>
                   </Pressable>
                 </>
               )}
 
-              <Pressable style={styles.backToLogin} onPress={() => router.push("/auth/login")}>
-                <MaterialCommunityIcons name="arrow-left" size={16} color="#5CBFFE" />
-                <Text style={styles.backToLoginText}>Back to Login</Text>
+              <Pressable style={s.backToLoginRow} onPress={() => router.push("/auth/login")}>
+                <MaterialCommunityIcons name="arrow-left" size={14} color="#5CBFFE" />
+                <Text style={s.backToLoginText}>Back to Login</Text>
               </Pressable>
             </>
           )}
@@ -264,30 +250,30 @@ export default function ForgotScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0A0E1A" },
-  scroll: { paddingHorizontal: 28 },
-  backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginBottom: 24 },
-  iconCircle: { width: 68, height: 68, borderRadius: 20, overflow: "hidden", alignItems: "center", justifyContent: "center", marginBottom: 28 },
-  heading: { color: "#fff", fontSize: 28, fontWeight: "800", marginBottom: 8, letterSpacing: -0.5 },
-  subheading: { color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 32, lineHeight: 21 },
-  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,107,107,0.12)", borderRadius: 10, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: "rgba(255,107,107,0.25)" },
-  errorText: { color: "#FF6B6B", fontSize: 13, flex: 1 },
-  label: { color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: "600", marginBottom: 8, letterSpacing: 0.2 },
-  inputWrap: { backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 13, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", flexDirection: "row", alignItems: "center", height: 52 },
-  inputIcon: { marginLeft: 14, marginRight: 2 },
-  input: { flex: 1, color: "#fff", fontSize: 15, paddingHorizontal: 12, height: "100%" },
-  eyeBtn: { position: "absolute", right: 12, padding: 4 },
-  timerText: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 8, textAlign: "right" },
-  resendBtn: { alignSelf: "flex-end", marginTop: 8 },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#F8F9FB" },
+  scroll: { paddingHorizontal: 24 },
+  backBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center", marginBottom: 20, backgroundColor: "#fff", borderRadius: 10, borderWidth: 1, borderColor: "#E5E8EE", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  iconCircle: { width: 62, height: 62, borderRadius: 18, overflow: "hidden", alignItems: "center", justifyContent: "center", marginBottom: 24 },
+  heading: { color: "#1A1A2E", fontSize: 26, fontWeight: "800", marginBottom: 6, letterSpacing: -0.4 },
+  subheading: { color: "#7B8794", fontSize: 14, marginBottom: 28, lineHeight: 20 },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FEF2F2", borderRadius: 10, padding: 12, marginBottom: 18, borderWidth: 1, borderColor: "#FECACA" },
+  errorText: { color: "#E53935", fontSize: 13, flex: 1 },
+  label: { color: "#3D4A5C", fontSize: 13, fontWeight: "600", marginBottom: 8 },
+  inputBox: { backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: "#E5E8EE", height: 52, flexDirection: "row", alignItems: "center", shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  inputIcon: { marginLeft: 14, marginRight: 4 },
+  input: { flex: 1, color: "#1A1A2E", fontSize: 15, paddingHorizontal: 10, height: "100%" },
+  eyeBtn: { position: "absolute", right: 14 },
+  resendRow: { alignItems: "flex-end", marginTop: 8 },
+  timerText: { color: "#B0B7C3", fontSize: 12 },
   resendText: { color: "#5CBFFE", fontSize: 13, fontWeight: "600" },
-  submitWrap: { borderRadius: 16, overflow: "hidden", marginBottom: 24 },
-  submitBtn: { height: 56, alignItems: "center", justifyContent: "center" },
-  submitText: { color: "#fff", fontSize: 17, fontWeight: "700", letterSpacing: 0.3 },
-  backToLogin: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 4 },
-  backToLoginText: { color: "#5CBFFE", fontSize: 14, fontWeight: "600" },
-  doneContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 16 },
-  doneCircle: { width: 90, height: 90, borderRadius: 26, alignItems: "center", justifyContent: "center", marginBottom: 8 },
-  doneTitle: { color: "#fff", fontSize: 28, fontWeight: "800" },
-  doneSub: { color: "rgba(255,255,255,0.5)", fontSize: 15, textAlign: "center", lineHeight: 22 },
+  btnWrap: { borderRadius: 14, overflow: "hidden", marginBottom: 20 },
+  btn: { height: 54, alignItems: "center", justifyContent: "center" },
+  btnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  backToLoginRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 4 },
+  backToLoginText: { color: "#5CBFFE", fontSize: 13, fontWeight: "600" },
+  doneWrap: { flex: 1, alignItems: "center", paddingTop: 80, gap: 16, paddingHorizontal: 8 },
+  doneCircle: { width: 88, height: 88, borderRadius: 26, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  doneTitle: { color: "#1A1A2E", fontSize: 26, fontWeight: "800" },
+  doneSub: { color: "#7B8794", fontSize: 14, textAlign: "center", lineHeight: 22 },
 });

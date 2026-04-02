@@ -55,7 +55,7 @@ const COUNTRIES = [
   { code: "EG", flag: "🇪🇬", name: "Egypt", dial: "+20" },
 ];
 
-// ─── Country picker ───────────────────────────────────────────────────────────
+// ─── Country picker modal ─────────────────────────────────────────────────────
 function CountryPicker({
   visible,
   onSelect,
@@ -76,11 +76,11 @@ function CountryPicker({
         <View style={s.sheetHandle} />
         <Text style={s.sheetTitle}>Select Country</Text>
         <View style={s.searchRow}>
-          <MaterialCommunityIcons name="magnify" size={18} color="rgba(255,255,255,0.4)" />
+          <MaterialCommunityIcons name="magnify" size={18} color="#B0B7C3" />
           <TextInput
             style={s.searchInput}
             placeholder="Search…"
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor="#C4CAD4"
             value={q}
             onChangeText={setQ}
           />
@@ -89,7 +89,10 @@ function CountryPicker({
           data={filtered}
           keyExtractor={(i) => i.code}
           renderItem={({ item }) => (
-            <Pressable style={s.countryRow} onPress={() => { onSelect(item); setQ(""); onClose(); }}>
+            <Pressable
+              style={s.countryRow}
+              onPress={() => { onSelect(item); setQ(""); onClose(); }}
+            >
               <Text style={{ fontSize: 22 }}>{item.flag}</Text>
               <Text style={s.countryName}>{item.name}</Text>
               <Text style={s.countryDial}>{item.dial}</Text>
@@ -101,26 +104,23 @@ function CountryPicker({
   );
 }
 
-// ─── Loading screen ───────────────────────────────────────────────────────────
+// ─── Loading overlay ──────────────────────────────────────────────────────────
 function LoadingScreen({ visible }: { visible: boolean }) {
   const spin = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.85)).current;
   useEffect(() => {
     if (!visible) return;
     Animated.loop(Animated.timing(spin, { toValue: 1, duration: 1200, useNativeDriver: true })).start();
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
   }, [visible]);
   if (!visible) return null;
   const rot = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
   return (
-    <Animated.View style={[s.loadScreen, { opacity: visible ? 1 : 0 }]}>
-      <LinearGradient colors={["#0A0E1A", "#0D1525"]} style={StyleSheet.absoluteFill} />
-      <Animated.View style={{ transform: [{ rotate: rot }, { scale }] }}>
+    <View style={s.loadScreen}>
+      <Animated.View style={{ transform: [{ rotate: rot }] }}>
         <LinearGradient colors={GRAD} style={s.loadRing} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
       </Animated.View>
       <Text style={s.loadTitle}>Creating account…</Text>
       <Text style={s.loadSub}>Please wait a moment</Text>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -131,7 +131,6 @@ export default function RegisterScreen() {
   const { signIn } = useAuth();
   const codeRef = useRef<TextInput>(null);
 
-  // Fields
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -143,7 +142,6 @@ export default function RegisterScreen() {
   const [code, setCode] = useState("");
   const [referral, setReferral] = useState("");
 
-  // OTP states
   const [codeSent, setCodeSent] = useState(false);
   const [emailDelivered, setEmailDelivered] = useState(false);
   const [devOtp, setDevOtp] = useState<string | undefined>(undefined);
@@ -151,7 +149,6 @@ export default function RegisterScreen() {
   const [timer, setTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Form states
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showCountry, setShowCountry] = useState(false);
@@ -202,10 +199,10 @@ export default function RegisterScreen() {
     setError("");
     setLoading(true);
     try {
-      // Step 1: verify OTP
+      // 1. Verify OTP
       const verified = await authApi.verifyCode(email.trim(), code.trim());
       if (!verified.success) throw new Error("Incorrect code. Please try again.");
-      // Step 2: register
+      // 2. Register + auto-login
       const result = await authApi.register({
         username: username.trim(),
         email: email.trim(),
@@ -214,7 +211,7 @@ export default function RegisterScreen() {
         confirmPassword: confirmPw,
         referralCode: referral.trim() || undefined,
       });
-      await new Promise((r) => setTimeout(r, 3500));
+      // 3. Sign in immediately — _layout.tsx handles redirect to /(tabs)/
       await signIn(result.token, result.user);
       router.replace("/(tabs)/");
     } catch (e) {
@@ -232,99 +229,89 @@ export default function RegisterScreen() {
         onClose={() => setShowCountry(false)}
       />
 
-      {/* Background */}
-      <LinearGradient colors={["#0A0E1A", "#0C1220", "#0A0E1A"]} style={StyleSheet.absoluteFill} />
-      <LinearGradient
-        colors={["rgba(92,191,254,0.12)", "transparent"]}
-        style={[StyleSheet.absoluteFill, { height: 320 }]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
-
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView
-          contentContainerStyle={[s.scroll, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 }]}
+          contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {/* Brand header */}
           <View style={s.brandRow}>
             <LinearGradient colors={GRAD} style={s.brandIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>TF</Text>
+              <Text style={s.brandIconText}>TF</Text>
             </LinearGradient>
-            <Text style={s.brandText}>Treasure Fun</Text>
+            <Text style={s.brandName}>Treasure Fun</Text>
           </View>
 
           <Text style={s.heading}>Sign up</Text>
 
-          {/* Global error */}
           {!!error && (
             <View style={s.errorBox}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#FF6B6B" />
+              <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#E53935" />
               <Text style={s.errorTxt}>{error}</Text>
             </View>
           )}
 
-          {/* ── User name ── */}
-          <Text style={s.label}>User name <Text style={s.required}>*</Text></Text>
+          {/* User name */}
+          <Text style={s.label}>User name <Text style={s.req}>*</Text></Text>
           <View style={s.inputBox}>
             <TextInput
               style={s.input}
               placeholder="Please enter user name"
-              placeholderTextColor="rgba(255,255,255,0.22)"
+              placeholderTextColor="#C4CAD4"
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
             />
           </View>
 
-          {/* ── Password ── */}
-          <Text style={s.label}>Password <Text style={s.required}>*</Text></Text>
+          {/* Password */}
+          <Text style={[s.label, { marginTop: 14 }]}>Password <Text style={s.req}>*</Text></Text>
           <View style={s.inputBox}>
             <TextInput
               style={[s.input, { paddingRight: 44 }]}
               placeholder="Please enter your password"
-              placeholderTextColor="rgba(255,255,255,0.22)"
+              placeholderTextColor="#C4CAD4"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPw}
               autoCapitalize="none"
             />
             <Pressable style={s.eyeBtn} onPress={() => setShowPw((v) => !v)}>
-              <MaterialCommunityIcons name={showPw ? "eye-outline" : "eye-off-outline"} size={20} color="rgba(255,255,255,0.3)" />
+              <MaterialCommunityIcons name={showPw ? "eye-outline" : "eye-off-outline"} size={19} color="#B0B7C3" />
             </Pressable>
           </View>
 
-          {/* ── Confirm password ── */}
-          <Text style={s.label}>Please re-enter your password</Text>
+          {/* Confirm password */}
+          <Text style={[s.label, { marginTop: 14 }]}>Please re-enter your password</Text>
           <View style={s.inputBox}>
             <TextInput
               style={[s.input, { paddingRight: 44 }]}
               placeholder="Please re-enter your password"
-              placeholderTextColor="rgba(255,255,255,0.22)"
+              placeholderTextColor="#C4CAD4"
               value={confirmPw}
               onChangeText={setConfirmPw}
               secureTextEntry={!showCpw}
               autoCapitalize="none"
             />
             <Pressable style={s.eyeBtn} onPress={() => setShowCpw((v) => !v)}>
-              <MaterialCommunityIcons name={showCpw ? "eye-outline" : "eye-off-outline"} size={20} color="rgba(255,255,255,0.3)" />
+              <MaterialCommunityIcons name={showCpw ? "eye-outline" : "eye-off-outline"} size={19} color="#B0B7C3" />
             </Pressable>
           </View>
 
-          {/* ── Mobile ── */}
-          <Text style={s.label}>Mobile no.</Text>
+          {/* Mobile */}
+          <Text style={[s.label, { marginTop: 14 }]}>Mobile no.</Text>
           <View style={s.phoneRow}>
             <Pressable style={s.countryBtn} onPress={() => setShowCountry(true)}>
               <Text style={{ fontSize: 18 }}>{country.flag}</Text>
-              <Text style={s.countryDial2}>{country.dial}</Text>
-              <MaterialCommunityIcons name="chevron-down" size={16} color="rgba(255,255,255,0.4)" />
+              <Text style={s.countryDialText}>{country.dial}</Text>
+              <MaterialCommunityIcons name="chevron-down" size={16} color="#B0B7C3" />
             </Pressable>
             <View style={[s.inputBox, { flex: 1 }]}>
               <TextInput
                 style={[s.input, { paddingLeft: 14 }]}
                 placeholder="Enter Mobile No."
-                placeholderTextColor="rgba(255,255,255,0.22)"
+                placeholderTextColor="#C4CAD4"
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -332,17 +319,17 @@ export default function RegisterScreen() {
             </View>
           </View>
 
-          {/* ── Email ── */}
-          <Text style={s.label}>Email <Text style={s.required}>*</Text></Text>
+          {/* Email */}
+          <Text style={[s.label, { marginTop: 14 }]}>Email <Text style={s.req}>*</Text></Text>
           <View style={s.inputBox}>
             <TextInput
               style={s.input}
               placeholder="Please enter your email"
-              placeholderTextColor="rgba(255,255,255,0.22)"
+              placeholderTextColor="#C4CAD4"
               value={email}
               onChangeText={(v) => {
                 setEmail(v);
-                if (codeSent) { setCodeSent(false); setCode(""); }
+                if (codeSent) { setCodeSent(false); setCode(""); setDevOtp(undefined); }
               }}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -352,14 +339,14 @@ export default function RegisterScreen() {
             )}
           </View>
 
-          {/* ── Email verification code ── */}
-          <View style={s.codeRow}>
+          {/* Verification code row */}
+          <View style={[s.codeRow, { marginTop: 10 }]}>
             <View style={[s.inputBox, { flex: 1 }]}>
               <TextInput
                 ref={codeRef}
-                style={[s.input, { paddingLeft: 14, letterSpacing: codeSent ? 4 : 0 }]}
+                style={[s.input, { paddingLeft: 14, letterSpacing: codeSent ? 4 : 0, fontWeight: codeSent ? "700" : "400" }]}
                 placeholder="Email verification code"
-                placeholderTextColor="rgba(255,255,255,0.22)"
+                placeholderTextColor="#C4CAD4"
                 value={code}
                 onChangeText={(v) => setCode(v.replace(/[^0-9]/g, "").slice(0, 6))}
                 keyboardType="number-pad"
@@ -367,24 +354,12 @@ export default function RegisterScreen() {
                 editable={codeSent}
               />
             </View>
-            {/* Get / Timer / Resend button */}
+
+            {/* Get / Timer / Resend */}
             {!codeSent ? (
-              <Pressable
-                style={[s.getBtn, sendingCode && { opacity: 0.6 }]}
-                onPress={handleGetCode}
-                disabled={sendingCode}
-              >
-                <LinearGradient
-                  colors={["#5CBFFE", "#2BD9A8"]}
-                  style={[StyleSheet.absoluteFill, { borderRadius: 12 }]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                />
-                {sendingCode ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={s.getBtnText}>Get</Text>
-                )}
+              <Pressable style={[s.getBtn, sendingCode && { opacity: 0.6 }]} onPress={handleGetCode} disabled={sendingCode}>
+                <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} style={[StyleSheet.absoluteFill, { borderRadius: 12 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+                {sendingCode ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.getBtnText}>Get</Text>}
               </Pressable>
             ) : (
               <Pressable
@@ -393,7 +368,7 @@ export default function RegisterScreen() {
                 disabled={timer > 0 || sendingCode}
               >
                 <LinearGradient
-                  colors={timer > 0 ? ["#334155", "#334155"] : ["#5CBFFE", "#2BD9A8"]}
+                  colors={timer > 0 ? ["#D1D5DB", "#D1D5DB"] : ["#5CBFFE", "#2BD9A8"]}
                   style={[StyleSheet.absoluteFill, { borderRadius: 12 }]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
@@ -401,7 +376,7 @@ export default function RegisterScreen() {
                 {sendingCode ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={[s.getBtnText, timer > 0 && { fontSize: 11 }]}>
+                  <Text style={[s.getBtnText, timer > 0 && { fontSize: 11, color: "#6B7280" }]}>
                     {timer > 0 ? `${timer}s` : "Resend"}
                   </Text>
                 )}
@@ -409,63 +384,53 @@ export default function RegisterScreen() {
             )}
           </View>
 
-          {/* Email delivery status */}
+          {/* Email status */}
           {codeSent && emailDelivered && (
-            <Text style={[s.codeHint, { color: "#2BD9A8" }]}>✓ Code sent to {email}</Text>
+            <Text style={s.codeHintGreen}>✓ Code sent to {email}</Text>
           )}
 
-          {/* Dev OTP box — shown only when email isn't delivered */}
+          {/* Dev OTP box */}
           {codeSent && !emailDelivered && (
             <View style={s.devBox}>
               <View style={s.devBoxHeader}>
-                <MaterialCommunityIcons name="wrench-outline" size={13} color="#FFB08A" />
+                <MaterialCommunityIcons name="wrench-outline" size={13} color="#D97706" />
                 <Text style={s.devBoxLabel}>Dev mode — email not configured</Text>
               </View>
               <Text style={s.devBoxSub}>Your OTP code:</Text>
-              <Pressable
-                style={s.devOtpRow}
-                onPress={() => {
-                  if (devOtp) { setCode(devOtp); }
-                }}
-              >
+              <Pressable style={s.devOtpRow} onPress={() => { if (devOtp) setCode(devOtp); }}>
                 <Text style={s.devOtpCode}>{devOtp ?? "—"}</Text>
-                <View style={s.devOtpCopyBtn}>
-                  <MaterialCommunityIcons name="content-copy" size={13} color="#FFB08A" />
-                  <Text style={s.devOtpCopyText}>tap to fill</Text>
+                <View style={s.devCopyBtn}>
+                  <MaterialCommunityIcons name="content-copy" size={12} color="#D97706" />
+                  <Text style={s.devCopyText}>tap to fill</Text>
                 </View>
               </Pressable>
             </View>
           )}
 
-          {/* ── Referral code ── */}
-          <Text style={[s.label, { marginTop: 14 }]}>Referral code <Text style={s.required}>*</Text></Text>
+          {/* Referral code */}
+          <Text style={[s.label, { marginTop: 14 }]}>Referral code <Text style={s.req}>*</Text></Text>
           <View style={s.inputBox}>
             <TextInput
               style={s.input}
               placeholder="Please enter your Referral Code"
-              placeholderTextColor="rgba(255,255,255,0.22)"
+              placeholderTextColor="#C4CAD4"
               value={referral}
               onChangeText={setReferral}
               autoCapitalize="characters"
             />
           </View>
 
-          {/* ── Sign up button ── */}
-          <Pressable style={[s.signUpWrap, loading && { opacity: 0.7 }]} onPress={handleSignUp} disabled={loading}>
-            <LinearGradient colors={GRAD} style={s.signUpBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={s.signUpText}>Sign up</Text>
-              )}
+          {/* Sign up */}
+          <Pressable style={[s.btnWrap, loading && { opacity: 0.7 }]} onPress={handleSignUp} disabled={loading}>
+            <LinearGradient colors={GRAD} style={s.btn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Sign up</Text>}
             </LinearGradient>
           </Pressable>
 
-          {/* Login link */}
-          <View style={s.loginRow}>
-            <Text style={s.loginLabel}>Have an account? </Text>
+          <View style={s.switchRow}>
+            <Text style={s.switchLabel}>Have an account? </Text>
             <Pressable onPress={() => router.push("/auth/login")}>
-              <Text style={s.loginLink}>Log in</Text>
+              <Text style={s.switchLink}>Log in</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -476,124 +441,107 @@ export default function RegisterScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0A0E1A" },
-  scroll: { paddingHorizontal: 22 },
+  root: { flex: 1, backgroundColor: "#F8F9FB" },
+  scroll: { paddingHorizontal: 24 },
 
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 28 },
-  brandIcon: { width: 36, height: 36, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  brandText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  brandIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  brandIconText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  brandName: { color: "#1A1A2E", fontSize: 17, fontWeight: "700" },
 
-  heading: { color: "#fff", fontSize: 28, fontWeight: "800", marginBottom: 22, letterSpacing: -0.5 },
+  heading: { color: "#1A1A2E", fontSize: 28, fontWeight: "800", marginBottom: 22, letterSpacing: -0.4 },
 
-  errorBox: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(255,107,107,0.1)", borderRadius: 10,
-    padding: 12, marginBottom: 16,
-    borderWidth: 1, borderColor: "rgba(255,107,107,0.2)",
-  },
-  errorTxt: { color: "#FF6B6B", fontSize: 13, flex: 1 },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FEF2F2", borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: "#FECACA" },
+  errorTxt: { color: "#E53935", fontSize: 13, flex: 1 },
 
-  label: { color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: "500", marginBottom: 8, marginTop: 14 },
-  required: { color: "#FF6B6B" },
+  label: { color: "#3D4A5C", fontSize: 13, fontWeight: "500", marginBottom: 8 },
+  req: { color: "#E53935" },
 
   inputBox: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "#E5E8EE",
     height: 52,
     flexDirection: "row",
     alignItems: "center",
-    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-  input: { flex: 1, color: "#fff", fontSize: 15, paddingHorizontal: 16, height: "100%" },
+  input: { flex: 1, color: "#1A1A2E", fontSize: 15, paddingHorizontal: 16, height: "100%" },
   eyeBtn: { position: "absolute", right: 14 },
 
   phoneRow: { flexDirection: "row", gap: 10 },
   countryBtn: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "#E5E8EE",
     height: 52,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
     gap: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-  countryDial2: { color: "#fff", fontWeight: "600", fontSize: 13 },
+  countryDialText: { color: "#1A1A2E", fontWeight: "600", fontSize: 13 },
 
-  codeRow: { flexDirection: "row", gap: 10, marginTop: 14, alignItems: "center" },
+  codeRow: { flexDirection: "row", gap: 10, alignItems: "center" },
   getBtn: {
-    width: 80, height: 52, borderRadius: 12,
-    overflow: "hidden", alignItems: "center", justifyContent: "center",
-    position: "relative",
+    width: 78, height: 52, borderRadius: 12,
+    overflow: "hidden", alignItems: "center", justifyContent: "center", position: "relative",
   },
   getBtnText: { color: "#fff", fontWeight: "700", fontSize: 14, zIndex: 1 },
-  codeHint: { fontSize: 12, marginTop: 7 },
+
+  codeHintGreen: { color: "#059669", fontSize: 12, marginTop: 6 },
 
   devBox: {
-    marginTop: 8,
-    backgroundColor: "rgba(255,176,138,0.08)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,176,138,0.25)",
-    padding: 14,
-    gap: 6,
+    marginTop: 8, backgroundColor: "#FFFBEB",
+    borderRadius: 10, borderWidth: 1, borderColor: "#FCD34D",
+    padding: 12, gap: 5,
   },
   devBoxHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
-  devBoxLabel: { color: "#FFB08A", fontSize: 12, fontWeight: "600" },
-  devBoxSub: { color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 },
+  devBoxLabel: { color: "#D97706", fontSize: 12, fontWeight: "600" },
+  devBoxSub: { color: "#92400E", fontSize: 11 },
   devOtpRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 9,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,176,138,0.18)",
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: "#FEF3C7", borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: 1, borderColor: "#FCD34D",
   },
-  devOtpCode: { color: "#FFB08A", fontSize: 26, fontWeight: "800", letterSpacing: 6 },
-  devOtpCopyBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
-  devOtpCopyText: { color: "#FFB08A", fontSize: 11, fontWeight: "600" },
+  devOtpCode: { color: "#92400E", fontSize: 24, fontWeight: "800", letterSpacing: 6 },
+  devCopyBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  devCopyText: { color: "#D97706", fontSize: 11, fontWeight: "600" },
 
-  signUpWrap: { borderRadius: 14, overflow: "hidden", marginTop: 28, marginBottom: 20 },
-  signUpBtn: { height: 56, alignItems: "center", justifyContent: "center" },
-  signUpText: { color: "#fff", fontSize: 17, fontWeight: "700", letterSpacing: 0.2 },
+  btnWrap: { borderRadius: 14, overflow: "hidden", marginTop: 26, marginBottom: 20 },
+  btn: { height: 54, alignItems: "center", justifyContent: "center" },
+  btnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 
-  loginRow: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
-  loginLabel: { color: "rgba(255,255,255,0.45)", fontSize: 14, fontWeight: "600" },
-  loginLink: { color: "#5CBFFE", fontSize: 14, fontWeight: "700" },
+  switchRow: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
+  switchLabel: { color: "#7B8794", fontSize: 14, fontWeight: "600" },
+  switchLink: { color: "#5CBFFE", fontSize: 14, fontWeight: "700" },
 
   // Country modal
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.6)" },
-  sheet: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: "68%",
-    backgroundColor: "#111827", borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18,
-  },
-  sheetHandle: { width: 36, height: 4, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 2, alignSelf: "center", marginBottom: 16 },
-  sheetTitle: { color: "#fff", fontSize: 17, fontWeight: "700", marginBottom: 14 },
-  searchRow: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 10,
-    paddingHorizontal: 12, marginBottom: 10, height: 42,
-  },
-  searchInput: { flex: 1, color: "#fff", fontSize: 14 },
-  countryRow: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    paddingVertical: 13, borderBottomWidth: 1, borderColor: "rgba(255,255,255,0.05)",
-  },
-  countryName: { flex: 1, color: "#fff", fontSize: 14 },
-  countryDial: { color: "rgba(255,255,255,0.4)", fontSize: 13 },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)" },
+  sheet: { position: "absolute", bottom: 0, left: 0, right: 0, height: "68%", backgroundColor: "#fff", borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18 },
+  sheetHandle: { width: 36, height: 4, backgroundColor: "#E5E8EE", borderRadius: 2, alignSelf: "center", marginBottom: 16 },
+  sheetTitle: { color: "#1A1A2E", fontSize: 17, fontWeight: "700", marginBottom: 14 },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#F3F4F6", borderRadius: 10, paddingHorizontal: 12, marginBottom: 10, height: 42 },
+  searchInput: { flex: 1, color: "#1A1A2E", fontSize: 14 },
+  countryRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderColor: "#F3F4F6" },
+  countryName: { flex: 1, color: "#1A1A2E", fontSize: 14 },
+  countryDial: { color: "#7B8794", fontSize: 13 },
 
   // Loading
-  loadScreen: {
-    ...StyleSheet.absoluteFillObject, zIndex: 999,
-    alignItems: "center", justifyContent: "center", gap: 22,
-  },
+  loadScreen: { ...StyleSheet.absoluteFillObject, zIndex: 999, backgroundColor: "rgba(248,249,251,0.97)", alignItems: "center", justifyContent: "center", gap: 20 },
   loadRing: { width: 80, height: 80, borderRadius: 40 },
-  loadTitle: { color: "#fff", fontSize: 22, fontWeight: "700" },
-  loadSub: { color: "rgba(255,255,255,0.4)", fontSize: 14 },
+  loadTitle: { color: "#1A1A2E", fontSize: 22, fontWeight: "700" },
+  loadSub: { color: "#7B8794", fontSize: 14 },
 });
