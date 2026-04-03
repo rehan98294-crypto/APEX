@@ -86,6 +86,34 @@ function Slideshow() {
   );
 }
 
+const PAGE_SIZE = 3;
+
+// ─── Skeleton Card ─────────────────────────────────────────────────────────
+function PlanCardSkeleton() {
+  const shimmer = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 750, useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 750, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+  return (
+    <Animated.View style={[sk.card, { opacity }]}>
+      <View style={sk.header} />
+      <View style={sk.statsRow}>
+        {[0, 1, 2, 3].map((i) => <View key={i} style={sk.stat} />)}
+      </View>
+      <View style={sk.body}>
+        {[0, 1, 2, 3].map((i) => <View key={i} style={sk.line} />)}
+      </View>
+      <View style={sk.btn} />
+    </Animated.View>
+  );
+}
+
 // ─── Plan Card ─────────────────────────────────────────────────────────────
 function PlanCard({
   plan,
@@ -210,6 +238,22 @@ export default function SubscriptionsScreen() {
   const [confirmPlan, setConfirmPlan] = useState<PlanConfig | null>(null);
   const [successPlan, setSuccessPlan] = useState<PlanConfig | null>(null);
   const [insufficientPlan, setInsufficientPlan] = useState<PlanConfig | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setInitialLoading(false), 700);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleLoadMore = () => {
+    setLoadingMore(true);
+    setTimeout(() => {
+      setVisibleCount((v) => Math.min(v + (PLANS.length - PAGE_SIZE), PLANS.length));
+      setLoadingMore(false);
+    }, 600);
+  };
 
   const handleActivate = (plan: PlanConfig) => {
     if (activePlan === plan.id) return;
@@ -274,15 +318,39 @@ export default function SubscriptionsScreen() {
           <Text style={s.balanceValue}>{balance.toFixed(1)} TFT</Text>
         </View>
 
-        {/* Plan cards */}
-        {PLANS.map((plan) => (
-          <PlanCard
-            key={plan.id}
-            plan={plan}
-            isActive={activePlan === plan.id}
-            onPress={() => handleActivate(plan)}
-          />
-        ))}
+        {/* Plan cards — paginated with skeleton loading */}
+        {initialLoading
+          ? Array.from({ length: PAGE_SIZE }).map((_, i) => <PlanCardSkeleton key={i} />)
+          : (
+            <>
+              {PLANS.slice(0, visibleCount).map((plan, i) => (
+                <Animated.View key={plan.id} entering={FadeInDown.duration(350).delay(i * 70)}>
+                  <PlanCard
+                    plan={plan}
+                    isActive={activePlan === plan.id}
+                    onPress={() => handleActivate(plan)}
+                  />
+                </Animated.View>
+              ))}
+
+              {/* Loading more skeletons */}
+              {loadingMore && Array.from({ length: PLANS.length - visibleCount }).map((_, i) => (
+                <PlanCardSkeleton key={`more-${i}`} />
+              ))}
+
+              {/* Load More button */}
+              {!loadingMore && visibleCount < PLANS.length && (
+                <Animated.View entering={FadeInDown.duration(300)}>
+                  <Pressable style={s.loadMoreBtn} onPress={handleLoadMore}>
+                    <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                    <Feather name="chevrons-down" size={16} color="#fff" />
+                    <Text style={s.loadMoreText}>Load More Plans</Text>
+                  </Pressable>
+                </Animated.View>
+              )}
+            </>
+          )
+        }
       </ScrollView>
 
       {/* ── Confirm Purchase Modal ── */}
@@ -543,6 +611,66 @@ const s = StyleSheet.create({
   tDotText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
   balanceLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
   balanceValue: { fontSize: 14, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  loadMoreBtn: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 24,
+    height: 50,
+    borderRadius: 14,
+    overflow: "hidden",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  loadMoreText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
+});
+
+const sk = StyleSheet.create({
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 20,
+    backgroundColor: "#F0F2F5",
+    borderRadius: 20,
+    overflow: "hidden",
+    padding: 0,
+  },
+  header: {
+    height: 90,
+    backgroundColor: "#E3E6EC",
+    borderRadius: 0,
+  },
+  statsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  stat: {
+    flex: 1,
+    height: 36,
+    backgroundColor: "#E3E6EC",
+    borderRadius: 8,
+  },
+  body: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 10,
+  },
+  line: {
+    height: 14,
+    backgroundColor: "#E3E6EC",
+    borderRadius: 6,
+    width: "80%",
+  },
+  btn: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    height: 46,
+    backgroundColor: "#E3E6EC",
+    borderRadius: 14,
+  },
 });
 
 const pc = StyleSheet.create({
