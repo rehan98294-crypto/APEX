@@ -47,7 +47,7 @@ interface BalanceContextType {
 }
 
 const BalanceContext = createContext<BalanceContextType>({
-  balance: 1000,
+  balance: 2000,
   stakedTotal: 0,
   earnedTotal: 0,
   transactions: [],
@@ -62,14 +62,14 @@ const BalanceContext = createContext<BalanceContextType>({
   cancelReservation: () => {},
 });
 
-const STORAGE_KEY = "treasurefun_balance_v2";
+const STORAGE_KEY = "treasurefun_balance_v3";
 
 function genId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 6);
 }
 
 export function BalanceProvider({ children }: { children: React.ReactNode }) {
-  const [balance, setBalance] = useState(1000);
+  const [balance, setBalance] = useState(2000);
   const [earnedTotal, setEarnedTotal] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stakes, setStakes] = useState<StakePosition[]>([]);
@@ -80,7 +80,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         try {
           const parsed = JSON.parse(data);
-          setBalance(parsed.balance ?? 1000);
+          setBalance(parsed.balance ?? 2000);
           setEarnedTotal(parsed.earnedTotal ?? 0);
           setTransactions(parsed.transactions ?? []);
           setStakes(parsed.stakes ?? []);
