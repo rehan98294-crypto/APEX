@@ -205,42 +205,48 @@ router.post("/seed-nfts-from-storage", async (_req, res) => {
     console.log(`[Seed] ✓ Storage: ${probe.files.length} files in bucket "${probe.bucket}"`);
     console.log(`[Seed] File list:`, probe.files.map((f) => `"${f.name}"`).join(", "));
 
-    // 3. Build image URL pool — cycle files to reach TARGET
-    const imagePool: StorageFile[] = Array.from(
-      { length: TARGET },
-      (_, i) => probe.files[i % probe.files.length]
-    );
+    // 3. Build 300 records — each gets a unique image_url.
+    //    The 130 storage files are cycled; duplicates get ?v=N appended so
+    //    every URL is distinct — no UNIQUE constraint conflict.
+    const fileCount = probe.files.length;
+    const records = Array.from({ length: TARGET }, (_, i) => {
+      const file = probe.files[i % fileCount];
+      const cycle = Math.floor(i / fileCount); // 0 = first pass, 1 = second, …
 
-    // 4. Build NFT records — unique title per record, real filename used in name when meaningful
-    const records = imagePool.map((file, i) => {
-      // Try to derive a name from the actual filename first
-      const rawName = file.name.replace(/\.[^.]+$/, "").trim(); // strip extension
-      const isGenericHash = /^[a-f0-9]{20,}$/i.test(rawName) || /^imgi_/.test(rawName);
-      const titleFromFile = isGenericHash ? null : rawName
-        .replace(/[-_]/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase())
-        .slice(0, 50);
+      // Make the URL unique per cycle so no two records share the same image_url
+      const uniqueUrl = cycle === 0
+        ? file.publicUrl
+        : `${file.publicUrl}?v=${cycle + 1}`;
 
       const generatedName = buildNFTName(i);
-      const title = titleFromFile ? `${titleFromFile} #${String(i + 1).padStart(4, "0")}` : generatedName;
-
       const level = nftLevel(i);
       const { min_price, max_price } = nftPrices(i, level);
 
       return {
-        title,
-        image_url: file.publicUrl,
+        title: generatedName,
+        image_url: uniqueUrl,
         level,
         min_price,
         max_price,
       };
     });
 
-    console.log(`[Seed] Built ${records.length} records. Sample titles:`,
+    console.log(`[Seed] Built ${records.length} records (${fileCount} real images, cycled). Sample titles:`,
       records.slice(0, 5).map((r) => r.title).join(" | "));
 
-    // 5. Upsert with ON CONFLICT (image_url) DO NOTHING
-    //    Requires UNIQUE constraint on nfts.image_url — run fix_nfts_unique.sql if missing
+    // 4. Clear existing NFTs, then INSERT fresh 300 records.
+    //    We use plain INSERT (not upsert) because each URL is now guaranteed unique.
+    console.log("[Seed] Clearing existing NFT records…");
+    const { error: deleteError } = await supabase
+      .from("nfts")
+      .delete()
+      .gte("created_at", "2000-01-01");
+
+    if (deleteError) {
+      console.error("[Seed] Delete error:", deleteError.message);
+      // Non-fatal — proceed with insert anyway
+    }
+
     const BATCH = 50;
     let inserted = 0;
     let skipped = 0;
@@ -252,7 +258,7 @@ router.post("/seed-nfts-from-storage", async (_req, res) => {
 
       const { data, error } = await supabase
         .from("nfts")
-        .upsert(batch, { onConflict: "image_url", ignoreDuplicates: true })
+        .insert(batch)
         .select("id, title");
 
       if (error) {
@@ -267,26 +273,14 @@ router.post("/seed-nfts-from-storage", async (_req, res) => {
           });
         }
 
-        if (error.message.includes("no unique or exclusion constraint")) {
-          return res.status(400).json({
-            success: false,
-            error: "MISSING_UNIQUE_CONSTRAINT",
-            message: "The nfts.image_url column needs a UNIQUE constraint for ON CONFLICT to work.",
-            fix_sql: "Run artifacts/mobile/supabase/fix_nfts_unique.sql in Supabase SQL Editor.",
-            log: probe.log,
-          });
-        }
-
         batchErrors.push(`Batch ${b / BATCH + 1}: ${error.message}`);
         continue;
       }
 
       const batchInserted = data?.length ?? 0;
-      const batchSkipped = batch.length - batchInserted;
       inserted += batchInserted;
-      skipped += batchSkipped;
 
-      console.log(`[Seed] Batch ${b / BATCH + 1}: inserted=${batchInserted} skipped(dup)=${batchSkipped}`);
+      console.log(`[Seed] Batch ${b / BATCH + 1}: inserted=${batchInserted}`);
 
       if (sampleTitles.length < 5 && data) {
         sampleTitles.push(...data.slice(0, 5 - sampleTitles.length).map((r: any) => r.title));
