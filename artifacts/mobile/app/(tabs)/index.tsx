@@ -309,18 +309,10 @@ export default function ExploreScreen() {
             </Pressable>
           )}
 
-          {/* Loading more skeleton rows */}
+          {/* Loading more — shimmer skeleton rows */}
           {loadingMore && (
-            <View style={[styles.discoverGrid, { marginTop: 12 }]}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <View key={i} style={styles.skeletonMiniCard}>
-                  <View style={styles.skeletonMiniImg} />
-                  <View style={{ padding: 8, gap: 6 }}>
-                    <View style={styles.skeletonLine} />
-                    <View style={[styles.skeletonLine, { width: "50%" }]} />
-                  </View>
-                </View>
-              ))}
+            <View style={{ marginTop: 12 }}>
+              <NFTSkeletonGrid count={4} />
             </View>
           )}
         </View>
