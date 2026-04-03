@@ -3,7 +3,6 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
   Modal,
@@ -25,8 +24,11 @@ import Animated, {
 } from "react-native-reanimated";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
+import { NFTSkeletonGrid } from "@/components/NFTSkeletonCard";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { OwnedNFT, StakedNFT, useStake } from "@/context/StakeContext";
+import { useStakeApi } from "@/hooks/useStakeApi";
 import { fetchAllNFTs } from "@/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
@@ -98,6 +100,8 @@ function calcIncome(stake: StakedNFT, now: number): number {
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function StakeScreen() {
   const { ownedNFTs, stakedNFTs, buyNFT, sellNFT, stakeNFT, redeemStake } = useStake();
+  const { user } = useAuth();
+  const stakeApi = useStakeApi(user?.id);
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
   // Navigation state
@@ -183,16 +187,26 @@ export default function StakeScreen() {
   };
 
   // ─── Stake handler ─────────────────────────────────────────────────────────
-  const handleConfirmStake = () => {
+  const handleConfirmStake = async () => {
     if (!stakeModalNFT) return;
-    // Find the real NFT id from ownedNFTs
     const real = ownedNFTs.find(
       (n) => n.name === stakeModalNFT.name && n.price === stakeModalNFT.price
     );
     if (!real) return;
+    // 1. Update local context (instant UI feedback)
     stakeNFT(real.id, stakeTimeOption);
     setStakeModalNFT(null);
     setStakeSuccess(true);
+    // 2. Persist to backend (non-blocking)
+    if (user?.id) {
+      stakeApi.startStake({
+        userId: user.id,
+        amount: real.price,
+        zoneTitle: real.zoneTitle ?? "",
+        apr: real.apr,
+        durationMinutes: stakeTimeOption,
+      }).catch(console.error);
+    }
   };
 
   // ─── Sell handler ──────────────────────────────────────────────────────────
@@ -312,9 +326,8 @@ export default function StakeScreen() {
             </View>
 
             {nftsLoading ? (
-              <View style={styles.loadingWrap}>
-                <ActivityIndicator size="large" color="#5CBFFE" />
-                <Text style={styles.loadingText}>Loading NFTs...</Text>
+              <View style={{ marginTop: 8 }}>
+                <NFTSkeletonGrid count={6} />
               </View>
             ) : (
               <View style={styles.nftGrid}>
@@ -376,7 +389,48 @@ export default function StakeScreen() {
         {/* ── MY STAKE TAB ─────────────────────────────────────────────────── */}
         {mainTab === "mystake" && (
           <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
-            {/* Summary */}
+            {/* API Summary Banner */}
+            {stakeApi.summary && (stakeApi.summary.active.length > 0 || stakeApi.summary.completed.length > 0) && (
+              <Animated.View entering={FadeInDown.duration(300)} style={styles.apiSummaryCard}>
+                <LinearGradient colors={["#E8FFF8", "#EBF8FF"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={16} />
+                <View style={styles.apiSummaryRow}>
+                  <View style={styles.apiSumItem}>
+                    <Text style={styles.apiSumLabel}>Active Stakes</Text>
+                    <Text style={styles.apiSumValue}>{stakeApi.summary.active.length}</Text>
+                  </View>
+                  <View style={styles.apiSumDivider} />
+                  <View style={styles.apiSumItem}>
+                    <Text style={styles.apiSumLabel}>Total Staked</Text>
+                    <Text style={styles.apiSumValue}>{stakeApi.summary.totalStaked.toLocaleString()} TFT</Text>
+                  </View>
+                  <View style={styles.apiSumDivider} />
+                  <View style={styles.apiSumItem}>
+                    <Text style={styles.apiSumLabel}>Total Profit</Text>
+                    <Text style={[styles.apiSumValue, { color: "#2BD9A8" }]}>{stakeApi.summary.totalProfit.toFixed(4)}</Text>
+                  </View>
+                </View>
+                {/* Completed API stakes history */}
+                {stakeApi.summary.completed.length > 0 && (
+                  <View style={styles.apiCompletedSection}>
+                    <Text style={styles.apiCompletedTitle}>Completed ({stakeApi.summary.completed.length})</Text>
+                    {stakeApi.summary.completed.slice(0, 3).map((s) => (
+                      <View key={s.id} style={styles.apiCompletedRow}>
+                        <View style={styles.apiCompletedLeft}>
+                          <Text style={styles.apiCompletedZone} numberOfLines={1}>{s.zone_title || "Stake"}</Text>
+                          <Text style={styles.apiCompletedDate}>{new Date(s.start_time).toLocaleDateString()}</Text>
+                        </View>
+                        <View style={styles.apiCompletedRight}>
+                          <Text style={styles.apiCompletedAmount}>{Number(s.amount).toLocaleString()} TFT</Text>
+                          <Text style={styles.apiCompletedProfit}>+{s.currentProfit.toFixed(4)} TFT</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </Animated.View>
+            )}
+
+            {/* Local Summary */}
             <View style={styles.stakeSummaryRow}>
               <View style={styles.stakeSummaryCard}>
                 <Text style={styles.summaryLabel}>Total Stake Value</Text>
@@ -770,4 +824,21 @@ const styles = StyleSheet.create({
   redemptionIncomeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   redemptionLabel: { fontSize: 15, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
   redemptionValue: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#2BD9A8" },
+
+  // API stake summary
+  apiSummaryCard: { borderRadius: 16, overflow: "hidden", padding: 16, marginBottom: 14, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  apiSummaryRow: { flexDirection: "row", alignItems: "center" },
+  apiSumItem: { flex: 1, alignItems: "center", gap: 4 },
+  apiSumDivider: { width: 1, height: 36, backgroundColor: "#C8F0E4" },
+  apiSumLabel: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textSecondary, textAlign: "center" },
+  apiSumValue: { fontSize: 15, fontFamily: "Inter_700Bold", color: Colors.textPrimary, textAlign: "center" },
+  apiCompletedSection: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#DFF5EE", gap: 8 },
+  apiCompletedTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary, marginBottom: 4 },
+  apiCompletedRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "#EEF9F5" },
+  apiCompletedLeft: { flex: 1, gap: 2 },
+  apiCompletedRight: { alignItems: "flex-end", gap: 2 },
+  apiCompletedZone: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  apiCompletedDate: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  apiCompletedAmount: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
+  apiCompletedProfit: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#2BD9A8" },
 });
