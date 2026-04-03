@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import { Image } from "expo-image";
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Platform,
@@ -22,10 +23,12 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
+import { NFTSkeletonGrid } from "@/components/NFTSkeletonCard";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
 import { useWatchlist } from "@/context/WatchlistContext";
 import { NFT, NFTS, TOP_COLLECTIONS, RARITY_COLORS } from "@/data/nfts";
+import { usePaginatedNFTs, type NFTItem } from "@/hooks/usePaginatedNFTs";
 
 function VerifiedBadge({ size = 16 }: { size?: number }) {
   return <MaterialCommunityIcons name="check-decagram" size={size} color="#4DA8F0" />;
@@ -108,6 +111,17 @@ export default function ExploreScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
   const filtered = selectedCat === "All" ? NFTS : NFTS.filter((n) => n.category === selectedCat);
+
+  // Paginated API NFTs for Discover section
+  const {
+    items: apiNFTs,
+    loading: nftsLoading,
+    loadingMore,
+    hasMore,
+    error: nftsError,
+    totalItems,
+    loadMore,
+  } = usePaginatedNFTs(selectedCat === "All" ? undefined : selectedCat);
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
@@ -223,9 +237,16 @@ export default function ExploreScreen() {
 
         {/* Discover More NFTs */}
         <View style={styles.discoverSection}>
-          <Text style={styles.discoverTitle}>Discover more NFTs</Text>
+          <View style={styles.discoverTitleRow}>
+            <Text style={styles.discoverTitle}>Discover more NFTs</Text>
+            {totalItems > 0 && (
+              <Text style={styles.discoverCount}>{totalItems} items</Text>
+            )}
+          </View>
+
+          {/* Category pills */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-            {CATEGORIES.map((cat) => (
+            {["All", ...CATEGORIES].map((cat) => (
               <Pressable
                 key={cat}
                 onPress={() => {
@@ -241,11 +262,67 @@ export default function ExploreScreen() {
               </Pressable>
             ))}
           </ScrollView>
-          <View style={styles.discoverGrid}>
-            {NFTS.slice(0, 6).map((nft, idx) => (
-              <NFTCard key={nft.id} nft={nft} idx={idx} />
-            ))}
-          </View>
+
+          {/* Grid — skeleton while loading first page */}
+          {nftsLoading ? (
+            <NFTSkeletonGrid count={6} />
+          ) : nftsError ? (
+            /* Error state — fall back to static data */
+            <View style={styles.discoverGrid}>
+              {NFTS.slice(0, 6).map((nft, idx) => (
+                <NFTCard key={nft.id} nft={nft} idx={idx} />
+              ))}
+            </View>
+          ) : apiNFTs.length === 0 ? (
+            /* Empty state */
+            <View style={styles.discoverEmpty}>
+              <MaterialCommunityIcons name="image-off-outline" size={36} color={Colors.textMuted} />
+              <Text style={styles.discoverEmptyText}>No NFTs found</Text>
+            </View>
+          ) : (
+            /* API data grid */
+            <View style={styles.discoverGrid}>
+              {apiNFTs.map((nft) => (
+                <APICardNFT key={nft.id} nft={nft} />
+              ))}
+            </View>
+          )}
+
+          {/* Load More button */}
+          {!nftsLoading && !nftsError && hasMore && (
+            <Pressable
+              style={[styles.loadMoreBtn, loadingMore && { opacity: 0.7 }]}
+              onPress={loadMore}
+              disabled={loadingMore}
+            >
+              <LinearGradient
+                colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[StyleSheet.absoluteFill, { borderRadius: 14 }]}
+              />
+              {loadingMore ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.loadMoreText}>Load More</Text>
+              )}
+            </Pressable>
+          )}
+
+          {/* Loading more skeleton rows */}
+          {loadingMore && (
+            <View style={[styles.discoverGrid, { marginTop: 12 }]}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <View key={i} style={styles.skeletonMiniCard}>
+                  <View style={styles.skeletonMiniImg} />
+                  <View style={{ padding: 8, gap: 6 }}>
+                    <View style={styles.skeletonLine} />
+                    <View style={[styles.skeletonLine, { width: "50%" }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Featured Collections Section */}
@@ -383,6 +460,40 @@ const STAKE_NAMES = [
 ];
 const STAKE_PRICES = ["497 USDT", "492 USDT", "496 USDT", "587 USDT", "501 USDT", "534 USDT"];
 
+// Card for API-fetched NFTs (paginated)
+function APICardNFT({ nft }: { nft: NFTItem }) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const price = nft.min_price && nft.max_price
+    ? `${nft.min_price}–${nft.max_price} USDT`
+    : nft.min_price ? `${nft.min_price} USDT` : "— USDT";
+
+  return (
+    <Animated.View style={[animStyle, styles.discoverCard]}>
+      <Pressable
+        onPress={() => router.push({ pathname: "/nft/[id]", params: { id: nft.id } })}
+        onPressIn={() => { scale.value = withSpring(0.96, { damping: 15 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
+      >
+        <Image
+          source={{ uri: nft.image_url }}
+          style={styles.discoverCardImg}
+          contentFit="cover"
+          placeholder={require("../../assets/images/nft1.avif")}
+          transition={300}
+        />
+        <View style={styles.discoverCardInfo}>
+          <Text style={styles.discoverCardName} numberOfLines={1}>{nft.title}</Text>
+          <View style={styles.discoverCardPriceRow}>
+            <View style={styles.discoverTIcon}><Text style={styles.discoverTText}>T</Text></View>
+            <Text style={styles.discoverCardPrice}>{price}</Text>
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 function NFTCard({ nft, idx = 0 }: { nft: NFT; idx?: number }) {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -420,8 +531,17 @@ const styles = StyleSheet.create({
   tokenIconText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
 
   discoverSection: { paddingHorizontal: 16, marginBottom: 16 },
-  discoverTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginBottom: 14, letterSpacing: -0.3, textAlign: "center" },
+  discoverTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+  discoverTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary, letterSpacing: -0.3 },
+  discoverCount: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted, backgroundColor: Colors.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
   discoverGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  discoverEmpty: { alignItems: "center", paddingVertical: 48, gap: 10 },
+  discoverEmptyText: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  loadMoreBtn: { height: 50, borderRadius: 14, overflow: "hidden", alignItems: "center", justifyContent: "center", marginTop: 18 },
+  loadMoreText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold", zIndex: 1 },
+  skeletonMiniCard: { width: (width - 44) / 2, backgroundColor: "#fff", borderRadius: 18, overflow: "hidden" },
+  skeletonMiniImg: { width: "100%", height: 130, backgroundColor: "#E2E8EF" },
+  skeletonLine: { height: 11, backgroundColor: "#E2E8EF", borderRadius: 5, width: "70%" },
   discoverCard: {
     width: (width - 44) / 2,
     backgroundColor: Colors.white,
