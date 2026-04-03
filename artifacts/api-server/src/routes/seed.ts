@@ -1,10 +1,26 @@
 import { Router, type IRouter } from "express";
-import supabase from "../lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import supabase from "../lib/supabase"; // anon client — used for nfts table
 
 const router: IRouter = Router();
 
-// ─── NFT Name Generator ───────────────────────────────────────────────────────
-// Produces 300+ unique, real-sounding NFT names without using "NFT1" / "Apex1"
+// ─── Supabase config ─────────────────────────────────────────────────────────
+const SUPABASE_URL =
+  process.env["SUPABASE_URL"] ?? "https://juqdsjlnvdbzvwqzhjrb.supabase.co";
+
+// Storage listing requires service-role key (bypasses bucket RLS).
+// Fallback to anon key only — will fail on private buckets.
+const SERVICE_KEY =
+  process.env["SUPABASE_SERVICE_ROLE_KEY"] ??
+  process.env["SUPABASE_ANON_KEY"] ??
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1cWRzamxudmRienZ3cXpoanJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MTAzMjcsImV4cCI6MjA5MDE4NjMyN30.BF_SbIkXJDA79mgccYuzjoyt9IOYiMW2sf9hEf5hSQs";
+
+// Separate client for storage ops (uses service-role key when available)
+const storageClient = createClient(SUPABASE_URL, SERVICE_KEY, {
+  auth: { persistSession: false },
+});
+
+// ─── Real NFT name generator ─────────────────────────────────────────────────
 const ADJECTIVES = [
   "Cosmic", "Mystic", "Shadow", "Golden", "Neon", "Quantum", "Phantom",
   "Crystal", "Ancient", "Cyber", "Frozen", "Blazing", "Silent", "Eternal",
@@ -23,51 +39,66 @@ const SUFFIXES = [
 function buildNFTName(index: number): string {
   const adj = ADJECTIVES[index % ADJECTIVES.length];
   const noun = NOUNS[Math.floor(index / ADJECTIVES.length) % NOUNS.length];
-  const suffix = SUFFIXES[Math.floor(index / (ADJECTIVES.length * NOUNS.length)) % SUFFIXES.length];
+  const suffix =
+    SUFFIXES[Math.floor(index / (ADJECTIVES.length * NOUNS.length)) % SUFFIXES.length];
   const seq = String(index + 1).padStart(4, "0");
-  // Rotate pattern so names vary nicely across 300
   const pattern = index % 3;
   if (pattern === 0) return `${adj} ${noun} #${seq}`;
   if (pattern === 1) return `${noun} of ${suffix} #${seq}`;
   return `${adj} ${suffix} ${noun} #${seq}`;
 }
 
-// Price tiers by level
-const PRICE_TIERS = [
-  { min: 80,  max: 200 },  // level 1
-  { min: 200, max: 500 },  // level 2
-  { min: 500, max: 1200 }, // level 3
-];
-
-function nftLevel(index: number): number {
-  // Distribute: 50% level1, 33% level2, 17% level3
+function nftLevel(index: number): 1 | 2 | 3 {
   const r = index % 6;
   if (r < 3) return 1;
   if (r < 5) return 2;
   return 3;
 }
 
-function nftPrices(index: number, level: number) {
-  const tier = PRICE_TIERS[level - 1];
+function nftPrices(index: number, level: 1 | 2 | 3) {
+  const tiers = [
+    { min: 80,  max: 200 },
+    { min: 200, max: 500 },
+    { min: 500, max: 1200 },
+  ];
+  const tier = tiers[level - 1];
   const spread = tier.max - tier.min;
-  const offset = (index * 37) % spread;
-  return { min_price: tier.min + offset, max_price: tier.max + (index * 13) % 100 };
+  return {
+    min_price: tier.min + (index * 37) % spread,
+    max_price: tier.max + (index * 13) % 100,
+  };
 }
 
-// ─── Bucket helpers ──────────────────────────────────────────────────────────
-// Try both "apex" and "Apex" — whichever lists files wins
-async function listAllFilesFromBucket(): Promise<{
+// ─── Storage helpers ──────────────────────────────────────────────────────────
+
+// Try multiple bucket name casings (Supabase bucket names are case-sensitive)
+const BUCKET_NAMES = ["apex", "Apex", "APEX"];
+
+interface StorageFile {
+  name: string;       // original filename (may contain spaces)
+  publicUrl: string;  // Supabase public URL
+}
+
+interface BucketProbeResult {
+  found: boolean;
   bucket: string;
-  files: { name: string; path: string; publicUrl: string }[];
-  rawLog: string[];
-}> {
-  const bucketsToTry = ["apex", "Apex", "APEX"];
-  const rawLog: string[] = [];
+  files: StorageFile[];
+  log: string[];
+  error?: string;
+}
 
-  for (const bucket of bucketsToTry) {
-    rawLog.push(`[Storage] Trying bucket: "${bucket}"`);
+async function probeStorageBucket(): Promise<BucketProbeResult> {
+  const log: string[] = [];
+  const usingServiceRole = SERVICE_KEY !== process.env["SUPABASE_ANON_KEY"] &&
+    !!process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
-    const { data, error } = await supabase.storage
+  log.push(`[Storage] Service-role key available: ${usingServiceRole}`);
+
+  for (const bucket of BUCKET_NAMES) {
+    log.push(`[Storage] Probing bucket: "${bucket}"`);
+
+    // List root — no extension filter, handles spaces automatically
+    const { data, error } = await storageClient.storage
       .from(bucket)
       .list("", {
         limit: 1000,
@@ -75,228 +106,295 @@ async function listAllFilesFromBucket(): Promise<{
         sortBy: { column: "name", order: "asc" },
       });
 
-    rawLog.push(`[Storage]   → data count=${data?.length ?? 0} error=${error?.message ?? "none"}`);
-
-    if (error || !data || data.length === 0) continue;
-
-    // Log ALL items returned (no extension filter yet)
-    data.forEach((item) => {
-      rawLog.push(`[Storage]   file: name="${item.name}" id=${item.id ?? "null(folder)"}`);
-    });
-
-    // Collect real files (have an id) — include ALL, don't filter by extension
-    const files = data
-      .filter((item) => !!item.id)
-      .map((item) => {
-        const { data: urlData } = supabase.storage
-          .from(bucket)
-          .getPublicUrl(item.name);
-        return {
-          name: item.name,
-          path: item.name,
-          publicUrl: urlData.publicUrl,
-        };
-      });
-
-    rawLog.push(`[Storage] ✓ Found ${files.length} files in bucket "${bucket}"`);
-    console.log(rawLog.join("\n"));
-    return { bucket, files, rawLog };
-  }
-
-  console.log(rawLog.join("\n"));
-  return { bucket: "none", files: [], rawLog };
-}
-
-// ─── POST /seed-nfts-from-storage ─────────────────────────────────────────────
-// Lists ALL files from bucket "apex" (case-insensitive probe),
-// generates 300 NFT records with real names, upserts into nfts table.
-router.post("/seed-nfts-from-storage", async (_req, res) => {
-  try {
-    const TARGET = 300;
-
-    // 1. List all files from storage
-    const { bucket, files, rawLog } = await listAllFilesFromBucket();
-
-    console.log(`[Seed] Storage probe complete. bucket="${bucket}" files=${files.length}`);
-    console.log(`[Seed] File names:`, files.map((f) => f.name).join(", ") || "(none)");
-
-    // 2. Build the pool of image URLs
-    // If we have storage files, use them (cycling to reach TARGET if needed).
-    // If bucket is empty, fall back to deterministic picsum URLs.
-    const imagePool: string[] = [];
-
-    if (files.length > 0) {
-      for (let i = 0; i < TARGET; i++) {
-        imagePool.push(files[i % files.length].publicUrl);
-      }
-    } else {
-      // Fallback: 30 distinct picsum seeds × 10 styles = 300 unique URLs
-      const SEEDS = [
-        "nftdragon", "nftphoenix", "nftape", "nftwolf", "nftpanther",
-        "nfttiger", "nftlion", "nfteagle", "nftserpent", "nftsamurai",
-        "nftwarrior", "nftoracle", "nfttitan", "nftspecter", "nftgolem",
-        "nftwraith", "nftdaemon", "nftcipher", "nftnexus", "nftsentinel",
-        "nftcosmic", "nftmystic", "nftshadow", "nftgolden", "nftneon",
-        "nftquantum", "nftphantom", "nftcrystal", "nftancient", "nftcyber",
-      ];
-      for (let i = 0; i < TARGET; i++) {
-        const seed = SEEDS[i % SEEDS.length];
-        const size = 400 + (i % 3) * 100; // 400, 500, 600 px variety
-        imagePool.push(`https://picsum.photos/seed/${seed}${Math.floor(i / SEEDS.length) + 1}/${size}/${size}`);
-      }
-      console.log(`[Seed] No storage images found. Using ${TARGET} picsum fallback URLs.`);
+    if (error) {
+      log.push(`[Storage]   error: ${error.message}`);
+      continue;
     }
 
-    // 3. Build 300 NFT records with real names
-    const records = imagePool.slice(0, TARGET).map((imageUrl, i) => {
-      const level = nftLevel(i);
-      const { min_price, max_price } = nftPrices(i, level);
+    if (!data) {
+      log.push(`[Storage]   no data returned`);
+      continue;
+    }
+
+    log.push(`[Storage]   raw items returned: ${data.length}`);
+
+    // Log ALL items (files and folders)
+    data.forEach((item, i) => {
+      log.push(`[Storage]   [${i}] name="${item.name}" id=${item.id ?? "null"} size=${item.metadata?.size ?? "?"}`);
+    });
+
+    // Files have an id; folders have id=null
+    const fileItems = data.filter((item) => item.id != null);
+    log.push(`[Storage]   files (with id): ${fileItems.length}`);
+
+    if (fileItems.length === 0) {
+      log.push(`[Storage]   no files in bucket "${bucket}" — might be private or empty`);
+      continue;
+    }
+
+    // Generate public URLs — Supabase handles URL-encoding of spaces automatically
+    const files: StorageFile[] = fileItems.map((item) => {
+      const { data: urlData } = storageClient.storage
+        .from(bucket)
+        .getPublicUrl(item.name); // spaces are handled by the SDK
       return {
-        title: buildNFTName(i),
-        image_url: imageUrl,
-        level,
-        min_price,
-        max_price,
+        name: item.name,
+        publicUrl: urlData.publicUrl,
       };
     });
 
-    console.log(`[Seed] Built ${records.length} NFT records. Sample names:`,
-      records.slice(0, 5).map((r) => r.title).join(", "));
+    log.push(`[Storage] ✓ Found ${files.length} files in bucket "${bucket}"`);
+    files.slice(0, 10).forEach((f) => log.push(`[Storage]   → "${f.name}" → ${f.publicUrl}`));
 
-    // 4. Check existing count — if already >= TARGET, wipe and re-seed fresh
-    const { count: existingCount } = await supabase
-      .from("nfts")
-      .select("*", { count: "exact", head: true });
-
-    if ((existingCount ?? 0) > 0) {
-      console.log(`[Seed] Clearing ${existingCount} existing nft records before re-seeding...`);
-      const { error: delError } = await supabase.from("nfts").delete().gte("created_at", "2000-01-01");
-      if (delError) {
-        console.error("[Seed] Delete error:", delError.message);
-        // If delete failed due to RLS, try to continue with insert anyway
-      }
-    }
-
-    // 5. Insert in batches of 50 (plain insert — no conflict needed after wipe)
-    const BATCH = 50;
-    let totalInserted = 0;
-    const errors: string[] = [];
-    const sampleInserted: any[] = [];
-
-    for (let b = 0; b < records.length; b += BATCH) {
-      const batch = records.slice(b, b + BATCH);
-      const { data: inserted, error: insertError } = await supabase
-        .from("nfts")
-        .insert(batch)
-        .select("id, title");
-
-      if (insertError) {
-        console.error(`[Seed] Batch ${b / BATCH + 1} error:`, insertError.message);
-        errors.push(insertError.message);
-        if (insertError.message?.includes("row-level security") || insertError.code === "42501") {
-          return res.status(403).json({
-            success: false,
-            error: "RLS_BLOCKED",
-            fix_sql: `
--- Run these in Supabase SQL Editor:
-CREATE POLICY "Allow anon insert nfts" ON public.nfts FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow anon delete nfts" ON public.nfts FOR DELETE TO anon USING (true);`,
-            rawLog,
-          });
-        }
-        // Non-RLS error: log and continue with remaining batches
-      } else {
-        const count = inserted?.length ?? 0;
-        totalInserted += count;
-        console.log(`[Seed] Batch ${b / BATCH + 1} (records ${b + 1}–${b + batch.length}): inserted ${count}`);
-        if (sampleInserted.length < 5 && inserted) {
-          sampleInserted.push(...inserted.slice(0, 5 - sampleInserted.length));
-        }
-      }
-    }
-
-    // 6. Final count
-    const { count: dbCount } = await supabase
-      .from("nfts")
-      .select("*", { count: "exact", head: true });
-
-    console.log(`[Seed] ✓ COMPLETE — requestedTarget=${TARGET} insertedThisRun=${totalInserted} totalInDB=${dbCount ?? "?"} storageFiles=${files.length} errors=${errors.length}`);
-
-    return res.json({
-      success: errors.length === 0 && totalInserted > 0,
-      storageFiles: files.length,
-      bucketUsed: bucket === "none" ? "picsum-fallback" : bucket,
-      requestedTarget: TARGET,
-      recordsBuilt: records.length,
-      insertedThisRun: totalInserted,
-      totalInDatabase: dbCount ?? 0,
-      errors: errors.length > 0 ? errors : undefined,
-      sampleTitles: records.slice(0, 10).map((r) => r.title),
-      sampleInserted: sampleInserted.slice(0, 5),
-      rawLog,
-    });
-  } catch (err: any) {
-    console.error("[Seed] Fatal error:", err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    return { found: true, bucket, files, log };
   }
-});
 
-// ─── GET /storage/images — probe bucket and list all files ───────────────────
+  // All buckets returned 0 files
+  const isPrivate = !process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  const hint = isPrivate
+    ? "SUPABASE_SERVICE_ROLE_KEY secret is not set. Private buckets require the service-role key to list files. Either: (1) add the secret, or (2) make the bucket public in Supabase Dashboard → Storage → apex → Edit → toggle Public."
+    : "All bucket variants returned 0 files. Confirm files exist in the bucket via Supabase Dashboard → Storage.";
+
+  log.push(`[Storage] ✗ No files found in any bucket variant. ${hint}`);
+  return { found: false, bucket: "none", files: [], log, error: hint };
+}
+
+// ─── GET /storage/images — diagnostic: probe bucket and list all files ────────
 router.get("/storage/images", async (_req, res) => {
   try {
-    const { bucket, files, rawLog } = await listAllFilesFromBucket();
+    const result = await probeStorageBucket();
     return res.json({
-      bucket,
-      count: files.length,
-      files: files.map((f) => ({ name: f.name, url: f.publicUrl })),
-      rawLog,
+      found: result.found,
+      bucket: result.bucket,
+      count: result.files.length,
+      files: result.files.map((f) => ({ name: f.name, url: f.publicUrl })),
+      log: result.log,
+      error: result.error,
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
-// ─── GET /seed-nfts/status ────────────────────────────────────────────────────
-router.get("/seed-nfts/status", async (_req, res) => {
-  const { count, error } = await supabase.from("nfts").select("*", { count: "exact", head: true });
-  if (error) return res.status(500).json({ error: error.message });
-  return res.json({ count });
-});
+// ─── POST /seed-nfts-from-storage ─────────────────────────────────────────────
+// Lists ALL files from bucket "apex", generates 300 NFT records, upserts.
+// Throws error if 0 files found — NO fallback to fake images.
+router.post("/seed-nfts-from-storage", async (_req, res) => {
+  const TARGET = 300;
 
-// ─── POST /seed-nfts (legacy — 50 picsum records) ────────────────────────────
-router.post("/seed-nfts", async (_req, res) => {
   try {
-    const records = Array.from({ length: 50 }, (_, i) => {
+    // 1. List all files from storage
+    const probe = await probeStorageBucket();
+
+    // Print log immediately
+    probe.log.forEach((line) => console.log(line));
+
+    // 2. HARD FAIL if bucket is empty — no picsum fallback
+    if (!probe.found || probe.files.length === 0) {
+      console.error("[Seed] ✗ Aborting — no files found in storage bucket.");
+      return res.status(400).json({
+        success: false,
+        storageFiles: 0,
+        bucketProbed: BUCKET_NAMES,
+        error: "No files found in Supabase storage bucket 'apex'. Cannot insert without real images.",
+        fix: probe.error,
+        log: probe.log,
+      });
+    }
+
+    console.log(`[Seed] ✓ Storage: ${probe.files.length} files in bucket "${probe.bucket}"`);
+    console.log(`[Seed] File list:`, probe.files.map((f) => `"${f.name}"`).join(", "));
+
+    // 3. Build image URL pool — cycle files to reach TARGET
+    const imagePool: StorageFile[] = Array.from(
+      { length: TARGET },
+      (_, i) => probe.files[i % probe.files.length]
+    );
+
+    // 4. Build NFT records — unique title per record, real filename used in name when meaningful
+    const records = imagePool.map((file, i) => {
+      // Try to derive a name from the actual filename first
+      const rawName = file.name.replace(/\.[^.]+$/, "").trim(); // strip extension
+      const isGenericHash = /^[a-f0-9]{20,}$/i.test(rawName) || /^imgi_/.test(rawName);
+      const titleFromFile = isGenericHash ? null : rawName
+        .replace(/[-_]/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .slice(0, 50);
+
+      const generatedName = buildNFTName(i);
+      const title = titleFromFile ? `${titleFromFile} #${String(i + 1).padStart(4, "0")}` : generatedName;
+
       const level = nftLevel(i);
       const { min_price, max_price } = nftPrices(i, level);
-      const seed = ["nftdragon", "nftphoenix", "nftape", "nftwolf", "nftpanther"][i % 5];
+
       return {
-        title: buildNFTName(i),
-        image_url: `https://picsum.photos/seed/${seed}${i + 1}/400/400`,
+        title,
+        image_url: file.publicUrl,
         level,
         min_price,
         max_price,
       };
     });
 
-    const { data, error } = await supabase
-      .from("nfts")
-      .upsert(records, { onConflict: "image_url", ignoreDuplicates: true })
-      .select("id, title");
+    console.log(`[Seed] Built ${records.length} records. Sample titles:`,
+      records.slice(0, 5).map((r) => r.title).join(" | "));
 
-    if (error) {
-      const isRLS = error.message?.includes("row-level security") || error.code === "42501";
-      if (isRLS) {
-        return res.status(403).json({
-          success: false,
-          error: "RLS_BLOCKED",
-          fix_sql: `CREATE POLICY "Allow anon insert nfts" ON public.nfts FOR INSERT TO anon WITH CHECK (true);`,
-        });
+    // 5. Upsert with ON CONFLICT (image_url) DO NOTHING
+    //    Requires UNIQUE constraint on nfts.image_url — run fix_nfts_unique.sql if missing
+    const BATCH = 50;
+    let inserted = 0;
+    let skipped = 0;
+    const batchErrors: string[] = [];
+    const sampleTitles: string[] = [];
+
+    for (let b = 0; b < records.length; b += BATCH) {
+      const batch = records.slice(b, b + BATCH);
+
+      const { data, error } = await supabase
+        .from("nfts")
+        .upsert(batch, { onConflict: "image_url", ignoreDuplicates: true })
+        .select("id, title");
+
+      if (error) {
+        console.error(`[Seed] Batch ${b / BATCH + 1} error: ${error.message}`);
+
+        if (error.message.includes("row-level security") || error.code === "42501") {
+          return res.status(403).json({
+            success: false,
+            error: "RLS_BLOCKED",
+            fix_sql: "Run artifacts/mobile/supabase/fix_nfts_unique.sql in Supabase SQL Editor.",
+            log: probe.log,
+          });
+        }
+
+        if (error.message.includes("no unique or exclusion constraint")) {
+          return res.status(400).json({
+            success: false,
+            error: "MISSING_UNIQUE_CONSTRAINT",
+            message: "The nfts.image_url column needs a UNIQUE constraint for ON CONFLICT to work.",
+            fix_sql: "Run artifacts/mobile/supabase/fix_nfts_unique.sql in Supabase SQL Editor.",
+            log: probe.log,
+          });
+        }
+
+        batchErrors.push(`Batch ${b / BATCH + 1}: ${error.message}`);
+        continue;
       }
-      return res.status(500).json({ success: false, error: error.message });
+
+      const batchInserted = data?.length ?? 0;
+      const batchSkipped = batch.length - batchInserted;
+      inserted += batchInserted;
+      skipped += batchSkipped;
+
+      console.log(`[Seed] Batch ${b / BATCH + 1}: inserted=${batchInserted} skipped(dup)=${batchSkipped}`);
+
+      if (sampleTitles.length < 5 && data) {
+        sampleTitles.push(...data.slice(0, 5 - sampleTitles.length).map((r: any) => r.title));
+      }
     }
 
-    return res.json({ success: true, inserted: data?.length ?? 0, sample: data?.slice(0, 3) });
+    // 6. Final count
+    const { count: totalInDB } = await supabase
+      .from("nfts")
+      .select("*", { count: "exact", head: true });
+
+    console.log(`[Seed] ✓ DONE — storageFiles=${probe.files.length} inserted=${inserted} skipped=${skipped} totalInDB=${totalInDB}`);
+
+    return res.json({
+      success: batchErrors.length === 0,
+      storageFiles: probe.files.length,
+      bucketUsed: probe.bucket,
+      recordsBuilt: records.length,
+      insertedThisRun: inserted,
+      skippedDuplicates: skipped,
+      totalInDatabase: totalInDB ?? 0,
+      sampleTitles,
+      errors: batchErrors.length > 0 ? batchErrors : undefined,
+      log: probe.log,
+    });
+  } catch (err: any) {
+    console.error("[Seed] Fatal:", err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── GET /seed-nfts/status ────────────────────────────────────────────────────
+router.get("/seed-nfts/status", async (_req, res) => {
+  const { count, error } = await supabase
+    .from("nfts")
+    .select("*", { count: "exact", head: true });
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json({ count });
+});
+
+// ─── POST /seed-nfts (generates 300 records — only if storage bucket is empty) ─
+// A convenience endpoint that works WITHOUT storage files, using generated images.
+// Only use this for testing when storage bucket has no images.
+router.post("/seed-nfts", async (_req, res) => {
+  try {
+    const TARGET = 300;
+    const PICSUM_SEEDS = [
+      "nftdragon", "nftphoenix", "nftape", "nftwolf", "nftpanther",
+      "nfttiger", "nftlion", "nfteagle", "nftserpent", "nftsamurai",
+      "nftwarrior", "nftoracle", "nfttitan", "nftspecter", "nftgolem",
+      "nftwraith", "nftdaemon", "nftcipher", "nftnexus", "nftsentinel",
+      "nftcosmic", "nftmystic", "nftshadow", "nftgolden", "nftneon",
+      "nftquantum", "nftphantom", "nftcrystal", "nftancient", "nftcyber",
+    ];
+
+    const records = Array.from({ length: TARGET }, (_, i) => {
+      const seed = PICSUM_SEEDS[i % PICSUM_SEEDS.length];
+      const cycle = Math.floor(i / PICSUM_SEEDS.length) + 1;
+      const size = 400 + (i % 3) * 100;
+      const level = nftLevel(i);
+      const { min_price, max_price } = nftPrices(i, level);
+      return {
+        title: buildNFTName(i),
+        image_url: `https://picsum.photos/seed/${seed}${cycle}/${size}/${size}`,
+        level,
+        min_price,
+        max_price,
+      };
+    });
+
+    // Clear all existing, then insert fresh
+    await supabase.from("nfts").delete().gte("created_at", "2000-01-01");
+
+    const BATCH = 50;
+    let totalInserted = 0;
+
+    for (let b = 0; b < records.length; b += BATCH) {
+      const batch = records.slice(b, b + BATCH);
+      const { data, error } = await supabase
+        .from("nfts")
+        .insert(batch)
+        .select("id");
+
+      if (error) {
+        if (error.message.includes("row-level security") || error.code === "42501") {
+          return res.status(403).json({
+            success: false,
+            error: "RLS_BLOCKED",
+            fix_sql: "Run artifacts/mobile/supabase/fix_nfts_unique.sql in Supabase SQL Editor.",
+          });
+        }
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      totalInserted += data?.length ?? 0;
+      console.log(`[Seed/Legacy] Batch ${b / BATCH + 1}: inserted ${data?.length ?? 0}`);
+    }
+
+    const { count } = await supabase.from("nfts").select("*", { count: "exact", head: true });
+    console.log(`[Seed/Legacy] ✓ Done — inserted=${totalInserted} totalInDB=${count}`);
+
+    return res.json({
+      success: true,
+      note: "Used generated picsum images (not storage). Use /seed-nfts-from-storage when bucket has real images.",
+      inserted: totalInserted,
+      totalInDatabase: count ?? 0,
+      sampleTitles: records.slice(0, 5).map((r) => r.title),
+    });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }
