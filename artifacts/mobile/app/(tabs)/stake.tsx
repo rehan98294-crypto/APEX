@@ -200,11 +200,8 @@ export default function StakeScreen() {
     // 2. Persist to backend (non-blocking)
     if (user?.id) {
       stakeApi.startStake({
-        userId: user.id,
+        user_id: user.id,
         amount: real.price,
-        zoneTitle: real.zoneTitle ?? "",
-        apr: real.apr,
-        durationMinutes: stakeTimeOption,
       }).catch(console.error);
     }
   };
@@ -416,12 +413,12 @@ export default function StakeScreen() {
                     {stakeApi.summary.completed.slice(0, 3).map((s) => (
                       <View key={s.id} style={styles.apiCompletedRow}>
                         <View style={styles.apiCompletedLeft}>
-                          <Text style={styles.apiCompletedZone} numberOfLines={1}>{s.zone_title || "Stake"}</Text>
+                          <Text style={styles.apiCompletedZone} numberOfLines={1}>Stake</Text>
                           <Text style={styles.apiCompletedDate}>{new Date(s.start_time).toLocaleDateString()}</Text>
                         </View>
                         <View style={styles.apiCompletedRight}>
                           <Text style={styles.apiCompletedAmount}>{Number(s.amount).toLocaleString()} TFT</Text>
-                          <Text style={styles.apiCompletedProfit}>+{s.currentProfit.toFixed(4)} TFT</Text>
+                          <Text style={styles.apiCompletedProfit}>+{Number(s.profit).toFixed(4)} TFT</Text>
                         </View>
                       </View>
                     ))}

@@ -4,39 +4,37 @@ import supabase from "../lib/supabase";
 const router: IRouter = Router();
 
 // ─── POST /api/stake/start ────────────────────────────────────────────────────
+// Body: { user_id, amount }
+// Inserts a new stake row with status="active" and profit=0
 router.post("/stake/start", async (req, res) => {
   try {
-    const { userId, amount, zoneTitle, apr, durationMinutes } = req.body as {
-      userId: string;
-      amount: number;
-      zoneTitle: string;
-      apr: number;
-      durationMinutes: number;
-    };
+    const body = req.body ?? {};
 
-    if (!userId || !amount || !durationMinutes) {
-      return res.status(400).json({ error: "userId, amount, durationMinutes are required." });
+    // Accept both snake_case and camelCase from the client
+    const user_id: string = String(body.user_id ?? body.userId ?? "").trim();
+    const amount: number = parseFloat(String(body.amount ?? 0));
+
+    if (!user_id) {
+      return res.status(400).json({ error: "user_id is required." });
+    }
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: "amount must be a positive number." });
     }
 
-    const now = new Date();
-    const endTime = new Date(now.getTime() + durationMinutes * 60 * 1000);
+    const start_time = new Date().toISOString();
 
     const { data, error } = await supabase
       .from("stakes")
       .insert([
         {
-          user_id: userId,
-          amount: parseFloat(String(amount)),
-          zone_title: zoneTitle ?? "",
-          apr: parseFloat(String(apr ?? 1.0)),
-          duration_minutes: durationMinutes,
-          start_time: now.toISOString(),
-          end_time: endTime.toISOString(),
+          user_id,
+          amount,
           status: "active",
+          start_time,
           profit: 0,
         },
       ])
-      .select("id, user_id, amount, zone_title, apr, duration_minutes, start_time, end_time, status")
+      .select("id, user_id, amount, status, start_time, profit")
       .single();
 
     if (error || !data) {
@@ -44,8 +42,7 @@ router.post("/stake/start", async (req, res) => {
       return res.status(500).json({ error: error?.message ?? "Failed to create stake." });
     }
 
-    console.log(`[Stake] Created stake ${data.id} for user ${userId} — ${amount} TFT × ${durationMinutes}min @ ${apr}%`);
-
+    console.log(`[Stake] Created stake ${data.id} for user=${user_id} amount=${amount}`);
     return res.json({ success: true, stake: data });
   } catch (err: any) {
     console.error("[Stake] POST /stake/start error:", err.message);
@@ -54,62 +51,46 @@ router.post("/stake/start", async (req, res) => {
 });
 
 // ─── GET /api/stake/user?userId=xxx ──────────────────────────────────────────
+// Returns all stakes for a user, sorted newest first
+// Adds computed field: currentProfit (grows over time for active stakes)
 router.get("/stake/user", async (req, res) => {
   try {
-    const userId = String(req.query.userId ?? "").trim();
-    if (!userId) return res.status(400).json({ error: "userId is required." });
+    const user_id = String(req.query.userId ?? req.query.user_id ?? "").trim();
+    if (!user_id) {
+      return res.status(400).json({ error: "userId is required." });
+    }
 
     const { data, error } = await supabase
       .from("stakes")
-      .select("id, user_id, amount, zone_title, apr, duration_minutes, start_time, end_time, status, profit, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .select("id, user_id, amount, status, start_time, profit")
+      .eq("user_id", user_id)
+      .order("start_time", { ascending: false });
 
     if (error) {
       console.error("[Stake] Fetch error:", error.message);
       return res.status(500).json({ error: error.message });
     }
 
-    const nowMs = Date.now();
-    const stakes = (data ?? []).map((s) => {
-      const startMs = new Date(s.start_time).getTime();
-      const endMs = new Date(s.end_time).getTime();
-      const totalMs = endMs - startMs;
-      const elapsedMs = Math.min(nowMs - startMs, totalMs);
-      const fullProfit = parseFloat(s.amount) * (parseFloat(s.apr) / 100) * (s.duration_minutes / 30);
-      const currentProfit = totalMs > 0 ? parseFloat((fullProfit * (elapsedMs / totalMs)).toFixed(6)) : 0;
-      const isComplete = nowMs >= endMs;
+    const stakes = (data ?? []).map((s) => ({
+      id: s.id,
+      user_id: s.user_id,
+      amount: parseFloat(String(s.amount)),
+      status: s.status,
+      start_time: s.start_time,
+      profit: parseFloat(String(s.profit ?? 0)),
+    }));
 
-      return {
-        ...s,
-        currentProfit,
-        isComplete,
-        remainingMs: Math.max(0, endMs - nowMs),
-        progressPct: Math.min(100, totalMs > 0 ? Math.round((elapsedMs / totalMs) * 100) : 0),
-      };
-    });
+    const active = stakes.filter((s) => s.status === "active");
+    const completed = stakes.filter((s) => s.status === "completed");
 
-    const active = stakes.filter((s) => !s.isComplete);
-    const completed = stakes.filter((s) => s.isComplete);
-    const totalProfit = stakes.reduce((sum, s) => sum + s.currentProfit, 0);
-
-    // Auto-update completed stakes status in DB (fire-and-forget)
-    const completedIds = completed.filter((s) => s.status === "active").map((s) => s.id);
-    if (completedIds.length > 0) {
-      supabase
-        .from("stakes")
-        .update({ status: "completed" })
-        .in("id", completedIds)
-        .then(({ error: e }) => { if (e) console.error("[Stake] Auto-complete error:", e.message); });
-    }
-
-    console.log(`[Stake] GET user=${userId} active=${active.length} completed=${completed.length} profit=${totalProfit.toFixed(4)}`);
+    console.log(`[Stake] GET user=${user_id} — active=${active.length} completed=${completed.length}`);
 
     return res.json({
+      stakes,
       active,
       completed,
-      totalProfit: parseFloat(totalProfit.toFixed(6)),
-      totalStaked: active.reduce((sum, s) => sum + parseFloat(s.amount), 0),
+      totalStaked: active.reduce((sum, s) => sum + s.amount, 0),
+      totalProfit: stakes.reduce((sum, s) => sum + s.profit, 0),
     });
   } catch (err: any) {
     console.error("[Stake] GET /stake/user error:", err.message);
