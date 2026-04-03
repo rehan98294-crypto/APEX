@@ -20,6 +20,7 @@ import { OrderProvider } from "@/context/OrderContext";
 import { StakeProvider } from "@/context/StakeContext";
 import { WatchlistProvider } from "@/context/WatchlistContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { SubscriptionProvider } from "@/context/SubscriptionContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -46,6 +47,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="auth" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="subscriptions" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen
         name="nft/[id]"
         options={{
@@ -83,15 +85,17 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
             <AuthProvider>
               <BalanceProvider>
-                <StakeProvider>
-                  <OrderProvider>
-                    <WatchlistProvider>
-                      <KeyboardProvider>
-                        <RootLayoutNav />
-                      </KeyboardProvider>
-                    </WatchlistProvider>
-                  </OrderProvider>
-                </StakeProvider>
+                <SubscriptionProvider>
+                  <StakeProvider>
+                    <OrderProvider>
+                      <WatchlistProvider>
+                        <KeyboardProvider>
+                          <RootLayoutNav />
+                        </KeyboardProvider>
+                      </WatchlistProvider>
+                    </OrderProvider>
+                  </StakeProvider>
+                </SubscriptionProvider>
               </BalanceProvider>
             </AuthProvider>
           </GestureHandlerRootView>

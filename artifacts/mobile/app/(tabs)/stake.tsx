@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -28,6 +29,7 @@ import { NFTSkeletonGrid } from "@/components/NFTSkeletonCard";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { OwnedNFT, StakedNFT, useStake } from "@/context/StakeContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { useStakeApi } from "@/hooks/useStakeApi";
 import { fetchAllNFTs } from "@/lib/supabase";
 
@@ -50,24 +52,25 @@ interface ZoneConfig {
   stakableDays?: string;
   handlingFee?: string;
   active: boolean;
+  minSubLevel: number; // minimum subscription level required (1 = free, 2 = Basic+, …)
 }
 
 const FREE_ZONES: ZoneConfig[] = [
-  { id: 1, title: "Free Zone 1", levelRange: "LV1-LV6", image: require("@/assets/stake/fz1.png"), status: "Open", priceRange: "50 ~ 2,000", priceMin: 50, priceMax: 2000, income: "1%", apr: 1, type: "free", stakableDays: "3~30", active: true },
-  { id: 2, title: "Free Zone 2", levelRange: "LV1-LV6", image: require("@/assets/stake/fz2.png"), status: "Open", priceRange: "50 ~ 3,000", priceMin: 50, priceMax: 3000, income: "1.1%", apr: 1.1, type: "free", stakableDays: "3~30", active: true },
-  { id: 3, title: "Free Zone 3", levelRange: "LV1-LV6", image: require("@/assets/stake/fz3.png"), status: "Open", priceRange: "50 ~ 4,000", priceMin: 50, priceMax: 4000, income: "1.2%", apr: 1.2, type: "free", stakableDays: "3~30", active: true },
-  { id: 4, title: "Free Zone 4", levelRange: "LV1-LV6", image: require("@/assets/stake/fz4.png"), status: "Open", priceRange: "50 ~ 5,000", priceMin: 50, priceMax: 5000, income: "1.3%", apr: 1.3, type: "free", stakableDays: "3~30", active: true },
-  { id: 5, title: "Free Zone 5", levelRange: "LV1-LV6", image: require("@/assets/stake/fz5.png"), status: "Open", priceRange: "50 ~ 6,000", priceMin: 50, priceMax: 6000, income: "1.4%", apr: 1.4, type: "free", stakableDays: "3~30", active: true },
-  { id: 6, title: "Free Zone 6", levelRange: "LV1-LV6", image: require("@/assets/stake/fz6.png"), status: "Open", priceRange: "50 ~ 8,000", priceMin: 50, priceMax: 8000, income: "1.5%", apr: 1.5, type: "free", stakableDays: "3~30", active: true },
+  { id: 1, title: "Free Zone 1", levelRange: "LV1", image: require("@/assets/stake/fz1.png"), status: "Open", priceRange: "50 ~ 2,000", priceMin: 50, priceMax: 2000, income: "1%", apr: 1, type: "free", stakableDays: "3~30", active: true, minSubLevel: 1 },
+  { id: 2, title: "Free Zone 2", levelRange: "LV2", image: require("@/assets/stake/fz2.png"), status: "Open", priceRange: "50 ~ 3,000", priceMin: 50, priceMax: 3000, income: "1.1%", apr: 1.1, type: "free", stakableDays: "3~30", active: true, minSubLevel: 2 },
+  { id: 3, title: "Free Zone 3", levelRange: "LV3", image: require("@/assets/stake/fz3.png"), status: "Open", priceRange: "50 ~ 4,000", priceMin: 50, priceMax: 4000, income: "1.2%", apr: 1.2, type: "free", stakableDays: "3~30", active: true, minSubLevel: 3 },
+  { id: 4, title: "Free Zone 4", levelRange: "LV4", image: require("@/assets/stake/fz4.png"), status: "Open", priceRange: "50 ~ 5,000", priceMin: 50, priceMax: 5000, income: "1.3%", apr: 1.3, type: "free", stakableDays: "3~30", active: true, minSubLevel: 4 },
+  { id: 5, title: "Free Zone 5", levelRange: "LV5", image: require("@/assets/stake/fz5.png"), status: "Open", priceRange: "50 ~ 6,000", priceMin: 50, priceMax: 6000, income: "1.4%", apr: 1.4, type: "free", stakableDays: "3~30", active: true, minSubLevel: 5 },
+  { id: 6, title: "Free Zone 6", levelRange: "LV6", image: require("@/assets/stake/fz6.png"), status: "Open", priceRange: "50 ~ 8,000", priceMin: 50, priceMax: 8000, income: "1.5%", apr: 1.5, type: "free", stakableDays: "3~30", active: true, minSubLevel: 6 },
 ];
 
 const EXCLUSIVE_ZONES: ZoneConfig[] = [
-  { id: 1, title: "Exclusive Stake 1", levelRange: "LV2-LV6", image: require("@/assets/stake/ex1.png"), status: "Open", priceRange: "499 ~ 1,500", priceMin: 499, priceMax: 1500, income: "1.5%", apr: 1.5, type: "exclusive", handlingFee: "1%", active: true },
-  { id: 2, title: "Exclusive Stake 2", levelRange: "LV2-LV6", image: require("@/assets/stake/ex2.png"), status: "Open", priceRange: "499 ~ 2,000", priceMin: 499, priceMax: 2000, income: "1.8%", apr: 1.8, type: "exclusive", handlingFee: "1%", active: true },
-  { id: 3, title: "Exclusive Stake 3", levelRange: "LV2-LV6", image: require("@/assets/stake/ex3.png"), status: "Open", priceRange: "999 ~ 3,000", priceMin: 999, priceMax: 3000, income: "2.0%", apr: 2.0, type: "exclusive", handlingFee: "1%", active: true },
-  { id: 4, title: "Exclusive Stake 4", levelRange: "LV2-LV6", image: require("@/assets/stake/ex4.png"), status: "Open", priceRange: "999 ~ 4,000", priceMin: 999, priceMax: 4000, income: "2.5%", apr: 2.5, type: "exclusive", handlingFee: "1%", active: true },
-  { id: 5, title: "Exclusive Stake 5", levelRange: "LV2-LV6", image: require("@/assets/stake/ex5.png"), status: "Open", priceRange: "1,499 ~ 5,000", priceMin: 1499, priceMax: 5000, income: "3.0%", apr: 3.0, type: "exclusive", handlingFee: "1%", active: true },
-  { id: 6, title: "Exclusive Stake 6", levelRange: "LV2-LV6", image: require("@/assets/stake/ex6.png"), status: "Open", priceRange: "1,999 ~ 6,000", priceMin: 1999, priceMax: 6000, income: "3.5%", apr: 3.5, type: "exclusive", handlingFee: "1%", active: false },
+  { id: 1, title: "Exclusive Stake 1", levelRange: "LV2-LV3", image: require("@/assets/stake/ex1.png"), status: "Open", priceRange: "499 ~ 1,500", priceMin: 499, priceMax: 1500, income: "1.5%", apr: 1.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2 },
+  { id: 2, title: "Exclusive Stake 2", levelRange: "LV2-LV3", image: require("@/assets/stake/ex2.png"), status: "Open", priceRange: "499 ~ 2,000", priceMin: 499, priceMax: 2000, income: "1.8%", apr: 1.8, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2 },
+  { id: 3, title: "Exclusive Stake 3", levelRange: "LV3-LV4", image: require("@/assets/stake/ex3.png"), status: "Open", priceRange: "999 ~ 3,000", priceMin: 999, priceMax: 3000, income: "2.0%", apr: 2.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3 },
+  { id: 4, title: "Exclusive Stake 4", levelRange: "LV3-LV4", image: require("@/assets/stake/ex4.png"), status: "Open", priceRange: "999 ~ 4,000", priceMin: 999, priceMax: 4000, income: "2.5%", apr: 2.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3 },
+  { id: 5, title: "Exclusive Stake 5", levelRange: "LV4-LV5", image: require("@/assets/stake/ex5.png"), status: "Open", priceRange: "1,499 ~ 5,000", priceMin: 1499, priceMax: 5000, income: "3.0%", apr: 3.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 4 },
+  { id: 6, title: "Exclusive Stake 6", levelRange: "LV5-LV6", image: require("@/assets/stake/ex6.png"), status: "Open", priceRange: "1,999 ~ 6,000", priceMin: 1999, priceMax: 6000, income: "3.5%", apr: 3.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 5 },
 ];
 
 const CATEGORY_TABS = ["Stake", "Polygon NFT", "Art", "Collection", "Game"];
@@ -101,7 +104,9 @@ function calcIncome(stake: StakedNFT, now: number): number {
 export default function StakeScreen() {
   const { ownedNFTs, stakedNFTs, buyNFT, sellNFT, stakeNFT, redeemStake } = useStake();
   const { user } = useAuth();
+  const { userLevel, stakeBoost, activePlan } = useSubscription();
   const stakeApi = useStakeApi(user?.id);
+  const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
   // Navigation state
@@ -277,30 +282,73 @@ export default function StakeScreen() {
             </View>
 
             <View style={styles.zoneList}>
-              {(zoneTab === "free" ? FREE_ZONES : EXCLUSIVE_ZONES).map((zone, i) => (
-                <Animated.View key={zone.id} entering={FadeInDown.duration(350).delay(i * 60)} style={styles.zoneCard}>
-                  <View style={styles.zoneCardHeader}>
-                    <Text style={styles.zoneCardTitle}>{zone.title}</Text>
-                    <Feather name="info" size={16} color={Colors.textMuted} />
-                    <View style={{ flex: 1 }} />
-                    <Text style={styles.zoneLevelBadge}>{zone.levelRange}</Text>
-                  </View>
-                  <View style={styles.zoneBanner}>
-                    <Image source={zone.image} style={styles.zoneBannerImg} contentFit="cover" />
-                  </View>
-                  <View style={styles.zoneInfoRows}>
-                    <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Status</Text><View style={styles.statusBadge}><Text style={styles.statusText}>{zone.status}</Text></View></View>
-                    <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Price Range:</Text><View style={styles.tRow}><View style={styles.tIcon}><Text style={styles.tIconText}>T</Text></View><Text style={styles.zoneInfoValue}>{zone.priceRange}</Text></View></View>
-                    <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Income:</Text><Text style={styles.zoneInfoValue}>{zone.income}</Text></View>
-                    {zone.type === "free" && <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Stakable Days:</Text><Text style={styles.zoneInfoValue}>{zone.stakableDays}</Text></View>}
-                    {zone.type === "exclusive" && <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>handling fee:</Text><Text style={styles.zoneInfoValue}>{zone.handlingFee}</Text></View>}
-                  </View>
-                  <Pressable style={styles.stakeBtn} onPress={() => zone.active && setActiveZone(zone)}>
-                    {zone.active ? <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} /> : <LinearGradient colors={["#e0e0e0", "#d0d0d0"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />}
-                    <Text style={[styles.stakeBtnText, !zone.active && { color: "#aaa" }]}>Go to stake</Text>
-                  </Pressable>
-                </Animated.View>
-              ))}
+              {(zoneTab === "free" ? FREE_ZONES : EXCLUSIVE_ZONES).map((zone, i) => {
+                const isLocked = userLevel < zone.minSubLevel;
+                const boostedApr = (zone.apr + stakeBoost).toFixed(1);
+                const showBoost = stakeBoost > 0 && !isLocked;
+                return (
+                  <Animated.View key={zone.id} entering={FadeInDown.duration(350).delay(i * 60)} style={[styles.zoneCard, isLocked && { opacity: 0.92 }]}>
+                    <View style={styles.zoneCardHeader}>
+                      <Text style={styles.zoneCardTitle}>{zone.title}</Text>
+                      <Feather name="info" size={16} color={Colors.textMuted} />
+                      <View style={{ flex: 1 }} />
+                      <Text style={[styles.zoneLevelBadge, isLocked && { backgroundColor: "#FFECEC", color: "#E53935" }]}>{zone.levelRange}</Text>
+                    </View>
+                    <View style={styles.zoneBanner}>
+                      <Image source={zone.image} style={styles.zoneBannerImg} contentFit="cover" />
+                      {isLocked && (
+                        <View style={styles.lockOverlay}>
+                          <View style={styles.lockIconWrap}>
+                            <Feather name="lock" size={28} color="#fff" />
+                          </View>
+                          <Text style={styles.lockTitle}>Level {zone.minSubLevel} Required</Text>
+                          <Text style={styles.lockSub}>Activate a subscription plan to unlock this zone</Text>
+                          <Pressable style={styles.lockSubBtn} onPress={() => router.push("/subscriptions")}>
+                            <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={12} />
+                            <Feather name="star" size={13} color="#fff" />
+                            <Text style={styles.lockSubBtnText}>Subscribe</Text>
+                          </Pressable>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.zoneInfoRows}>
+                      <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Status</Text><View style={styles.statusBadge}><Text style={styles.statusText}>{isLocked ? "Locked" : zone.status}</Text></View></View>
+                      <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Price Range:</Text><View style={styles.tRow}><View style={styles.tIcon}><Text style={styles.tIconText}>T</Text></View><Text style={styles.zoneInfoValue}>{zone.priceRange}</Text></View></View>
+                      <View style={styles.zoneInfoRow}>
+                        <Text style={styles.zoneInfoLabel}>Income:</Text>
+                        {showBoost ? (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                            <Text style={[styles.zoneInfoValue, { textDecorationLine: "line-through", color: Colors.textMuted, fontSize: 12 }]}>{zone.income}</Text>
+                            <Text style={[styles.zoneInfoValue, { color: "#2BD9A8", fontFamily: "Inter_700Bold" }]}>{boostedApr}% ✦</Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.zoneInfoValue}>{zone.income}</Text>
+                        )}
+                      </View>
+                      {zone.type === "free" && <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Stakable Days:</Text><Text style={styles.zoneInfoValue}>{zone.stakableDays}</Text></View>}
+                      {zone.type === "exclusive" && <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Handling fee:</Text><Text style={styles.zoneInfoValue}>{zone.handlingFee}</Text></View>}
+                    </View>
+                    <Pressable
+                      style={styles.stakeBtn}
+                      onPress={() => {
+                        if (isLocked) { router.push("/subscriptions"); return; }
+                        if (zone.active) setActiveZone(zone);
+                      }}
+                    >
+                      {isLocked
+                        ? <LinearGradient colors={["#f0f0f0", "#e0e0e0"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                        : zone.active
+                          ? <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                          : <LinearGradient colors={["#e0e0e0", "#d0d0d0"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                      }
+                      <Feather name={isLocked ? "lock" : "zap"} size={14} color={isLocked ? "#aaa" : "#fff"} />
+                      <Text style={[styles.stakeBtnText, (isLocked || !zone.active) && { color: "#aaa" }]}>
+                        {isLocked ? "Subscribe to Unlock" : "Go to stake"}
+                      </Text>
+                    </Pressable>
+                  </Animated.View>
+                );
+              })}
             </View>
           </>
         )}
@@ -725,8 +773,55 @@ const styles = StyleSheet.create({
   tIconText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
   statusBadge: { backgroundColor: "#00C853", borderRadius: 6, paddingHorizontal: 10, paddingVertical: 3 },
   statusText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff" },
-  stakeBtn: { height: 46, borderRadius: 14, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  stakeBtn: { height: 46, borderRadius: 14, overflow: "hidden", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
   stakeBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
+
+  // Lock overlay (shown on zones requiring subscription)
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(10,10,20,0.68)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  lockIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  lockTitle: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    textAlign: "center",
+  },
+  lockSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.75)",
+    textAlign: "center",
+  },
+  lockSubBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginTop: 4,
+  },
+  lockSubBtnText: {
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+  },
 
   // NFT Grid
   gridTopRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, marginBottom: 14 },

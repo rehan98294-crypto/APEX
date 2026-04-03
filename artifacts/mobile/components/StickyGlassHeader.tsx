@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
   Animated,
@@ -39,6 +40,7 @@ const MENU_ITEMS: { label: string; icon: string }[] = [
 export default function StickyGlassHeader({}: StickyGlassHeaderProps) {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 8 : insets.top;
+  const router = useRouter();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const translateX = useRef(new Animated.Value(DRAWER_W)).current;
@@ -134,10 +136,23 @@ export default function StickyGlassHeader({}: StickyGlassHeaderProps) {
 
             {/* Menu items */}
             <View style={styles.menuList}>
-              {MENU_ITEMS.map((item, idx) => (
-                <Pressable key={item.label} style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}>
-                  <View style={styles.menuIconBox}>
-                    <Feather name={item.icon as any} size={18} color="#5CBFFE" />
+              {MENU_ITEMS.map((item) => (
+                <Pressable
+                  key={item.label}
+                  style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                  onPress={() => {
+                    if (item.label === "Subscriptions") {
+                      closeDrawer();
+                      setTimeout(() => router.push("/subscriptions"), 220);
+                    }
+                  }}
+                >
+                  <View style={[styles.menuIconBox, item.label === "Subscriptions" && { backgroundColor: "#FFF3E0" }]}>
+                    <Feather
+                      name={item.icon as any}
+                      size={18}
+                      color={item.label === "Subscriptions" ? "#F59E0B" : "#5CBFFE"}
+                    />
                   </View>
                   <Text style={styles.menuLabel}>{item.label}</Text>
                   <Feather name="chevron-right" size={15} color={Colors.textMuted} style={styles.menuChevron} />
