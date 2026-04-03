@@ -21,6 +21,8 @@ import { useBalance } from "@/context/BalanceContext";
 import { PLANS, PlanConfig, PlanId, useSubscription } from "@/context/SubscriptionContext";
 
 const { width: SCREEN_W } = Dimensions.get("window");
+const SLIDE_PAD = 18;
+const SLIDE_W = SCREEN_W - SLIDE_PAD * 2;
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 
 const SLIDES = [
@@ -40,14 +42,14 @@ function Slideshow() {
   const goTo = (idx: number) => {
     const target = idx % SLIDES.length;
     setCurrent(target);
-    scrollRef.current?.scrollTo({ x: target * SCREEN_W, animated: true });
+    scrollRef.current?.scrollTo({ x: target * SLIDE_W, animated: true });
   };
 
   useEffect(() => {
     timer.current = setInterval(() => {
       setCurrent((prev) => {
         const next = (prev + 1) % SLIDES.length;
-        scrollRef.current?.scrollTo({ x: next * SCREEN_W, animated: true });
+        scrollRef.current?.scrollTo({ x: next * SLIDE_W, animated: true });
         return next;
       });
     }, 3000);
@@ -62,7 +64,7 @@ function Slideshow() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         scrollEnabled={false}
-        style={{ width: SCREEN_W }}
+        style={{ width: SLIDE_W }}
       >
         {SLIDES.map((src, i) => (
           <Image
@@ -401,17 +403,25 @@ export default function SubscriptionsScreen() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────
-const SLIDE_H = Math.round(SCREEN_W * 0.5);
+const SLIDE_H = Math.round(SLIDE_W * 0.58);
 
 const ss = StyleSheet.create({
   slideshowWrap: {
-    width: SCREEN_W,
+    width: SLIDE_W,
     height: SLIDE_H,
+    alignSelf: "center",
+    borderRadius: 20,
+    overflow: "hidden",
     backgroundColor: "#111",
     position: "relative",
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   slideImage: {
-    width: SCREEN_W,
+    width: SLIDE_W,
     height: SLIDE_H,
   },
   dotsRow: {
