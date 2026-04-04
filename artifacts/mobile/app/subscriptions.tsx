@@ -14,7 +14,14 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
@@ -90,18 +97,20 @@ const PAGE_SIZE = 3;
 
 // ─── Skeleton Card ─────────────────────────────────────────────────────────
 function PlanCardSkeleton() {
-  const shimmer = useRef(new Animated.Value(0)).current;
+  const opacity = useSharedValue(0.55);
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 750, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 750, useNativeDriver: true }),
-      ])
-    ).start();
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 750 }),
+        withTiming(0.55, { duration: 750 })
+      ),
+      -1,
+      false
+    );
   }, []);
-  const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
   return (
-    <Animated.View style={[sk.card, { opacity }]}>
+    <Animated.View style={[sk.card, animStyle]}>
       <View style={sk.header} />
       <View style={sk.statsRow}>
         {[0, 1, 2, 3].map((i) => <View key={i} style={sk.stat} />)}
