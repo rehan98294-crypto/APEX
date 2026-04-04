@@ -8,11 +8,13 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import Animated, {
@@ -375,7 +377,103 @@ export default function ExploreScreen() {
             ))}
           </View>
         </View>
+
+        {/* Footer */}
+        <HomeFooter />
       </ScrollView>
+    </View>
+  );
+}
+
+// ─── Home Footer ─────────────────────────────────────────────────────────────
+const SOCIALS = [
+  { icon: "email-outline", lib: "mci", color: "#3B82F6", bg: "#EFF6FF" },
+  { icon: "tiktok", lib: "mci", color: "#000", bg: "#F3F4F6" },
+  { icon: "send", lib: "feather", color: "#29B6F6", bg: "#E1F5FE" },
+  { icon: "facebook", lib: "mci", color: "#1877F2", bg: "#E7F3FF" },
+  { icon: "instagram", lib: "feather", color: "#E1306C", bg: "#FFF0F5" },
+] as const;
+
+const RESOURCE_LINKS = ["Docs", "Invite friends", "How to buy", "Tutorials", "Artist Application Form"];
+
+function HomeFooter() {
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = () => {
+    if (!email.trim()) return;
+    setSubmitted(true);
+    setTimeout(() => setSubmitted(false), 3000);
+    setEmail("");
+  };
+
+  return (
+    <View style={ft.root}>
+      {/* Divider */}
+      <View style={ft.topDivider} />
+
+      {/* Social icons */}
+      <View style={ft.socialRow}>
+        {SOCIALS.map((s, i) => (
+          <Pressable key={i} style={[ft.socialBtn, { backgroundColor: s.bg }]}>
+            {s.lib === "feather"
+              ? <Feather name={s.icon as any} size={20} color={s.color} />
+              : <MaterialCommunityIcons name={s.icon as any} size={20} color={s.color} />
+            }
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Resources */}
+      <Text style={ft.groupTitle}>Resources</Text>
+      {RESOURCE_LINKS.map((link) => (
+        <Pressable key={link} style={ft.linkRow}>
+          <Text style={ft.linkText}>{link}</Text>
+        </Pressable>
+      ))}
+
+      {/* News */}
+      <Text style={[ft.groupTitle, { marginTop: 20 }]}>News</Text>
+      <Pressable style={ft.linkRow}>
+        <Text style={ft.linkText}>Blog</Text>
+      </Pressable>
+
+      {/* Company / mailing list */}
+      <Text style={[ft.groupTitle, { marginTop: 20 }]}>Company</Text>
+      <Text style={ft.mailingDesc}>
+        Join our mailing list to stay in the loop with our newest feature releases, NFT listing, tips and tricks for navigating ApexMeta.
+      </Text>
+
+      {/* Email input */}
+      <View style={ft.inputRow}>
+        <TextInput
+          style={ft.emailInput}
+          placeholder="Enter your email address"
+          placeholderTextColor="#B0B8C1"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <Pressable style={ft.submitBtn} onPress={handleSubmit}>
+          <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={20} />
+          <Text style={ft.submitText}>{submitted ? "✓ Sent!" : "Submit"}</Text>
+        </Pressable>
+      </View>
+
+      {/* Bottom copyright */}
+      <View style={ft.bottomRow}>
+        <Text style={ft.copyright}>© 2025 – ApexMeta Technology, Inc</Text>
+        <View style={ft.policyRow}>
+          <Pressable onPress={() => Linking.openURL("https://apexmeta.io/privacy")}>
+            <Text style={ft.policyLink}>Privacy Policy</Text>
+          </Pressable>
+          <Text style={ft.policySep}> </Text>
+          <Pressable onPress={() => Linking.openURL("https://apexmeta.io/terms")}>
+            <Text style={ft.policyLink}>Terms of service</Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -841,5 +939,112 @@ const styles = StyleSheet.create({
     top: 40,
     transform: [{ rotate: "10deg" }],
     zIndex: 2,
+  },
+});
+
+// ─── Footer Styles ────────────────────────────────────────────────────────────
+const ft = StyleSheet.create({
+  root: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 32,
+  },
+  topDivider: {
+    height: 1,
+    backgroundColor: "#E8ECF0",
+    marginBottom: 24,
+  },
+  socialRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 28,
+  },
+  socialBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  groupTitle: {
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textPrimary,
+    marginBottom: 12,
+  },
+  linkRow: {
+    paddingVertical: 7,
+  },
+  linkText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+  },
+  mailingDesc: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E0E5EB",
+    borderRadius: 28,
+    paddingLeft: 16,
+    paddingRight: 4,
+    paddingVertical: 4,
+    backgroundColor: "#FAFBFC",
+    marginBottom: 32,
+  },
+  emailInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textPrimary,
+    paddingVertical: 8,
+    outlineStyle: "none",
+  } as any,
+  submitBtn: {
+    height: 38,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  submitText: {
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+  },
+  bottomRow: {
+    alignItems: "center",
+    gap: 6,
+  },
+  copyright: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    textAlign: "center",
+  },
+  policyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  policyLink: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: Colors.textPrimary,
+    textDecorationLine: "underline",
+  },
+  policySep: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginHorizontal: 4,
   },
 });
