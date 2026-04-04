@@ -158,7 +158,7 @@ export default function ExploreScreen() {
                 <Text style={styles.heroBadgeText}>Multi-Reward</Text>
               </View>
               <Image
-                source={require("../../assets/images/nft1.avif")}
+                source={require("../../assets/dashboard/hero-ape2.png")}
                 style={styles.heroNFT}
                 contentFit="cover"
               />
@@ -229,13 +229,19 @@ export default function ExploreScreen() {
             <Text style={styles.promoBtnText}>SIGN UP NOW</Text>
           </Pressable>
           <View style={styles.promoFanContainer}>
-            <Image source={require("../../assets/images/nft2.avif")} style={styles.promoFanLeft} contentFit="cover" />
-            <Image source={require("../../assets/images/nft1.avif")} style={styles.promoFanCenter} contentFit="cover" />
-            <Image source={require("../../assets/images/nft3.avif")} style={styles.promoFanRight} contentFit="cover" />
+            <Image source={require("../../assets/images/nft7.avif")} style={styles.promoFanLeft} contentFit="cover" />
+            <Image source={require("../../assets/images/nft8.avif")} style={styles.promoFanCenter} contentFit="cover" />
+            <Image source={require("../../assets/images/nft9.avif")} style={styles.promoFanRight} contentFit="cover" />
           </View>
         </View>
 
         {/* Discover More NFTs */}
+        <LinearGradient
+          colors={["#EEF6FF", "#F3EEFF", "#FFF0F8", "#F0FFF9"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.discoverGradientWrap}
+        >
         <View style={styles.discoverSection}>
           <View style={styles.discoverTitleRow}>
             <Text style={styles.discoverTitle}>Discover more NFTs</Text>
@@ -312,10 +318,11 @@ export default function ExploreScreen() {
           {/* Loading more — shimmer skeleton rows */}
           {loadingMore && (
             <View style={{ marginTop: 12 }}>
-              <NFTSkeletonGrid count={4} />
+              <NFTSkeletonGrid count={6} />
             </View>
           )}
         </View>
+        </LinearGradient>
 
         {/* Featured Collections Section */}
         <View style={styles.featSection}>
@@ -522,10 +529,11 @@ const styles = StyleSheet.create({
   },
   tokenIconText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
 
-  discoverSection: { paddingHorizontal: 16, marginBottom: 16 },
+  discoverGradientWrap: { marginBottom: 8, borderRadius: 0 },
+  discoverSection: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 16 },
   discoverTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
-  discoverTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary, letterSpacing: -0.3 },
-  discoverCount: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted, backgroundColor: Colors.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  discoverTitle: { fontSize: 24, fontFamily: "Inter_700Bold", color: Colors.textPrimary, letterSpacing: -0.3, textAlign: "center", flex: 1 },
+  discoverCount: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted, backgroundColor: "rgba(255,255,255,0.8)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
   discoverGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   discoverEmpty: { alignItems: "center", paddingVertical: 48, gap: 10 },
   discoverEmptyText: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textMuted },
@@ -754,27 +762,30 @@ const styles = StyleSheet.create({
   hotSmallPrice: { fontSize: 12, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
 
   promoSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 28,
-    alignItems: "flex-start",
-    backgroundColor: "#F5F8FF",
+    paddingHorizontal: 24,
+    paddingTop: 36,
+    paddingBottom: 0,
+    alignItems: "center",
+    backgroundColor: "#fff",
     marginHorizontal: 0,
     marginBottom: 8,
   },
   promoHeadline: {
-    fontSize: 28,
+    fontSize: 30,
     fontFamily: "Inter_700Bold",
     color: Colors.textPrimary,
-    lineHeight: 34,
+    lineHeight: 36,
     letterSpacing: -0.5,
-    marginBottom: 12,
+    marginBottom: 14,
+    textAlign: "center",
   },
   promoSub: {
     fontSize: 13,
     fontFamily: "Inter_400Regular",
     color: Colors.textMuted,
     lineHeight: 20,
-    marginBottom: 24,
+    marginBottom: 28,
+    textAlign: "center",
   },
   promoBtn: {
     overflow: "hidden",

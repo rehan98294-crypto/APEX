@@ -32,7 +32,7 @@ export interface UsePaginatedNFTs {
   refresh: () => void;
 }
 
-const LIMIT = 20;
+const LIMIT = 6;
 
 export function usePaginatedNFTs(category?: string): UsePaginatedNFTs {
   const [items, setItems] = useState<NFTItem[]>([]);
