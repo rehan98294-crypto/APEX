@@ -51,7 +51,7 @@ const FEATURED_COLLECTIONS = [
       require("../../assets/images/nft3.avif"),
       require("../../assets/images/nft4.avif"),
     ],
-    creatorAvatar: require("../../assets/images/nft5.avif"),
+    creatorAvatar: require("../../assets/dashboard/logo-penguin.png"),
     gradColors: ["#C2EEFF", "#D4F7EC", "#FFE8D6"] as [string, string, string],
     verified: true,
   },
@@ -66,7 +66,7 @@ const FEATURED_COLLECTIONS = [
       require("../../assets/images/nft8.avif"),
       require("../../assets/images/nft9.avif"),
     ],
-    creatorAvatar: require("../../assets/images/nft10.avif"),
+    creatorAvatar: require("../../assets/dashboard/logo-gorilla.png"),
     gradColors: ["#E0D4FF", "#C2EEFF", "#FFD6EF"] as [string, string, string],
     verified: true,
   },
@@ -76,8 +76,8 @@ const HOT_HERO = {
   id: "h1",
   name: "CoolAPE_0069292",
   price: "1.03K USDT",
-  image: require("../../assets/images/nft6.avif"),
-  creatorAvatar: require("../../assets/images/nft4.avif"),
+  image: require("../../assets/dashboard/hero-ape.png"),
+  creatorAvatar: require("../../assets/dashboard/logo-gorilla.png"),
 };
 
 const HOT_PICKS = [
@@ -86,21 +86,21 @@ const HOT_PICKS = [
     name: "CoolAPE_0087392",
     price: "1.04K",
     image: require("../../assets/images/nft7.avif"),
-    creatorAvatar: require("../../assets/images/nft5.avif"),
+    creatorAvatar: require("../../assets/dashboard/logo-skull.png"),
   },
   {
     id: "hp2",
     name: "CoolAPE_0084755",
     price: "1.04K",
     image: require("../../assets/images/nft8.avif"),
-    creatorAvatar: require("../../assets/images/nft3.avif"),
+    creatorAvatar: require("../../assets/dashboard/logo-punk.png"),
   },
   {
     id: "hp3",
     name: "CoolAPE_0091038",
     price: "1.05K",
     image: require("../../assets/images/nft9.avif"),
-    creatorAvatar: require("../../assets/images/nft2.avif"),
+    creatorAvatar: require("../../assets/dashboard/logo-owl.png"),
   },
 ];
 

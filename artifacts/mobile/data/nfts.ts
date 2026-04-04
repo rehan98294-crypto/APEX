@@ -183,7 +183,7 @@ export const TOP_COLLECTIONS: Collection[] = [
     name: "Penguin Pals",
     volume: 8480,
     change: 0,
-    image: require("../assets/images/nft5.avif"),
+    image: require("../assets/dashboard/logo-penguin.png"),
     floor: 0.22,
   },
   {
@@ -191,7 +191,7 @@ export const TOP_COLLECTIONS: Collection[] = [
     name: "Noxious Audience",
     volume: 8420,
     change: 0,
-    image: require("../assets/images/nft3.avif"),
+    image: require("../assets/dashboard/logo-skull.png"),
     floor: 0.89,
   },
   {
@@ -199,7 +199,7 @@ export const TOP_COLLECTIONS: Collection[] = [
     name: "Giffgaff Ape Club",
     volume: 8230,
     change: 0,
-    image: require("../assets/images/nft4.avif"),
+    image: require("../assets/dashboard/logo-gorilla.png"),
     floor: 0.67,
   },
   {
@@ -207,7 +207,7 @@ export const TOP_COLLECTIONS: Collection[] = [
     name: "PixerEternity 2022 x RVP",
     volume: 7.89,
     change: 0,
-    image: require("../assets/images/nft2.avif"),
+    image: require("../assets/dashboard/logo-owl.png"),
     floor: 0.12,
   },
   {
@@ -215,7 +215,7 @@ export const TOP_COLLECTIONS: Collection[] = [
     name: "PunkCat",
     volume: 2060,
     change: 0,
-    image: require("../assets/images/nft10.avif"),
+    image: require("../assets/dashboard/logo-punk.png"),
     floor: 0.55,
   },
 ];
