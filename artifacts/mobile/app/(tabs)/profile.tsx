@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -20,6 +21,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { useOrders } from "@/context/OrderContext";
+import { useTick } from "@/context/TickContext";
 
 const { width } = Dimensions.get("window");
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
@@ -49,6 +51,7 @@ export default function ProfileScreen() {
   const { balance, earnedTotal } = useBalance();
   const { orders } = useOrders();
   const { user, signOut } = useAuth();
+  const { activeTick } = useTick();
   const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
@@ -95,7 +98,18 @@ export default function ProfileScreen() {
 
             <View style={{ flex: 1, gap: 6 }}>
               <View style={styles.nameRow}>
-                <Text style={styles.nameHidden}>{nameVisible ? "James Doe" : "•••••• "}</Text>
+                <Text style={styles.nameHidden}>{nameVisible ? (user?.name ?? "James Doe") : "•••••• "}</Text>
+                {activeTick && (
+                  <View style={{ marginLeft: 4, marginRight: 2 }}>
+                    {activeTick.imageSource ? (
+                      <Image source={activeTick.imageSource} style={{ width: 18, height: 18 }} contentFit="contain" />
+                    ) : (
+                      <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: activeTick.color, alignItems: "center", justifyContent: "center" }}>
+                        <Feather name="check" size={10} color="#fff" />
+                      </View>
+                    )}
+                  </View>
+                )}
                 <Pressable onPress={() => setNameVisible((v) => !v)}>
                   <Feather name={nameVisible ? "eye" : "eye-off"} size={15} color={Colors.textMuted} />
                 </Pressable>

@@ -144,14 +144,21 @@ export default function StickyGlassHeader({}: StickyGlassHeaderProps) {
                     if (item.label === "Subscriptions") {
                       closeDrawer();
                       setTimeout(() => router.push("/subscriptions"), 220);
+                    } else if (item.label === "Shop") {
+                      closeDrawer();
+                      setTimeout(() => router.push("/shop"), 220);
                     }
                   }}
                 >
-                  <View style={[styles.menuIconBox, item.label === "Subscriptions" && { backgroundColor: "#FFF3E0" }]}>
+                  <View style={[
+                    styles.menuIconBox,
+                    item.label === "Subscriptions" && { backgroundColor: "#FFF3E0" },
+                    item.label === "Shop" && { backgroundColor: "#E8F5E9" },
+                  ]}>
                     <Feather
                       name={item.icon as any}
                       size={18}
-                      color={item.label === "Subscriptions" ? "#F59E0B" : "#5CBFFE"}
+                      color={item.label === "Subscriptions" ? "#F59E0B" : item.label === "Shop" ? "#4CAF50" : "#5CBFFE"}
                     />
                   </View>
                   <Text style={styles.menuLabel}>{item.label}</Text>

@@ -21,6 +21,7 @@ import { StakeProvider } from "@/context/StakeContext";
 import { WatchlistProvider } from "@/context/WatchlistContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
+import { TickProvider } from "@/context/TickContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,6 +49,7 @@ function RootLayoutNav() {
       <Stack.Screen name="auth" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="subscriptions" options={{ headerShown: false, animation: "slide_from_right" }} />
+      <Stack.Screen name="shop" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen
         name="nft/[id]"
         options={{
@@ -86,6 +88,7 @@ export default function RootLayout() {
             <AuthProvider>
               <BalanceProvider>
                 <SubscriptionProvider>
+                  <TickProvider>
                   <StakeProvider>
                     <OrderProvider>
                       <WatchlistProvider>
@@ -95,6 +98,7 @@ export default function RootLayout() {
                       </WatchlistProvider>
                     </OrderProvider>
                   </StakeProvider>
+                  </TickProvider>
                 </SubscriptionProvider>
               </BalanceProvider>
             </AuthProvider>
