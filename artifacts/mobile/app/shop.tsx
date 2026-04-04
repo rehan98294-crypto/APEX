@@ -6,6 +6,7 @@ import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
+  Modal as RNModal,
   Platform,
   Pressable,
   ScrollView,
@@ -53,9 +54,19 @@ function GoldTickRender({ size = 80, zone }: { size?: number; zone: "badge" | "c
   );
 }
 
-function TickCard({ tick, userPlanLevel, delay }: { tick: TickItem; userPlanLevel: number; delay: number }) {
-  const { isOwned, activateTick, deactivateTick, purchaseTick, activeTickId } = useTick();
-  const { spendBalance, balance } = useBalance();
+function TickCard({
+  tick,
+  userPlanLevel,
+  delay,
+  onConfirmPurchase,
+}: {
+  tick: TickItem;
+  userPlanLevel: number;
+  delay: number;
+  onConfirmPurchase: (tick: TickItem) => void;
+}) {
+  const { isOwned, activateTick, deactivateTick, activeTickId } = useTick();
+  const { balance } = useBalance();
 
   const owned = isOwned(tick.id);
   const isActive = activeTickId === tick.id;
@@ -70,26 +81,11 @@ function TickCard({ tick, userPlanLevel, delay }: { tick: TickItem; userPlanLeve
       activateTick(tick);
       return;
     }
-    const cost = tick.price;
-    if (balance < cost) {
-      Alert.alert("Insufficient Balance", `You need ${cost} TFT to buy this tick. Top up your balance first.`);
+    if (balance < tick.price) {
+      Alert.alert("Insufficient Balance", `You need ${tick.price} TFT to buy this tick. Top up your balance first.`);
       return;
     }
-    Alert.alert(
-      `Buy ${tick.name}`,
-      `Purchase for ${tick.price} TFT?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Buy & Activate",
-          onPress: () => {
-            spendBalance(cost, `Purchased ${tick.name}`);
-            purchaseTick(tick);
-            activateTick(tick);
-          },
-        },
-      ]
-    );
+    onConfirmPurchase(tick);
   }, [isActive, owned, isFree, balance, tick]);
 
   return (
@@ -149,7 +145,15 @@ function TickCard({ tick, userPlanLevel, delay }: { tick: TickItem; userPlanLeve
   );
 }
 
-function ZonePage({ ticks, userPlanLevel }: { ticks: TickItem[]; userPlanLevel: number }) {
+function ZonePage({
+  ticks,
+  userPlanLevel,
+  onConfirmPurchase,
+}: {
+  ticks: TickItem[];
+  userPlanLevel: number;
+  onConfirmPurchase: (tick: TickItem) => void;
+}) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const visible = ticks.slice(0, visibleCount);
   const hasMore = visibleCount < ticks.length;
@@ -162,7 +166,13 @@ function ZonePage({ ticks, userPlanLevel }: { ticks: TickItem[]; userPlanLevel: 
         nestedScrollEnabled
       >
         {visible.map((tick, i) => (
-          <TickCard key={tick.id} tick={tick} userPlanLevel={userPlanLevel} delay={i * 60} />
+          <TickCard
+            key={tick.id}
+            tick={tick}
+            userPlanLevel={userPlanLevel}
+            delay={i * 60}
+            onConfirmPurchase={onConfirmPurchase}
+          />
         ))}
         {hasMore && (
           <Pressable style={sh.loadMoreBtn} onPress={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, ticks.length))}>
@@ -179,10 +189,13 @@ export default function ShopScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 12 : insets.top;
-  const { activeTick, deactivateTick, activeTickId } = useTick();
+  const { activeTick, deactivateTick, purchaseTick, activateTick } = useTick();
   const { plan } = useSubscription();
+  const { spendBalance } = useBalance();
   const pagerRef = useRef<ScrollView>(null);
   const [zoneIndex, setZoneIndex] = useState(0);
+  const [pendingTick, setPendingTick] = useState<TickItem | null>(null);
+  const [successTick, setSuccessTick] = useState<TickItem | null>(null);
 
   const planId = plan?.id ?? null;
   const userPlanLevel = planId ? (PLAN_LEVEL_MAP[planId] ?? 0) : 0;
@@ -196,6 +209,15 @@ export default function ShopScreen() {
     const x = e.nativeEvent.contentOffset.x;
     const idx = Math.round(x / SCREEN_W);
     if (idx !== zoneIndex) setZoneIndex(idx);
+  };
+
+  const handleDoPurchase = () => {
+    if (!pendingTick) return;
+    spendBalance(pendingTick.price, `Purchased ${pendingTick.name}`);
+    purchaseTick(pendingTick);
+    activateTick(pendingTick);
+    setPendingTick(null);
+    setSuccessTick(pendingTick);
   };
 
   return (
@@ -250,9 +272,67 @@ export default function ShopScreen() {
         scrollEventThrottle={16}
         style={{ flex: 1 }}
       >
-        <ZonePage ticks={BADGE_TICKS} userPlanLevel={userPlanLevel} />
-        <ZonePage ticks={CIRCLE_TICKS} userPlanLevel={userPlanLevel} />
+        <ZonePage ticks={BADGE_TICKS} userPlanLevel={userPlanLevel} onConfirmPurchase={setPendingTick} />
+        <ZonePage ticks={CIRCLE_TICKS} userPlanLevel={userPlanLevel} onConfirmPurchase={setPendingTick} />
       </ScrollView>
+
+      {/* ── Confirm Purchase Modal ── */}
+      <RNModal visible={!!pendingTick} transparent animationType="fade" onRequestClose={() => setPendingTick(null)}>
+        <View style={sh.modalOverlay}>
+          <Animated.View entering={FadeInDown.duration(280)} style={sh.modalCard}>
+            <View style={sh.modalIconWrap}>
+              {pendingTick?.imageSource ? (
+                <Image source={pendingTick.imageSource} style={{ width: 72, height: 72 }} contentFit="contain" />
+              ) : pendingTick ? (
+                <GoldTickRender size={72} zone={pendingTick.zone} />
+              ) : null}
+            </View>
+            <Text style={sh.modalTitle}>Confirm Purchase</Text>
+            <Text style={sh.modalTickName}>{pendingTick?.name}</Text>
+            <View style={sh.modalPriceRow}>
+              <Text style={sh.modalPriceLabel}>Price</Text>
+              <Text style={sh.modalPriceValue}>{pendingTick?.price} TFT</Text>
+            </View>
+            <Text style={sh.modalNote}>
+              This tick will be activated immediately and displayed next to your profile name.
+            </Text>
+            <View style={sh.modalBtnRow}>
+              <Pressable style={sh.modalCancelBtn} onPress={() => setPendingTick(null)}>
+                <Text style={sh.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={sh.modalConfirmBtn} onPress={handleDoPurchase}>
+                <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                <Text style={sh.modalConfirmText}>Purchase & Activate</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </View>
+      </RNModal>
+
+      {/* ── Success Modal ── */}
+      <RNModal visible={!!successTick} transparent animationType="fade" onRequestClose={() => setSuccessTick(null)}>
+        <View style={sh.modalOverlay}>
+          <Animated.View entering={FadeInDown.duration(320)} style={sh.modalCard}>
+            <View style={[sh.successCircle, { backgroundColor: successTick?.color + "22" }]}>
+              <View style={[sh.successInner, { backgroundColor: successTick?.color }]}>
+                <Feather name="check" size={28} color="#fff" />
+              </View>
+            </View>
+            <Text style={sh.successTitle}>Purchase Successful!</Text>
+            <Text style={sh.successName}>{successTick?.name}</Text>
+            <Text style={sh.successDesc}>
+              Your tick is now active and visible next to your name on your profile. Enjoy your premium look!
+            </Text>
+            {successTick?.imageSource && (
+              <Image source={successTick.imageSource} style={{ width: 56, height: 56, marginVertical: 8 }} contentFit="contain" />
+            )}
+            <Pressable style={sh.successBtn} onPress={() => setSuccessTick(null)}>
+              <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={20} />
+              <Text style={sh.successBtnText}>Awesome!</Text>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </RNModal>
 
       {/* Active Tick Banner */}
       {activeTick && (
@@ -512,5 +592,153 @@ const sh = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_600SemiBold",
     color: "#DC2626",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.52)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  modalIconWrap: {
+    width: 90,
+    height: 90,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  modalTickName: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textSecondary,
+    marginBottom: 16,
+  },
+  modalPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    backgroundColor: "#F0F4FF",
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    marginBottom: 14,
+  },
+  modalPriceLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: Colors.textSecondary,
+  },
+  modalPriceValue: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: "#3730A3",
+  },
+  modalNote: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+  },
+  modalCancelBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textSecondary,
+  },
+  modalConfirmBtn: {
+    flex: 2,
+    height: 46,
+    borderRadius: 14,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalConfirmText: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+  },
+  successCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  successInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  successName: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textSecondary,
+    marginBottom: 10,
+  },
+  successDesc: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    textAlign: "center",
+    lineHeight: 19,
+    marginBottom: 6,
+  },
+  successBtn: {
+    width: "100%",
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+  },
+  successBtnText: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
   },
 });

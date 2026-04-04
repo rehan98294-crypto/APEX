@@ -58,7 +58,6 @@ export default function ProfileScreen() {
   const processingOrders = orders.filter((o) => o.status === "processing");
   const boughtOrders = orders.filter((o) => o.status === "bought");
   const soldOrders = orders.filter((o) => o.status === "sold");
-  const [nameVisible, setNameVisible] = useState(false);
   const [uidVisible, setUidVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [userSettingsOpen, setUserSettingsOpen] = useState(false);
@@ -98,21 +97,18 @@ export default function ProfileScreen() {
 
             <View style={{ flex: 1, gap: 6 }}>
               <View style={styles.nameRow}>
-                <Text style={styles.nameHidden}>{nameVisible ? (user?.name ?? "James Doe") : "•••••• "}</Text>
+                <Text style={styles.nameHidden}>{user?.name ?? "James Doe"}</Text>
                 {activeTick && (
-                  <View style={{ marginLeft: 4, marginRight: 2 }}>
+                  <View style={{ marginLeft: 6 }}>
                     {activeTick.imageSource ? (
-                      <Image source={activeTick.imageSource} style={{ width: 18, height: 18 }} contentFit="contain" />
+                      <Image source={activeTick.imageSource} style={{ width: 20, height: 20 }} contentFit="contain" />
                     ) : (
-                      <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: activeTick.color, alignItems: "center", justifyContent: "center" }}>
-                        <Feather name="check" size={10} color="#fff" />
+                      <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: activeTick.color, alignItems: "center", justifyContent: "center" }}>
+                        <Feather name="check" size={11} color="#fff" />
                       </View>
                     )}
                   </View>
                 )}
-                <Pressable onPress={() => setNameVisible((v) => !v)}>
-                  <Feather name={nameVisible ? "eye" : "eye-off"} size={15} color={Colors.textMuted} />
-                </Pressable>
               </View>
               <View style={styles.uidRow}>
                 <Text style={styles.uidLabel}>UID : </Text>
