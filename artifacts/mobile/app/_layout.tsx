@@ -21,11 +21,44 @@ import { StakeProvider } from "@/context/StakeContext";
 import { WatchlistProvider } from "@/context/WatchlistContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
-import { TickProvider } from "@/context/TickContext";
+import { TickItem, TickProvider, useTick } from "@/context/TickContext";
+import { useShopItems } from "@/hooks/useShopItems";
+import { API_BASE } from "@/lib/authApi";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+
+// Syncs the TickContext from DB on app startup so Profile always shows correct ticks
+function TickStartupSync() {
+  const { user } = useAuth();
+  const { syncFromDB } = useTick();
+  const { badgeTicks, circleTicks } = useShopItems();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const allTicks = [...badgeTicks, ...circleTicks];
+    if (allTicks.length === 0) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/user-items?userId=${encodeURIComponent(user.id)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const items: any[] = data.userItems ?? [];
+        const ownedIds: string[] = items.map((r) => r.item_id);
+        const activeBadge: string | null = items.find((r) => r.is_active && r.item?.zone === "badge")?.item_id ?? null;
+        const activeCircle: string | null = items.find((r) => r.is_active && r.item?.zone === "circle")?.item_id ?? null;
+        const tickLookup = new Map<string, TickItem>(allTicks.map((t) => [t.id, t]));
+        syncFromDB(ownedIds, activeBadge, activeCircle, tickLookup);
+      } catch (e) {
+        // non-critical, silent fail
+      }
+    })();
+  }, [user?.id, badgeTicks.length, circleTicks.length]);
+
+  return null;
+}
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
@@ -89,6 +122,7 @@ export default function RootLayout() {
               <BalanceProvider>
                 <SubscriptionProvider>
                   <TickProvider>
+                    <TickStartupSync />
                   <StakeProvider>
                     <OrderProvider>
                       <WatchlistProvider>

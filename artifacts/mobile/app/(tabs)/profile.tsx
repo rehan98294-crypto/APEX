@@ -51,7 +51,7 @@ export default function ProfileScreen() {
   const { balance, earnedTotal } = useBalance();
   const { orders } = useOrders();
   const { user, signOut } = useAuth();
-  const { activeTick } = useTick();
+  const { activeBadgeTick, activeCircleTick } = useTick();
   const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
@@ -98,12 +98,23 @@ export default function ProfileScreen() {
             <View style={{ flex: 1, gap: 6 }}>
               <View style={styles.nameRow}>
                 <Text style={styles.nameHidden}>{user?.name ?? "James Doe"}</Text>
-                {activeTick && (
-                  <View style={{ marginLeft: 6 }}>
-                    {activeTick.imageSource ? (
-                      <Image source={activeTick.imageSource} style={{ width: 20, height: 20 }} contentFit="contain" />
+                {activeBadgeTick && (
+                  <View style={{ marginLeft: 5 }}>
+                    {activeBadgeTick.imageSource ? (
+                      <Image source={activeBadgeTick.imageSource} style={{ width: 20, height: 20 }} contentFit="contain" />
                     ) : (
-                      <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: activeTick.color, alignItems: "center", justifyContent: "center" }}>
+                      <View style={{ width: 20, height: 20, borderRadius: 4, backgroundColor: activeBadgeTick.color, alignItems: "center", justifyContent: "center" }}>
+                        <Feather name="check" size={11} color="#fff" />
+                      </View>
+                    )}
+                  </View>
+                )}
+                {activeCircleTick && (
+                  <View style={{ marginLeft: 4 }}>
+                    {activeCircleTick.imageSource ? (
+                      <Image source={activeCircleTick.imageSource} style={{ width: 20, height: 20 }} contentFit="contain" />
+                    ) : (
+                      <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: activeCircleTick.color, alignItems: "center", justifyContent: "center" }}>
                         <Feather name="check" size={11} color="#fff" />
                       </View>
                     )}
