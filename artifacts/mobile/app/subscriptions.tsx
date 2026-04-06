@@ -24,8 +24,10 @@ import Animated, {
 } from "react-native-reanimated";
 
 import Colors from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
-import { PLANS, PlanConfig, PlanId, useSubscription } from "@/context/SubscriptionContext";
+import { PlanConfig, PlanId, useSubscription } from "@/context/SubscriptionContext";
+import { usePlans, useUserPlans } from "@/hooks/usePlans";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const SLIDE_PAD = 18;
@@ -241,8 +243,13 @@ function PlanCard({
 // ─── Main Screen ───────────────────────────────────────────────────────────
 export default function SubscriptionsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { balance, spendBalance } = useBalance();
   const { activePlan, subscribeToPlan } = useSubscription();
+
+  // ── DB-backed plans & user plans ─────────────────────────────────────────────
+  const { plans, dbPlans, loading: plansLoading } = usePlans();
+  const { activatePlanInDB } = useUserPlans(user?.id);
 
   const [confirmPlan, setConfirmPlan] = useState<PlanConfig | null>(null);
   const [successPlan, setSuccessPlan] = useState<PlanConfig | null>(null);
@@ -252,14 +259,16 @@ export default function SubscriptionsScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setInitialLoading(false), 700);
-    return () => clearTimeout(t);
-  }, []);
+    if (!plansLoading) {
+      const t = setTimeout(() => setInitialLoading(false), 400);
+      return () => clearTimeout(t);
+    }
+  }, [plansLoading]);
 
   const handleLoadMore = () => {
     setLoadingMore(true);
     setTimeout(() => {
-      setVisibleCount((v) => Math.min(v + (PLANS.length - PAGE_SIZE), PLANS.length));
+      setVisibleCount((v) => Math.min(v + (plans.length - PAGE_SIZE), plans.length));
       setLoadingMore(false);
     }, 600);
   };
@@ -269,7 +278,7 @@ export default function SubscriptionsScreen() {
     setConfirmPlan(plan);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!confirmPlan) return;
     if (balance < confirmPlan.price) {
       setConfirmPlan(null);
@@ -280,6 +289,19 @@ export default function SubscriptionsScreen() {
     subscribeToPlan(confirmPlan.id as PlanId);
     setConfirmPlan(null);
     setSuccessPlan(confirmPlan);
+
+    // ── Persist to DB (non-blocking) ──────────────────────────────────────────
+    if (user?.id) {
+      const dbPlan = dbPlans.find((p) => p.slug === confirmPlan.id);
+      if (dbPlan) {
+        activatePlanInDB({
+          userId: user.id,
+          planId: dbPlan.id,
+          planSlug: dbPlan.slug,
+          investedAmount: confirmPlan.price,
+        }).catch((err) => console.warn("[Subscriptions] DB save failed:", err));
+      }
+    }
   };
 
   return (
@@ -315,7 +337,7 @@ export default function SubscriptionsScreen() {
             <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={16} />
             <Feather name="check-circle" size={18} color="#fff" />
             <Text style={s.activeBannerText}>
-              Active: <Text style={{ fontFamily: "Inter_700Bold" }}>{PLANS.find(p => p.id === activePlan)?.name}</Text> Plan
+              Active: <Text style={{ fontFamily: "Inter_700Bold" }}>{plans.find(p => p.id === activePlan)?.name}</Text> Plan
             </Text>
           </Animated.View>
         )}
@@ -332,7 +354,7 @@ export default function SubscriptionsScreen() {
           ? Array.from({ length: PAGE_SIZE }).map((_, i) => <PlanCardSkeleton key={i} />)
           : (
             <>
-              {PLANS.slice(0, visibleCount).map((plan, i) => (
+              {plans.slice(0, visibleCount).map((plan, i) => (
                 <Animated.View key={plan.id} entering={FadeInDown.duration(350).delay(i * 70)}>
                   <PlanCard
                     plan={plan}
@@ -343,12 +365,12 @@ export default function SubscriptionsScreen() {
               ))}
 
               {/* Loading more skeletons */}
-              {loadingMore && Array.from({ length: PLANS.length - visibleCount }).map((_, i) => (
+              {loadingMore && Array.from({ length: plans.length - visibleCount }).map((_, i) => (
                 <PlanCardSkeleton key={`more-${i}`} />
               ))}
 
               {/* Load More button */}
-              {!loadingMore && visibleCount < PLANS.length && (
+              {!loadingMore && visibleCount < plans.length && (
                 <Animated.View entering={FadeInDown.duration(300)}>
                   <Pressable style={s.loadMoreBtn} onPress={handleLoadMore}>
                     <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
