@@ -47,10 +47,10 @@ const FEATURED_COLLECTIONS = [
     name: "Apex Penguins",
     creator: "APEX_STUDIO",
     totalItems: 10,
-    mainImage: require("../../assets/images/nft1.avif"),
+    mainImage: require("../../assets/images/nft1.png"),
     previews: [
-      require("../../assets/images/nft2.avif"),
-      require("../../assets/images/nft3.avif"),
+      require("../../assets/images/nft2.png"),
+      require("../../assets/images/nft3.png"),
       require("../../assets/images/nft4.avif"),
     ],
     creatorAvatar: require("../../assets/dashboard/logo-penguin.png"),
@@ -576,7 +576,7 @@ function APICardNFT({ nft }: { nft: NFTItem }) {
           source={{ uri: nft.image_url }}
           style={styles.discoverCardImg}
           contentFit="cover"
-          placeholder={require("../../assets/images/nft1.avif")}
+          placeholder={require("../../assets/images/nft1.png")}
           transition={300}
         />
         <View style={styles.discoverCardInfo}>

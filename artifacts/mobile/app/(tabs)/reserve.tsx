@@ -54,9 +54,9 @@ const AMOUNTS = [
 ];
 
 const LOCAL_FALLBACKS = [
-  require("../../assets/images/nft1.avif"),
-  require("../../assets/images/nft2.avif"),
-  require("../../assets/images/nft3.avif"),
+  require("../../assets/images/nft1.png"),
+  require("../../assets/images/nft2.png"),
+  require("../../assets/images/nft3.png"),
   require("../../assets/images/nft4.avif"),
   require("../../assets/images/nft5.avif"),
   require("../../assets/images/nft6.avif"),
