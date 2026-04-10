@@ -59,7 +59,7 @@ const LOCAL_FALLBACKS = [
   require("../../assets/images/nft3.png"),
   require("../../assets/images/nft4.avif"),
   require("../../assets/images/nft5.avif"),
-  require("../../assets/images/nft6.avif"),
+  require("../../assets/images/nft6.png"),
 ];
 
 interface ActiveReservation {

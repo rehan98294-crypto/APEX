@@ -62,11 +62,11 @@ const FEATURED_COLLECTIONS = [
     name: "Ice Peng Club",
     creator: "WILLOUGHBY",
     totalItems: 6,
-    mainImage: require("../../assets/images/nft6.avif"),
+    mainImage: require("../../assets/images/nft6.png"),
     previews: [
-      require("../../assets/images/nft7.avif"),
-      require("../../assets/images/nft8.avif"),
-      require("../../assets/images/nft9.avif"),
+      require("../../assets/images/nft7.png"),
+      require("../../assets/images/nft8.png"),
+      require("../../assets/images/nft9.png"),
     ],
     creatorAvatar: require("../../assets/dashboard/logo-gorilla.png"),
     gradColors: ["#E0D4FF", "#C2EEFF", "#FFD6EF"] as [string, string, string],
@@ -87,21 +87,21 @@ const HOT_PICKS = [
     id: "hp1",
     name: "CoolAPE_0087392",
     price: "1.04K",
-    image: require("../../assets/images/nft7.avif"),
+    image: require("../../assets/images/nft7.png"),
     creatorAvatar: require("../../assets/dashboard/logo-skull.png"),
   },
   {
     id: "hp2",
     name: "CoolAPE_0084755",
     price: "1.04K",
-    image: require("../../assets/images/nft8.avif"),
+    image: require("../../assets/images/nft8.png"),
     creatorAvatar: require("../../assets/dashboard/logo-punk.png"),
   },
   {
     id: "hp3",
     name: "CoolAPE_0091038",
     price: "1.05K",
-    image: require("../../assets/images/nft9.avif"),
+    image: require("../../assets/images/nft9.png"),
     creatorAvatar: require("../../assets/dashboard/logo-owl.png"),
   },
 ];
@@ -231,9 +231,9 @@ export default function ExploreScreen() {
             <Text style={styles.promoBtnText}>SIGN UP NOW</Text>
           </Pressable>
           <View style={styles.promoFanContainer}>
-            <Image source={require("../../assets/images/nft7.avif")} style={styles.promoFanLeft} contentFit="cover" />
-            <Image source={require("../../assets/images/nft8.avif")} style={styles.promoFanCenter} contentFit="cover" />
-            <Image source={require("../../assets/images/nft9.avif")} style={styles.promoFanRight} contentFit="cover" />
+            <Image source={require("../../assets/images/nft7.png")} style={styles.promoFanLeft} contentFit="cover" />
+            <Image source={require("../../assets/images/nft8.png")} style={styles.promoFanCenter} contentFit="cover" />
+            <Image source={require("../../assets/images/nft9.png")} style={styles.promoFanRight} contentFit="cover" />
           </View>
         </View>
 
