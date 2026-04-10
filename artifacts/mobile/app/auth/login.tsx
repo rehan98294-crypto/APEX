@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -59,7 +60,7 @@ export default function LoginScreen() {
         >
           {/* Brand header */}
           <View style={s.brandRow}>
-            <MaterialCommunityIcons name="check-circle" size={38} color="#5CBFFE" />
+            <Image source={require("../../assets/images/icon.png")} style={s.brandLogo} resizeMode="contain" />
             <Text style={s.brandName}>Apex</Text>
           </View>
 
@@ -143,6 +144,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#F8F9FB" },
   scroll: { paddingHorizontal: 24 },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 36 },
+  brandLogo: { width: 40, height: 40 },
   brandIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   brandIconText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   brandName: { color: "#1A1A2E", fontSize: 17, fontWeight: "700" },

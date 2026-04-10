@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -237,7 +238,7 @@ export default function RegisterScreen() {
         >
           {/* Brand header */}
           <View style={s.brandRow}>
-            <MaterialCommunityIcons name="check-circle" size={38} color="#5CBFFE" />
+            <Image source={require("../../assets/images/icon.png")} style={s.brandLogo} resizeMode="contain" />
             <Text style={s.brandName}>Apex</Text>
           </View>
 
@@ -443,6 +444,7 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: 24 },
 
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 28 },
+  brandLogo: { width: 40, height: 40 },
   brandIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   brandIconText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   brandName: { color: "#1A1A2E", fontSize: 17, fontWeight: "700" },
