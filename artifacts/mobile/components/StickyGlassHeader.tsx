@@ -90,7 +90,7 @@ export default function StickyGlassHeader({}: StickyGlassHeaderProps) {
               <View style={styles.notifDot} />
             </Pressable>
 
-            <Pressable style={styles.airdropBtn}>
+            <Pressable style={styles.airdropBtn} onPress={() => router.push("/airdrop")}>
               <LinearGradient
                 colors={["#5CBFFE", "#2BD9A8"]}
                 start={{ x: 0, y: 0 }}
@@ -168,7 +168,7 @@ export default function StickyGlassHeader({}: StickyGlassHeaderProps) {
             </View>
 
             <View style={styles.drawerFooter}>
-              <Text style={styles.drawerVersion}>v1.0.0 · TreasureFun</Text>
+              <Text style={styles.drawerVersion}>v1.0.0 · Apex</Text>
             </View>
           </Animated.View>
         </View>

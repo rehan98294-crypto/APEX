@@ -83,6 +83,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="subscriptions" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="shop" options={{ headerShown: false, animation: "slide_from_right" }} />
+      <Stack.Screen name="airdrop" options={{ headerShown: false, animation: "slide_from_bottom" }} />
       <Stack.Screen
         name="nft/[id]"
         options={{
