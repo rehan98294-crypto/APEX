@@ -1,8 +1,9 @@
-import { Feather } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
 import {
   Dimensions,
+  Image,
+  ImageSourcePropType,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,16 +17,36 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const ACTIVE_COLOR  = "#5CBFFE";
+const ACTIVE_COLOR   = "#5CBFFE";
 const INACTIVE_COLOR = "#A0A9B8";
 
-const TABS = [
-  { name: "stake",   icon: "bar-chart-2", label: "Stake"   },
-  { name: "index",   icon: "home",        label: "Home"    },
-  { name: "reserve", icon: "bookmark",    label: "Reserve" },
-  { name: "earn",    icon: "package",     label: "Assets"  },
-  { name: "profile", icon: "user",        label: "My"      },
-] as const;
+const TABS: { name: string; icon: ImageSourcePropType; label: string }[] = [
+  {
+    name:  "stake",
+    icon:  require("../../assets/images/icon-stake.png"),
+    label: "Stake",
+  },
+  {
+    name:  "index",
+    icon:  require("../../assets/images/icon-home.png"),
+    label: "Home",
+  },
+  {
+    name:  "reserve",
+    icon:  require("../../assets/images/icon-reserve.png"),
+    label: "Reserve",
+  },
+  {
+    name:  "earn",
+    icon:  require("../../assets/images/icon-assets.png"),
+    label: "Assets",
+  },
+  {
+    name:  "profile",
+    icon:  require("../../assets/images/icon-my.png"),
+    label: "My",
+  },
+];
 
 function TabItem({
   icon,
@@ -33,7 +54,7 @@ function TabItem({
   isFocused,
   onPress,
 }: {
-  icon: string;
+  icon: ImageSourcePropType;
   label: string;
   isFocused: boolean;
   onPress: () => void;
@@ -54,12 +75,18 @@ function TabItem({
     >
       <Animated.View style={[styles.tabInner, animStyle]}>
         {isFocused && <View style={styles.activeDot} />}
-        <Feather
-          name={icon as any}
-          size={22}
-          color={isFocused ? ACTIVE_COLOR : INACTIVE_COLOR}
+        <Image
+          source={icon}
+          style={styles.tabIcon}
+          tintColor={isFocused ? ACTIVE_COLOR : INACTIVE_COLOR}
+          resizeMode="contain"
         />
-        <Text style={[styles.tabLabel, isFocused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+        <Text
+          style={[
+            styles.tabLabel,
+            isFocused ? styles.tabLabelActive : styles.tabLabelInactive,
+          ]}
+        >
           {label}
         </Text>
       </Animated.View>
@@ -68,7 +95,7 @@ function TabItem({
 }
 
 function AppTabBar({ state, navigation }: { state: any; navigation: any }) {
-  const insets = useSafeAreaInsets();
+  const insets  = useSafeAreaInsets();
   const bottomPad = Platform.OS === "web" ? 14 : Math.max(insets.bottom, 12);
 
   return (
@@ -161,9 +188,13 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: ACTIVE_COLOR,
   },
+  tabIcon: {
+    width: 24,
+    height: 24,
+  },
   tabLabel: {
     fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "Inter_700Bold",
     letterSpacing: 0.2,
   },
   tabLabelActive: {

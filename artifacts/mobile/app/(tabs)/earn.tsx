@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
 import {
   Dimensions,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -10,12 +11,15 @@ import {
   Text,
   View,
 } from "react-native";
+
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
+
+const USD_ICON = require("../../assets/images/icon-usd.png");
 
 const { width } = Dimensions.get("window");
 
@@ -164,14 +168,17 @@ export default function AssetsScreen() {
         <View style={styles.section}>
           <View style={styles.actionsRow}>
             {[
-              { icon: "credit-card", label: "Deposit" },
-              { icon: "download", label: "Withdraw" },
-              { icon: "settings", label: "Settings" },
+              { icon: "credit-card", label: "Deposit",  isUsd: false },
+              { icon: "download",    label: "Withdraw", isUsd: true  },
+              { icon: "settings",    label: "Settings", isUsd: false },
             ].map((action) => (
               <Pressable key={action.label} style={styles.actionItem}>
                 <View style={styles.actionIconBox}>
                   <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
-                  <Feather name={action.icon as any} size={22} color="#fff" />
+                  {action.isUsd
+                    ? <Image source={USD_ICON} style={{ width: 22, height: 22 }} tintColor="#fff" resizeMode="contain" />
+                    : <Feather name={action.icon as any} size={22} color="#fff" />
+                  }
                 </View>
                 <Text style={styles.actionLabel}>{action.label}</Text>
               </Pressable>

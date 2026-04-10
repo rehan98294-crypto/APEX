@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Dimensions,
+  Image as RNImage,
   Modal,
   Platform,
   Pressable,
@@ -25,6 +26,7 @@ import { useTick } from "@/context/TickContext";
 
 const { width } = Dimensions.get("window");
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
+const USD_ICON = require("../../assets/images/icon-usd.png");
 
 const TEAM_STATS = [
   { label: "Community\nrewards", value: "0.1" },
@@ -244,15 +246,18 @@ export default function ProfileScreen() {
 
           <View style={styles.linkGrid}>
             {[
-              { icon: "user", label: "My Bid" },
-              { icon: "file-text", label: "Details" },
-              { icon: "credit-card", label: "Deposit" },
-              { icon: "download", label: "Withdraw" },
+              { icon: "user",        label: "My Bid",  isUsd: false },
+              { icon: "file-text",   label: "Details", isUsd: false },
+              { icon: "credit-card", label: "Deposit", isUsd: false },
+              { icon: "download",    label: "Withdraw", isUsd: true },
             ].map((link) => (
               <Pressable key={link.label} style={styles.linkItem}>
                 <View style={styles.linkIconBox}>
                   <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
-                  <Feather name={link.icon as any} size={22} color="#fff" />
+                  {link.isUsd
+                    ? <RNImage source={USD_ICON} style={{ width: 22, height: 22 }} tintColor="#fff" resizeMode="contain" />
+                    : <Feather name={link.icon as any} size={22} color="#fff" />
+                  }
                 </View>
                 <Text style={styles.linkLabel}>{link.label}</Text>
               </Pressable>
