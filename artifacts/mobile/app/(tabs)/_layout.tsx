@@ -1,9 +1,7 @@
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { BottomTabBarProps, Tabs } from "expo-router";
+import { Tabs } from "expo-router";
 import React from "react";
 import {
-  Dimensions,
   Platform,
   Pressable,
   StyleSheet,
@@ -17,24 +15,64 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import Colors from "@/constants/colors";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const ACTIVE_COLOR  = "#5CBFFE";
+const INACTIVE_COLOR = "#A0A9B8";
 
 const TABS = [
-  { name: "stake",   icon: "bar-chart-2", label: "Stake"    },
-  { name: "index",   icon: "home",        label: "Home"     },
-  { name: "reserve", icon: "bookmark",    label: "Reserve"  },
-  { name: "earn",    icon: "package",     label: "Assets"   },
-  { name: "profile", icon: "user",        label: "My"       },
+  { name: "stake",   icon: "bar-chart-2", label: "Stake"   },
+  { name: "index",   icon: "home",        label: "Home"    },
+  { name: "reserve", icon: "bookmark",    label: "Reserve" },
+  { name: "earn",    icon: "package",     label: "Assets"  },
+  { name: "profile", icon: "user",        label: "My"      },
 ] as const;
 
-function PillTabBar({ state, navigation }: BottomTabBarProps) {
-  const insets = useSafeAreaInsets();
-  const bottomPad = Platform.OS === "web" ? 14 : Math.max(insets.bottom, 12);
+function TabItem({
+  icon,
+  label,
+  isFocused,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  isFocused: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <View style={[styles.wrapper, { paddingBottom: bottomPad }]} pointerEvents="box-none">
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => { scale.value = withSpring(0.88, { damping: 16, stiffness: 320 }); }}
+      onPressOut={() => { scale.value = withSpring(1,    { damping: 16, stiffness: 320 }); }}
+      style={styles.tabBtn}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Animated.View style={[styles.tabInner, animStyle]}>
+        {isFocused && <View style={styles.activeDot} />}
+        <Feather
+          name={icon as any}
+          size={22}
+          color={isFocused ? ACTIVE_COLOR : INACTIVE_COLOR}
+        />
+        <Text style={[styles.tabLabel, isFocused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+          {label}
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function AppTabBar({ state, navigation }: { state: any; navigation: any }) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Platform.OS === "web" ? 10 : insets.bottom;
+
+  return (
+    <View style={[styles.barWrapper, { paddingBottom: bottomPad }]}>
+      <View style={styles.separator} />
       <View style={styles.bar}>
         {TABS.map((tab, idx) => {
           const isFocused = state.index === idx;
@@ -62,55 +100,10 @@ function PillTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-function TabItem({
-  icon,
-  label,
-  isFocused,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  isFocused: boolean;
-  onPress: () => void;
-}) {
-  const scale = useSharedValue(1);
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => { scale.value = withSpring(0.9, { damping: 14, stiffness: 280 }); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 14, stiffness: 280 }); }}
-      style={isFocused ? styles.activeTab : styles.inactiveTab}
-    >
-      {isFocused && (
-        <LinearGradient
-          colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
-      <Animated.View style={[styles.tabInner, animStyle]}>
-        <Feather
-          name={icon as any}
-          size={18}
-          color={isFocused ? "#fff" : Colors.textMuted}
-        />
-        {isFocused && (
-          <Text style={styles.activeLabel}>{label}</Text>
-        )}
-      </Animated.View>
-    </Pressable>
-  );
-}
-
 export default function TabLayout() {
   return (
     <Tabs
-      tabBar={(props) => <PillTabBar {...props} />}
+      tabBar={(props) => <AppTabBar state={props.state} navigation={props.navigation} />}
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="stake" />
@@ -122,58 +115,54 @@ export default function TabLayout() {
   );
 }
 
-const BAR_WIDTH = SCREEN_WIDTH * 0.92;
-
 const styles = StyleSheet.create({
-  wrapper: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    alignItems: "center",
+  barWrapper: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 12,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#E4E8F0",
   },
   bar: {
     flexDirection: "row",
-    alignItems: "center",
-    width: BAR_WIDTH,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 8,
-    borderWidth: 0,
-    gap: 0,
-    marginBottom: 16,
+    alignItems: "flex-start",
+    paddingTop: 8,
+    paddingHorizontal: 0,
   },
-  activeTab: {
-    flex: 1.2,
-    backgroundColor: "transparent",
-    overflow: "hidden",
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  inactiveTab: {
+  tabBtn: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 14,
+    justifyContent: "flex-start",
+    paddingBottom: 2,
   },
   tabInner: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
+    gap: 3,
+    minHeight: 46,
   },
-  activeLabel: {
-    fontSize: 13,
+  activeDot: {
+    position: "absolute",
+    top: -8,
+    width: 20,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: ACTIVE_COLOR,
+  },
+  tabLabel: {
+    fontSize: 10,
     fontFamily: "Inter_600SemiBold",
-    color: "#fff",
+    letterSpacing: 0.2,
+  },
+  tabLabelActive: {
+    color: ACTIVE_COLOR,
+  },
+  tabLabelInactive: {
+    color: INACTIVE_COLOR,
   },
 });
