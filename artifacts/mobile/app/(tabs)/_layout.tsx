@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
 import {
+  Dimensions,
   Platform,
   Pressable,
   StyleSheet,
@@ -68,11 +69,10 @@ function TabItem({
 
 function AppTabBar({ state, navigation }: { state: any; navigation: any }) {
   const insets = useSafeAreaInsets();
-  const bottomPad = Platform.OS === "web" ? 10 : insets.bottom;
+  const bottomPad = Platform.OS === "web" ? 14 : Math.max(insets.bottom, 12);
 
   return (
-    <View style={[styles.barWrapper, { paddingBottom: bottomPad }]}>
-      <View style={styles.separator} />
+    <View style={[styles.barWrapper, { paddingBottom: bottomPad }]} pointerEvents="box-none">
       <View style={styles.bar}>
         {TABS.map((tab, idx) => {
           const isFocused = state.index === idx;
@@ -115,41 +115,48 @@ export default function TabLayout() {
   );
 }
 
+const BAR_WIDTH = Math.round(Dimensions.get("window").width * 0.92);
+
 const styles = StyleSheet.create({
   barWrapper: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.07,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: -3 },
-    elevation: 12,
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#E4E8F0",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    backgroundColor: "transparent",
   },
   bar: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    paddingTop: 8,
-    paddingHorizontal: 0,
+    alignItems: "center",
+    width: BAR_WIDTH,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 26,
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.10,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
   },
   tabBtn: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "flex-start",
-    paddingBottom: 2,
+    justifyContent: "center",
+    paddingVertical: 6,
   },
   tabInner: {
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
-    minHeight: 46,
+    minHeight: 44,
   },
   activeDot: {
     position: "absolute",
-    top: -8,
-    width: 20,
+    top: -6,
+    width: 18,
     height: 3,
     borderRadius: 2,
     backgroundColor: ACTIVE_COLOR,
