@@ -53,8 +53,8 @@ export async function sendOtp(
 
   const subject =
     action === "verify"
-      ? "TreasureFun – Email Verification"
-      : "TreasureFun – Password Reset";
+      ? "Apex – Email Verification"
+      : "Apex – Password Reset";
 
   let emailDelivered = false;
   try {

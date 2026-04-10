@@ -59,10 +59,8 @@ export default function LoginScreen() {
         >
           {/* Brand header */}
           <View style={s.brandRow}>
-            <LinearGradient colors={GRAD} style={s.brandIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Text style={s.brandIconText}>TF</Text>
-            </LinearGradient>
-            <Text style={s.brandName}>Treasure Fun</Text>
+            <MaterialCommunityIcons name="check-circle" size={38} color="#5CBFFE" />
+            <Text style={s.brandName}>Apex</Text>
           </View>
 
           <Text style={s.heading}>Welcome Back</Text>
