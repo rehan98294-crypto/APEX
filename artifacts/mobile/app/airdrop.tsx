@@ -1,4 +1,4 @@
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -15,13 +15,10 @@ import {
 } from "react-native";
 import Animated, {
   FadeIn,
-  FadeInDown,
   FadeInUp,
   useAnimatedStyle,
   useSharedValue,
-  withDelay as reanimatedDelay,
-  withRepeat,
-  withSequence,
+  withDelay,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -32,7 +29,10 @@ import { useBalance } from "@/context/BalanceContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 
 const { width: SW } = Dimensions.get("window");
-const CARD_W = SW - 48;
+const CARD_W = SW - 56;
+const BOX_W = 180;
+const BOX_BODY_H = 140;
+const LID_H = 52;
 
 // ── Plan level mapping ────────────────────────────────────────────────────────
 const PLAN_LEVEL: Record<string, number> = {
@@ -46,9 +46,12 @@ interface BoxConfig {
   level: number;
   name: string;
   subtitle: string;
+  tierName: string;
   range: string;
-  grad: [string, string, string];
-  icon: string;
+  lidGrad: [string, string];
+  bodyGrad: [string, string];
+  glowColor: string;
+  ribbonColor: string;
   tiers: BoxRewardTier[];
   requiredPlan: string | null;
 }
@@ -58,9 +61,12 @@ const BOXES: BoxConfig[] = [
     level: 1,
     name: "Mystery Box I",
     subtitle: "Starter Treasure",
+    tierName: "BRONZE",
     range: "5 – 20 TFT",
-    grad: ["#7B61FF", "#5CBFFE", "#2BD9A8"],
-    icon: "cube-outline",
+    lidGrad: ["#E8A87C", "#CD7F32"],
+    bodyGrad: ["#D4894A", "#A0522D"],
+    glowColor: "#FFB870",
+    ribbonColor: "#FFD700",
     tiers: [
       { reward: 5,  weight: 82 },
       { reward: 10, weight: 10 },
@@ -73,9 +79,12 @@ const BOXES: BoxConfig[] = [
     level: 2,
     name: "Mystery Box II",
     subtitle: "Silver Stash",
+    tierName: "SILVER",
     range: "20 – 50 TFT",
-    grad: ["#5CBFFE", "#38BDF8", "#7DD3FC"],
-    icon: "package-variant-closed",
+    lidGrad: ["#E8E8E8", "#A8A8A8"],
+    bodyGrad: ["#C8C8C8", "#888888"],
+    glowColor: "#D0D8E8",
+    ribbonColor: "#5CBFFE",
     tiers: [
       { reward: 20, weight: 80 },
       { reward: 30, weight: 12 },
@@ -88,9 +97,12 @@ const BOXES: BoxConfig[] = [
     level: 3,
     name: "Mystery Box III",
     subtitle: "Golden Vault",
+    tierName: "GOLD",
     range: "50 – 80 TFT",
-    grad: ["#FFB08A", "#F59E0B", "#FCD34D"],
-    icon: "treasure-chest",
+    lidGrad: ["#FFE066", "#F59E0B"],
+    bodyGrad: ["#F59E0B", "#B7791F"],
+    glowColor: "#FFE08A",
+    ribbonColor: "#fff",
     tiers: [
       { reward: 50, weight: 80 },
       { reward: 60, weight: 12 },
@@ -103,9 +115,12 @@ const BOXES: BoxConfig[] = [
     level: 4,
     name: "Mystery Box IV",
     subtitle: "Diamond Cache",
+    tierName: "DIAMOND",
     range: "80 – 120 TFT",
-    grad: ["#8B5CF6", "#6366F1", "#818CF8"],
-    icon: "diamond-stone",
+    lidGrad: ["#A8EDFF", "#38BDF8"],
+    bodyGrad: ["#38BDF8", "#0369A1"],
+    glowColor: "#7DD3FC",
+    ribbonColor: "#fff",
     tiers: [
       { reward: 80,  weight: 80 },
       { reward: 100, weight: 12 },
@@ -118,9 +133,12 @@ const BOXES: BoxConfig[] = [
     level: 5,
     name: "Mystery Box V",
     subtitle: "Platinum Reserve",
+    tierName: "PLATINUM",
     range: "120 – 200 TFT",
-    grad: ["#EC4899", "#A855F7", "#8B5CF6"],
-    icon: "crown",
+    lidGrad: ["#F0ABFC", "#A855F7"],
+    bodyGrad: ["#A855F7", "#6B21A8"],
+    glowColor: "#E879F9",
+    ribbonColor: "#FFD700",
     tiers: [
       { reward: 120, weight: 75 },
       { reward: 150, weight: 15 },
@@ -132,10 +150,13 @@ const BOXES: BoxConfig[] = [
   {
     level: 6,
     name: "Mystery Box VI",
-    subtitle: "Legendary Trove",
+    subtitle: "Super Magic",
+    tierName: "✦ SUPER MAGIC ✦",
     range: "200 – 280 TFT",
-    grad: ["#F59E0B", "#EF4444", "#FFB08A"],
-    icon: "star-shooting",
+    lidGrad: ["#FF6EB4", "#FFB347"],
+    bodyGrad: ["#7B61FF", "#FF6EB4"],
+    glowColor: "#FFD700",
+    ribbonColor: "#FFD700",
     tiers: [
       { reward: 200, weight: 75 },
       { reward: 230, weight: 15 },
@@ -160,32 +181,107 @@ function pickReward(tiers: BoxRewardTier[]): number {
 // ── Dot indicator ─────────────────────────────────────────────────────────────
 function Dots({ count, active }: { count: number; active: number }) {
   return (
-    <View style={{ flexDirection: "row", gap: 6, justifyContent: "center", marginTop: 18 }}>
+    <View style={{ flexDirection: "row", gap: 6, justifyContent: "center", marginTop: 14 }}>
       {Array.from({ length: count }).map((_, i) => (
-        <View key={i} style={{ width: i === active ? 20 : 7, height: 7, borderRadius: 4, backgroundColor: i === active ? "#5CBFFE" : "#D1D5DB" }} />
+        <View
+          key={i}
+          style={{
+            width: i === active ? 22 : 7, height: 7, borderRadius: 4,
+            backgroundColor: i === active ? "#5CBFFE" : "#D1D5DB",
+          }}
+        />
       ))}
     </View>
   );
 }
 
-// ── Floating particles ────────────────────────────────────────────────────────
-const PARTICLE_COLORS = ["#5CBFFE", "#2BD9A8", "#FFB08A", "#F59E0B", "#A855F7", "#EC4899"];
+// ── Physical Box Visual ───────────────────────────────────────────────────────
+function BoxVisual({
+  box,
+  isUnlocked,
+  lidUp = false,
+  size = 1,
+}: {
+  box: BoxConfig;
+  isUnlocked: boolean;
+  lidUp?: boolean;
+  size?: number;
+}) {
+  const bw = BOX_W * size;
+  const bh = BOX_BODY_H * size;
+  const lh = LID_H * size;
+  const locked = !isUnlocked;
 
-function Particle({ x, delay, colorIdx }: { x: number; delay: number; colorIdx: number }) {
-  const y = useSharedValue(0);
-  const opacity = useSharedValue(1);
-  React.useEffect(() => {
-    y.value = reanimatedDelay(delay, withTiming(-120, { duration: 1400 }));
-    opacity.value = reanimatedDelay(delay, withTiming(0, { duration: 1400 }));
-  }, []);
-  const style = useAnimatedStyle(() => ({
-    transform: [{ translateX: x }, { translateY: y.value }],
-    opacity: opacity.value,
-  }));
   return (
-    <Animated.View
-      style={[{ position: "absolute", bottom: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: PARTICLE_COLORS[colorIdx % PARTICLE_COLORS.length] }, style]}
-    />
+    <View style={{ alignItems: "center", width: bw + 12 }}>
+      {/* LID */}
+      <View style={{
+        width: bw + 12, height: lh, borderRadius: 10 * size, overflow: "hidden",
+        marginBottom: lidUp ? -(lh) : 0,
+        transform: lidUp ? [{ translateY: -(lh + 20 * size) }] : [],
+        shadowColor: box.glowColor, shadowOpacity: 0.6, shadowRadius: 10, elevation: 8,
+      }}>
+        <LinearGradient colors={locked ? ["#9CA3AF", "#6B7280"] : box.lidGrad} style={StyleSheet.absoluteFill} />
+        {/* Ribbon knob on lid */}
+        <View style={{
+          position: "absolute", bottom: -8 * size, left: "50%",
+          marginLeft: -14 * size,
+          width: 28 * size, height: 16 * size,
+          backgroundColor: locked ? "#aaa" : box.ribbonColor,
+          borderRadius: 6 * size,
+          shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4, elevation: 4,
+        }} />
+        {/* Lid shine */}
+        <View style={{ position: "absolute", top: 4 * size, left: 10 * size, right: 10 * size, height: 6 * size, borderRadius: 3 * size, backgroundColor: "rgba(255,255,255,0.35)" }} />
+        {/* Tier label */}
+        <Text style={{
+          position: "absolute", bottom: 6 * size, alignSelf: "center",
+          fontSize: 9 * size, fontFamily: "Inter_700Bold", color: "rgba(255,255,255,0.85)",
+          letterSpacing: 1.5,
+        }}>{box.tierName}</Text>
+      </View>
+
+      {/* BODY */}
+      <View style={{
+        width: bw, height: bh, borderRadius: 12 * size, overflow: "hidden",
+        shadowColor: box.glowColor, shadowOpacity: locked ? 0.1 : 0.5, shadowRadius: 18, elevation: 10,
+      }}>
+        <LinearGradient colors={locked ? ["#9CA3AF", "#6B7280"] : box.bodyGrad} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+
+        {/* Front Apex logo panel */}
+        <View style={{
+          position: "absolute", top: 14 * size, left: "50%", marginLeft: -(52 * size / 2),
+          width: 52 * size, height: 52 * size, borderRadius: 14 * size,
+          overflow: "hidden", borderWidth: 2, borderColor: "rgba(255,255,255,0.4)",
+          opacity: locked ? 0.4 : 1,
+        }}>
+          <Image source={require("../assets/images/apex-logo.jpeg")} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+        </View>
+
+        {/* Vertical ribbon stripe */}
+        <View style={{ position: "absolute", top: 0, bottom: 0, left: "50%", marginLeft: -(4 * size / 2), width: 4 * size, backgroundColor: locked ? "rgba(255,255,255,0.1)" : box.ribbonColor, opacity: 0.6 }} />
+
+        {/* Shine panels */}
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 20 * size, backgroundColor: "rgba(255,255,255,0.12)" }} />
+
+        {/* Level badge */}
+        <View style={{
+          position: "absolute", bottom: 10 * size, alignSelf: "center",
+          backgroundColor: "rgba(0,0,0,0.25)", borderRadius: 8 * size,
+          paddingHorizontal: 10 * size, paddingVertical: 3 * size,
+          borderWidth: 1, borderColor: "rgba(255,255,255,0.2)",
+        }}>
+          <Text style={{ fontSize: 10 * size, fontFamily: "Inter_700Bold", color: "#fff" }}>LV {box.level}</Text>
+        </View>
+
+        {/* Lock overlay */}
+        {locked && (
+          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" }}>
+            <Feather name="lock" size={32 * size} color="rgba(255,255,255,0.7)" />
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -199,68 +295,55 @@ function BoxCard({
   isUnlocked: boolean;
   onOpen: (box: BoxConfig) => void;
 }) {
-  const [pressed, setPressed] = useState(false);
-
   return (
-    <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
-      {/* Background gradient */}
+    <Animated.View entering={FadeIn.duration(350)} style={styles.card}>
+      {/* Soft gradient BG */}
       <LinearGradient
-        colors={box.grad}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={isUnlocked ? [box.glowColor + "22", "#F4F6FB"] : ["#F0F2F5", "#F4F6FB"]}
+        start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Level badge */}
-      <View style={styles.levelBadge}>
-        <Text style={styles.levelText}>LV {box.level}</Text>
+      {/* Top badge row */}
+      <View style={styles.cardTopRow}>
+        <View style={[styles.tierBadge, { backgroundColor: isUnlocked ? box.glowColor + "33" : "#E5E8EE" }]}>
+          <Text style={[styles.tierBadgeText, { color: isUnlocked ? box.bodyGrad[0] : Colors.textMuted }]}>
+            {box.tierName}
+          </Text>
+        </View>
+        {!isUnlocked && (
+          <View style={styles.lockPill}>
+            <Feather name="lock" size={10} color={Colors.textMuted} />
+            <Text style={styles.lockPillText}>
+              {box.requiredPlan ? box.requiredPlan.charAt(0).toUpperCase() + box.requiredPlan.slice(1) : "Locked"}
+            </Text>
+          </View>
+        )}
       </View>
 
-      {/* Lock indicator */}
-      {!isUnlocked && (
-        <View style={styles.lockBadge}>
-          <Feather name="lock" size={12} color="#fff" />
-        </View>
-      )}
-
-      {/* Apex logo watermark */}
-      <Image
-        source={require("../assets/images/apex-logo.jpeg")}
-        style={styles.watermark}
-        contentFit="contain"
-      />
-
-      {/* Center box icon */}
-      <View style={styles.boxIconWrap}>
-        <View style={[styles.boxIconInner, !isUnlocked && styles.boxIconLocked]}>
-          <MaterialCommunityIcons
-            name={box.icon as any}
-            size={54}
-            color={isUnlocked ? "#fff" : "rgba(255,255,255,0.4)"}
-          />
-          {!isUnlocked && (
-            <View style={styles.lockOverlay}>
-              <Feather name="lock" size={22} color="rgba(255,255,255,0.7)" />
-            </View>
-          )}
-        </View>
+      {/* Box visual */}
+      <View style={styles.boxVisualWrap}>
+        {isUnlocked && (
+          <View style={[styles.glowCircle, { backgroundColor: box.glowColor + "40" }]} />
+        )}
+        <BoxVisual box={box} isUnlocked={isUnlocked} />
       </View>
 
-      {/* Box info */}
-      <View style={styles.boxInfo}>
+      {/* Info */}
+      <View style={styles.cardInfo}>
         <Text style={styles.boxName}>{box.name}</Text>
         <Text style={styles.boxSubtitle}>{box.subtitle}</Text>
 
-        <View style={styles.rewardBadge}>
-          <MaterialCommunityIcons name="gift" size={14} color="#fff" />
-          <Text style={styles.rewardText}>{box.range}</Text>
+        <View style={[styles.rangePill, { borderColor: isUnlocked ? box.glowColor : "#E5E8EE" }]}>
+          <Text style={[styles.rangeText, { color: isUnlocked ? box.bodyGrad[0] : Colors.textMuted }]}>🎁  {box.range}</Text>
         </View>
 
-        {/* Tier odds */}
+        {/* Odds */}
         <View style={styles.oddsRow}>
           {box.tiers.map((t) => (
             <View key={t.reward} style={styles.oddsPill}>
-              <Text style={styles.oddsText}>{t.reward} TFT</Text>
+              <Text style={styles.oddsAmt}>{t.reward}</Text>
+              <Text style={styles.oddsUnit}>TFT</Text>
               <Text style={styles.oddsChance}>{t.weight}%</Text>
             </View>
           ))}
@@ -269,22 +352,25 @@ function BoxCard({
 
       {/* Open button */}
       <Pressable
-        style={[styles.openBtn, !isUnlocked && styles.openBtnDisabled]}
-        onPressIn={() => setPressed(true)}
-        onPressOut={() => setPressed(false)}
+        style={[styles.openBtn, isUnlocked ? styles.openBtnActive : styles.openBtnLocked]}
         onPress={() => isUnlocked && onOpen(box)}
         disabled={!isUnlocked}
       >
         {isUnlocked ? (
           <LinearGradient
-            colors={["rgba(255,255,255,0.3)", "rgba(255,255,255,0.15)"]}
+            colors={[box.lidGrad[0], box.bodyGrad[0]]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill} borderRadius={14}
+            style={StyleSheet.absoluteFill}
+            borderRadius={14}
           />
         ) : null}
-        <Feather name={isUnlocked ? "package" : "lock"} size={16} color={isUnlocked ? "#fff" : "rgba(255,255,255,0.4)"} />
-        <Text style={[styles.openBtnText, !isUnlocked && styles.openBtnTextDisabled]}>
-          {isUnlocked ? "Open Box" : box.requiredPlan ? `Requires ${box.requiredPlan.charAt(0).toUpperCase() + box.requiredPlan.slice(1)} Plan` : "Locked"}
+        <Feather
+          name={isUnlocked ? "gift" : "lock"}
+          size={16}
+          color={isUnlocked ? "#fff" : Colors.textMuted}
+        />
+        <Text style={[styles.openBtnText, !isUnlocked && styles.openBtnTextLocked]}>
+          {isUnlocked ? "Open Box" : `Requires ${box.requiredPlan ? box.requiredPlan.charAt(0).toUpperCase() + box.requiredPlan.slice(1) + " Plan" : "Plan"}`}
         </Text>
       </Pressable>
     </Animated.View>
@@ -305,84 +391,107 @@ function OpeningModal({
   onConfirm: () => void;
   onClose: () => void;
 }) {
-  const scale = useSharedValue(phase === "opening" ? 0.6 : 1);
-  const rotate = useSharedValue(0);
+  // Lid slides up
+  const lidY = useSharedValue(0);
+  // Reward card rises from inside box
+  const cardY = useSharedValue(120);
+  const cardOpacity = useSharedValue(0);
+  const cardScale = useSharedValue(0.7);
+  // Glow pulse
+  const glowScale = useSharedValue(1);
+  const glowOpacity = useSharedValue(0);
 
   React.useEffect(() => {
     if (phase === "opening") {
-      scale.value = withSpring(1.1, { damping: 8, stiffness: 120 });
-      rotate.value = withRepeat(withSequence(withTiming(-8, { duration: 80 }), withTiming(8, { duration: 80 })), 6, true);
+      // Lid flies up
+      lidY.value = withSpring(-(LID_H + 80), { damping: 14, stiffness: 120 });
+      // Glow bursts from inside
+      glowOpacity.value = withDelay(300, withTiming(1, { duration: 250 }));
+      glowScale.value = withDelay(300, withSpring(2.8, { damping: 8 }));
     } else {
-      scale.value = withSpring(1, { damping: 12 });
-      rotate.value = withTiming(0, { duration: 200 });
+      // Reward card rises
+      cardY.value = withSpring(0, { damping: 14, stiffness: 90 });
+      cardOpacity.value = withTiming(1, { duration: 300 });
+      cardScale.value = withSpring(1, { damping: 12, stiffness: 100 });
     }
   }, [phase]);
 
-  const boxStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
+  const lidStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: lidY.value }],
   }));
-
-  const particles = Array.from({ length: 12 }).map((_, i) => ({
-    x: (i - 6) * 24 + (Math.random() * 16 - 8),
-    delay: Math.random() * 200,
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: cardY.value }, { scale: cardScale.value }],
+    opacity: cardOpacity.value,
+  }));
+  const glowStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: glowScale.value }],
+    opacity: glowOpacity.value,
   }));
 
   return (
     <View style={styles.modalOverlay}>
-      <Animated.View entering={FadeIn.duration(250)} style={styles.modalCard}>
-        <LinearGradient
-          colors={box.grad}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={[StyleSheet.absoluteFill, { borderRadius: 28 }]}
-        />
+      <Animated.View entering={FadeIn.duration(200)} style={styles.modalSheet}>
 
         {/* Close */}
         <Pressable onPress={onClose} style={styles.modalClose}>
-          <Feather name="x" size={16} color="rgba(255,255,255,0.7)" />
+          <Feather name="x" size={16} color={Colors.textMuted} />
         </Pressable>
 
-        {phase === "opening" ? (
-          <>
-            <Text style={styles.modalOpeningTitle}>Opening…</Text>
-            <Animated.View style={[styles.boxIconWrap, { marginBottom: 0 }, boxStyle]}>
-              <View style={[styles.boxIconInner, { width: 100, height: 100, borderRadius: 24 }]}>
-                <MaterialCommunityIcons name={box.icon as any} size={64} color="#fff" />
+        <Text style={styles.modalTitle}>
+          {phase === "opening" ? "Opening…" : "🎉 You Got It!"}
+        </Text>
+        <Text style={styles.modalBoxName}>{box.name}</Text>
+
+        {/* Box + animation stage */}
+        <View style={styles.stageWrap}>
+          {/* Glow burst from inside */}
+          <Animated.View style={[styles.glowBurst, { backgroundColor: box.glowColor }, glowStyle]} />
+
+          {/* Box lid (animated upward) */}
+          <View style={styles.lidContainer}>
+            <Animated.View style={[lidStyle, { alignItems: "center" }]}>
+              <View style={{
+                width: BOX_W * 1.1 + 12, height: LID_H * 1.1, borderRadius: 12, overflow: "hidden",
+                shadowColor: box.glowColor, shadowOpacity: 0.7, shadowRadius: 14, elevation: 10,
+              }}>
+                <LinearGradient colors={box.lidGrad} style={StyleSheet.absoluteFill} />
+                <View style={{ position: "absolute", bottom: -5, left: "50%", marginLeft: -14, width: 28, height: 14, backgroundColor: box.ribbonColor, borderRadius: 6 }} />
+                <View style={{ position: "absolute", top: 4, left: 10, right: 10, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.35)" }} />
+                <Text style={{ position: "absolute", bottom: 6, alignSelf: "center", fontSize: 9, fontFamily: "Inter_700Bold", color: "rgba(255,255,255,0.85)", letterSpacing: 1.5 }}>{box.tierName}</Text>
               </View>
             </Animated.View>
-            <Text style={styles.modalBoxName}>{box.name}</Text>
-          </>
-        ) : (
-          <>
-            {/* Particles */}
-            <View style={{ position: "absolute", width: "100%", bottom: "40%", alignItems: "center" }}>
-              {particles.map((p, i) => (
-                <Particle key={i} x={p.x} delay={p.delay} colorIdx={i} />
-              ))}
-            </View>
+          </View>
 
-            <Animated.View entering={FadeInUp.duration(400)}>
-              <Text style={styles.modalCongrats}>🎉 Congratulations!</Text>
-              <Text style={styles.modalBoxName}>{box.name}</Text>
-            </Animated.View>
+          {/* Box body (stays) */}
+          <View style={{ zIndex: 2 }}>
+            <BoxVisual box={box} isUnlocked={true} lidUp={false} size={1.1} />
+          </View>
 
-            <Animated.View entering={FadeInDown.duration(500).delay(200)} style={styles.rewardCircle}>
-              <LinearGradient colors={["rgba(255,255,255,0.3)", "rgba(255,255,255,0.1)"]} style={StyleSheet.absoluteFill} borderRadius={80} />
-              <Text style={styles.rewardAmount}>{reward}</Text>
-              <Text style={styles.rewardUnit}>TFT</Text>
+          {/* Reward card rises from inside */}
+          {phase === "reveal" && (
+            <Animated.View style={[styles.rewardCardFloat, cardStyle]}>
+              <LinearGradient colors={[box.lidGrad[0], box.bodyGrad[0]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 20 }]} />
+              <Text style={styles.rewardCardLabel}>Reward</Text>
+              <Text style={styles.rewardCardAmt}>{reward}</Text>
+              <Text style={styles.rewardCardUnit}>TFT</Text>
+              <Text style={styles.rewardCardNote}>Added to your balance</Text>
             </Animated.View>
+          )}
+        </View>
 
-            <Animated.View entering={FadeIn.duration(400).delay(400)} style={styles.rewardNote}>
-              <MaterialCommunityIcons name="gift" size={14} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.rewardNoteText}>Will be added to your balance</Text>
-            </Animated.View>
-
-            <Animated.View entering={FadeInUp.duration(400).delay(500)} style={{ width: "100%" }}>
-              <Pressable style={styles.confirmBtn} onPress={onConfirm}>
-                <LinearGradient colors={["rgba(255,255,255,0.28)", "rgba(255,255,255,0.14)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
-                <Text style={styles.confirmBtnText}>Claim {reward} TFT</Text>
-              </Pressable>
-            </Animated.View>
-          </>
+        {/* Claim button */}
+        {phase === "reveal" && (
+          <Animated.View entering={FadeInUp.duration(350).delay(200)} style={{ width: "100%", marginTop: 24 }}>
+            <Pressable style={styles.claimBtn} onPress={onConfirm}>
+              <LinearGradient
+                colors={[box.lidGrad[0], box.bodyGrad[0]]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+              />
+              <Feather name="check-circle" size={18} color="#fff" />
+              <Text style={styles.claimBtnText}>Claim {reward} TFT</Text>
+            </Pressable>
+          </Animated.View>
         )}
       </Animated.View>
     </View>
@@ -402,11 +511,9 @@ export default function AirdropScreen() {
   const [openingBox, setOpeningBox] = useState<BoxConfig | null>(null);
   const [reward, setReward] = useState(0);
   const [phase, setPhase] = useState<"opening" | "reveal">("opening");
-  const scrollRef = useRef<ScrollView>(null);
 
-  // Determine unlocked level based on plan
   const planLevel = plan ? (PLAN_LEVEL[plan.id] ?? 1) : 1;
-  const unlockedLevel = planLevel; // LV1 always free; others need plan
+  const unlockedLevel = planLevel;
 
   const isUnlocked = useCallback((box: BoxConfig) => {
     if (box.level === 1) return true;
@@ -418,9 +525,7 @@ export default function AirdropScreen() {
     setReward(r);
     setOpeningBox(box);
     setPhase("opening");
-
-    // After 1.6s switch to reveal
-    setTimeout(() => setPhase("reveal"), 1600);
+    setTimeout(() => setPhase("reveal"), 1400);
   }, []);
 
   const handleConfirm = useCallback(() => {
@@ -439,34 +544,36 @@ export default function AirdropScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
       {/* Header */}
-      <LinearGradient colors={["#7B61FF", "#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.headerGrad}>
+      <LinearGradient
+        colors={["#7B61FF", "#5CBFFE", "#2BD9A8"]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={styles.headerGrad}
+      >
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View style={{ flex: 1, alignItems: "center" }}>
-          <Image source={require("../assets/images/apex-logo.jpeg")} style={styles.headerLogo} contentFit="contain" />
+          <Image source={require("../assets/images/apex-logo.jpeg")} style={styles.headerLogo} contentFit="cover" />
           <Text style={styles.headerTitle}>Airdrop Boxes</Text>
           <Text style={styles.headerSub}>Open mystery boxes to earn TFT rewards</Text>
         </View>
         <View style={{ width: 36 }} />
       </LinearGradient>
 
-      {/* Plan level badge */}
+      {/* Plan strip */}
       <View style={styles.planRow}>
-        <MaterialCommunityIcons name="shield-check" size={14} color="#5CBFFE" />
+        <Feather name="shield" size={13} color="#5CBFFE" />
         <Text style={styles.planText}>
-          {plan ? `${plan.name} Plan · Up to LV${unlockedLevel} unlocked` : "No plan · LV1 only"}
+          {plan ? `${plan.name} Plan  ·  LV1–LV${unlockedLevel} unlocked` : "No plan  ·  LV1 only"}
         </Text>
         <Pressable onPress={() => router.push("/subscriptions")} style={styles.upgradeBtn}>
           <Text style={styles.upgradeText}>Upgrade ›</Text>
         </Pressable>
       </View>
 
-      {/* Horizontal box slider */}
+      {/* Slider */}
       <ScrollView
-        ref={scrollRef}
         horizontal
-        pagingEnabled={false}
         decelerationRate="fast"
         snapToInterval={CARD_W + 16}
         snapToAlignment="center"
@@ -487,25 +594,25 @@ export default function AirdropScreen() {
 
       <Dots count={BOXES.length} active={activeIndex} />
 
-      {/* Info strip */}
+      {/* Info bar */}
       <View style={styles.infoStrip}>
         <View style={styles.infoItem}>
-          <MaterialCommunityIcons name="cube-outline" size={18} color="#5CBFFE" />
+          <Text style={styles.infoEmoji}>📦</Text>
           <Text style={styles.infoLabel}>6 Boxes</Text>
         </View>
         <View style={styles.infoDivider} />
         <View style={styles.infoItem}>
-          <MaterialCommunityIcons name="gift" size={18} color="#2BD9A8" />
+          <Text style={styles.infoEmoji}>🎁</Text>
           <Text style={styles.infoLabel}>5–280 TFT</Text>
         </View>
         <View style={styles.infoDivider} />
         <View style={styles.infoItem}>
-          <MaterialCommunityIcons name="refresh" size={18} color="#FFB08A" />
-          <Text style={styles.infoLabel}>Instant</Text>
+          <Text style={styles.infoEmoji}>⚡</Text>
+          <Text style={styles.infoLabel}>Instant Credit</Text>
         </View>
       </View>
 
-      {/* Opening modal */}
+      {/* Modal */}
       <Modal visible={!!openingBox} transparent animationType="fade" onRequestClose={() => setOpeningBox(null)}>
         {openingBox && (
           <OpeningModal
@@ -521,176 +628,143 @@ export default function AirdropScreen() {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#F4F6FB" },
 
-  // Header
-  headerGrad: { paddingHorizontal: 16, paddingBottom: 20, paddingTop: 12, flexDirection: "row", alignItems: "flex-start" },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", marginTop: 4 },
-  headerLogo: { width: 52, height: 52, borderRadius: 14, marginBottom: 6, borderWidth: 2, borderColor: "rgba(255,255,255,0.4)" },
-  headerTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: -0.3 },
-  headerSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", marginTop: 2, textAlign: "center" },
+  headerGrad: { paddingHorizontal: 16, paddingBottom: 18, paddingTop: 10, flexDirection: "row", alignItems: "flex-start" },
+  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center", marginTop: 2 },
+  headerLogo: { width: 50, height: 50, borderRadius: 14, marginBottom: 6, borderWidth: 2, borderColor: "rgba(255,255,255,0.45)" },
+  headerTitle: { fontSize: 19, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: -0.3 },
+  headerSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)", marginTop: 2, textAlign: "center" },
 
-  // Plan badge
-  planRow: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fff", marginHorizontal: 16, marginTop: 14, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E5E8EE" },
+  planRow: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fff", marginHorizontal: 16, marginTop: 12, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E5E8EE" },
   planText: { flex: 1, fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
   upgradeBtn: { backgroundColor: "#EEF6FF", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   upgradeText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#5CBFFE" },
 
-  // Slider
-  slider: { paddingHorizontal: 24, paddingVertical: 18, gap: 16, flexDirection: "row", alignItems: "center" },
+  slider: { paddingHorizontal: 20, paddingVertical: 16, gap: 16 },
 
-  // Box Card
+  // Card
   card: {
     width: CARD_W,
-    borderRadius: 28,
+    borderRadius: 24,
     overflow: "hidden",
-    padding: 24,
-    paddingBottom: 20,
-    alignItems: "center",
+    padding: 20,
+    paddingBottom: 18,
+    backgroundColor: "#fff",
     shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 12,
-    minHeight: 460,
-    justifyContent: "space-between",
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+    gap: 12,
   },
-  levelBadge: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-  },
-  levelText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
-  lockBadge: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    backgroundColor: "rgba(0,0,0,0.25)",
-    borderRadius: 10,
-    padding: 6,
-  },
-  watermark: {
-    position: "absolute",
-    right: -20,
-    bottom: 80,
-    width: 120,
-    height: 120,
-    opacity: 0.1,
-    borderRadius: 20,
-  },
-  boxIconWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginVertical: 10,
-  },
-  boxIconInner: {
-    width: 90,
-    height: 90,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  boxIconLocked: { opacity: 0.5 },
-  lockOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.35)",
-    borderRadius: 22,
-  },
-  boxInfo: { alignItems: "center", gap: 6, width: "100%" },
-  boxName: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center", letterSpacing: -0.3 },
-  boxSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)" },
-  rewardBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
-  rewardText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
-  oddsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center", marginTop: 4 },
-  oddsPill: { backgroundColor: "rgba(0,0,0,0.18)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignItems: "center" },
-  oddsText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
-  oddsChance: { fontSize: 9, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)" },
+  cardTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  tierBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  tierBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1.2 },
+  lockPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#F3F4F6", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  lockPillText: { fontSize: 10, fontFamily: "Inter_500Medium", color: Colors.textMuted },
 
-  // Open button
+  boxVisualWrap: { alignItems: "center", justifyContent: "center", paddingVertical: 8, position: "relative" },
+  glowCircle: { position: "absolute", width: 170, height: 170, borderRadius: 85 },
+
+  cardInfo: { alignItems: "center", gap: 6 },
+  boxName: { fontSize: 18, fontFamily: "Inter_700Bold", color: Colors.textPrimary, textAlign: "center", letterSpacing: -0.3 },
+  boxSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
+  rangePill: { flexDirection: "row", alignItems: "center", borderRadius: 10, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 6 },
+  rangeText: { fontSize: 13, fontFamily: "Inter_700Bold" },
+
+  oddsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center", marginTop: 2 },
+  oddsPill: { backgroundColor: "#F3F4F6", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, alignItems: "center", minWidth: 52 },
+  oddsAmt: { fontSize: 11, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  oddsUnit: { fontSize: 8, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  oddsChance: { fontSize: 9, fontFamily: "Inter_500Medium", color: "#5CBFFE" },
+
   openBtn: {
-    width: "100%",
-    height: 48,
-    borderRadius: 14,
-    overflow: "hidden",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.35)",
-    marginTop: 8,
+    height: 48, borderRadius: 14, overflow: "hidden",
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
   },
-  openBtnDisabled: { backgroundColor: "rgba(0,0,0,0.2)", borderColor: "rgba(255,255,255,0.15)" },
+  openBtnActive: { shadowColor: "#5CBFFE", shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
+  openBtnLocked: { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E8EE" },
   openBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
-  openBtnTextDisabled: { color: "rgba(255,255,255,0.4)", fontSize: 12 },
+  openBtnTextLocked: { color: Colors.textMuted, fontSize: 12 },
 
-  // Info strip
-  infoStrip: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#fff", marginHorizontal: 16, marginTop: 14, borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: "#E5E8EE" },
-  infoItem: { flex: 1, alignItems: "center", gap: 4 },
+  // Info bar
+  infoStrip: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", marginHorizontal: 16, marginTop: 12, borderRadius: 14, paddingVertical: 12, borderWidth: 1, borderColor: "#E5E8EE" },
+  infoItem: { flex: 1, alignItems: "center", gap: 2 },
+  infoEmoji: { fontSize: 18 },
   infoLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
-  infoDivider: { width: 1, height: 28, backgroundColor: "#E5E8EE" },
+  infoDivider: { width: 1, height: 30, backgroundColor: "#E5E8EE" },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", alignItems: "center", justifyContent: "center", padding: 24 },
-  modalCard: {
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "flex-end" },
+  modalSheet: {
     width: "100%",
-    borderRadius: 28,
-    overflow: "hidden",
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     padding: 28,
+    paddingBottom: 40,
     alignItems: "center",
-    gap: 16,
-    minHeight: 400,
-    justifyContent: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 30,
-    shadowOffset: { width: 0, height: 12 },
     elevation: 20,
+    minHeight: 520,
   },
-  modalClose: { position: "absolute", top: 16, right: 16, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(0,0,0,0.2)", alignItems: "center", justifyContent: "center" },
-  modalOpeningTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "rgba(255,255,255,0.9)", letterSpacing: 0.5 },
-  modalBoxName: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.85)", textAlign: "center" },
-  modalCongrats: { fontSize: 24, fontFamily: "Inter_700Bold", color: "#fff", textAlign: "center" },
-  rewardCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(255,255,255,0.2)",
+  modalClose: { position: "absolute", top: 16, right: 20, width: 30, height: 30, borderRadius: 15, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginBottom: 2, marginTop: 4 },
+  modalBoxName: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary, marginBottom: 16 },
+
+  stageWrap: {
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.4)",
-    overflow: "hidden",
-  },
-  rewardAmount: { fontSize: 48, fontFamily: "Inter_700Bold", color: "#fff", lineHeight: 56 },
-  rewardUnit: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.85)" },
-  rewardNote: { flexDirection: "row", alignItems: "center", gap: 6 },
-  rewardNoteText: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.8)" },
-  confirmBtn: {
+    justifyContent: "flex-end",
+    height: 310,
+    position: "relative",
     width: "100%",
-    height: 52,
-    borderRadius: 14,
+  },
+  glowBurst: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    bottom: BOX_BODY_H * 1.1 * 0.5,
+    opacity: 0.5,
+    zIndex: 1,
+  },
+  lidContainer: {
+    position: "absolute",
+    bottom: BOX_BODY_H * 1.1 - 4,
+    zIndex: 10,
+    width: "100%",
+    alignItems: "center",
+  },
+  rewardCardFloat: {
+    position: "absolute",
+    bottom: BOX_BODY_H * 1.1 * 0.25,
+    width: BOX_W * 1.1 - 16,
+    height: 160,
+    borderRadius: 20,
     overflow: "hidden",
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.22)",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.4)",
-    gap: 8,
+    zIndex: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 14,
+    gap: 2,
   },
-  confirmBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
+  rewardCardLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.8)", letterSpacing: 1.2, textTransform: "uppercase" },
+  rewardCardAmt: { fontSize: 52, fontFamily: "Inter_700Bold", color: "#fff", lineHeight: 58 },
+  rewardCardUnit: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.9)" },
+  rewardCardNote: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", marginTop: 4 },
+
+  claimBtn: {
+    height: 54, borderRadius: 16, overflow: "hidden",
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+    shadowColor: "#5CBFFE", shadowOpacity: 0.4, shadowRadius: 12, elevation: 6,
+  },
+  claimBtnText: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff" },
 });
