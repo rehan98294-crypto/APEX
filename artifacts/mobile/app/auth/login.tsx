@@ -41,8 +41,13 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const result = await authApi.login(identifier.trim(), password);
+      if ("requires2FA" in result && result.requires2FA) {
+        router.push({ pathname: "/auth/two-factor", params: { tempToken: result.tempToken } });
+        setLoading(false);
+        return;
+      }
       setSuccess(true);
-      await signIn(result.token, result.user);
+      await signIn((result as any).token, (result as any).user);
       router.replace("/(tabs)/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");

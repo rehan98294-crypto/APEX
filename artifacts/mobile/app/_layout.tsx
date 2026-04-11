@@ -68,6 +68,7 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return;
     const inAuth = segments[0] === "auth";
+    const inGoogleVerif = segments[0] === "google-verification";
     if (!user && !inAuth) {
       router.replace("/auth/login");
     } else if (user && inAuth) {
@@ -84,6 +85,7 @@ function RootLayoutNav() {
       <Stack.Screen name="subscriptions" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="shop" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="airdrop" options={{ headerShown: false, animation: "slide_from_bottom" }} />
+      <Stack.Screen name="google-verification" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen
         name="nft/[id]"
         options={{

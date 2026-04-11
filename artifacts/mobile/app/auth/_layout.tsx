@@ -7,6 +7,7 @@ export default function AuthLayout() {
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
       <Stack.Screen name="forgot" />
+      <Stack.Screen name="two-factor" options={{ animation: "slide_from_right" }} />
     </Stack>
   );
 }

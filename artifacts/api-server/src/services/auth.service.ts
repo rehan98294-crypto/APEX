@@ -162,12 +162,15 @@ export async function registerUser(params: {
 export async function loginUser(params: {
   identifier: string;
   password: string;
-}): Promise<{ token: string; user: Record<string, unknown> }> {
+}): Promise<
+  | { token: string; user: Record<string, unknown> }
+  | { requires2FA: true; tempToken: string }
+> {
   const isEmail = params.identifier.includes("@");
 
   const query = supabase
     .from("users")
-    .select("id, username, email, phone, password_hash, created_at");
+    .select("id, username, email, phone, password_hash, created_at, twofa_enabled");
 
   const { data, error } = isEmail
     ? await query.eq("email", params.identifier).limit(1)
@@ -181,13 +184,49 @@ export async function loginUser(params: {
   const match = await bcrypt.compare(params.password, user.password_hash);
   if (!match) throw new Error("Invalid credentials.");
 
-  const { password_hash: _, ...safeUser } = user;
+  if (user.twofa_enabled) {
+    const tempToken = jwt.sign(
+      { id: user.id, email: user.email, purpose: "2fa" },
+      JWT_SECRET,
+      { expiresIn: "5m" }
+    );
+    return { requires2FA: true, tempToken };
+  }
+
+  const { password_hash: _, twofa_enabled: __, ...safeUser } = user;
 
   const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
     expiresIn: "30d",
   });
 
   return { token, user: safeUser };
+}
+
+export async function completeTwoFALogin(tempToken: string): Promise<{
+  token: string;
+  user: Record<string, unknown>;
+}> {
+  let payload: { id: string; email: string; purpose: string };
+  try {
+    payload = jwt.verify(tempToken, JWT_SECRET) as typeof payload;
+  } catch {
+    throw new Error("Session expired. Please log in again.");
+  }
+  if (payload.purpose !== "2fa") throw new Error("Invalid token.");
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, username, email, phone, created_at")
+    .eq("id", payload.id)
+    .single();
+
+  if (error || !data) throw new Error("User not found.");
+
+  const token = jwt.sign({ id: data.id, email: data.email }, JWT_SECRET, {
+    expiresIn: "30d",
+  });
+
+  return { token, user: data };
 }
 
 export async function resetPassword(params: {

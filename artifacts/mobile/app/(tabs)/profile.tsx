@@ -309,10 +309,10 @@ export default function ProfileScreen() {
 
             {/* Google verification + User Settings */}
             <View style={stScreen.card}>
-              <Pressable style={stScreen.verifyBox}>
+              <Pressable style={stScreen.verifyBox} onPress={() => { setSettingsOpen(false); router.push("/google-verification"); }}>
                 <Feather name="shield" size={28} color="#5CBFFE" />
                 <Text style={stScreen.verifyLabel}>Google verification</Text>
-                <Text style={stScreen.verifyStatus}>Bound</Text>
+                <Text style={stScreen.verifyStatus}>Manage</Text>
               </Pressable>
               <View style={stScreen.cardDivider} />
               <Pressable style={stScreen.verifyBox} onPress={() => setUserSettingsOpen(true)}>
