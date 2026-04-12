@@ -6,6 +6,7 @@ import nftsRouter from "./nfts";
 import stakeRouter from "./stake";
 import plansRouter from "./plans";
 import shopRouter from "./shop";
+import treeRouter from "./tree";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(nftsRouter);
 router.use(stakeRouter);
 router.use(plansRouter);
 router.use(shopRouter);
+router.use(treeRouter);
 
 export default router;

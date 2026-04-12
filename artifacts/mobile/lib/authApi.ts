@@ -75,4 +75,27 @@ export const authApi = {
     disable: (token: string, password: string, code: string) =>
       request<{ success: boolean }>("/auth/2fa/disable", { password, token: code }, token),
   },
+
+  // ── Referral & Team tree ──────────────────────────────────────────────────
+  tree: {
+    getReferralInfo: (token: string) =>
+      requestGet<{
+        referralCode: string;
+        referralLink: string;
+        position: string | null;
+        referredByUserId: string | null;
+      }>("/tree/referral-info", token),
+
+    getStats: (token: string, filter: "all" | "today" | "week" = "all") =>
+      requestGet<{
+        totalMembers: number;
+        validMembers: number;
+        A: { total: number; valid: number };
+        B: { total: number; valid: number };
+        C: { total: number; valid: number };
+      }>(`/tree/stats?filter=${filter}`, token),
+
+    recordDeposit: (token: string, amount: number, status: "pending" | "success" = "pending") =>
+      request<{ success: boolean }>("/deposits", { amount, status }, token),
+  },
 };

@@ -3,6 +3,10 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { supabase } from "../lib/supabase.js";
 import { sendEmail, buildOtpEmail } from "./email.js";
+import {
+  generateUniqueReferralCode,
+  resolveIncomingReferral,
+} from "./referral.service.js";
 
 const JWT_SECRET = process.env["JWT_SECRET"] ?? "treasurefun_jwt_secret_2024";
 const OTP_TTL_SECONDS = 120;
@@ -110,7 +114,7 @@ export async function registerUser(params: {
   email: string;
   phone: string;
   password: string;
-  referralCode?: string;
+  referralCode?: string;  // the INCOMING referral code used by the new user (from their parent)
 }): Promise<{ token: string; user: Record<string, unknown> }> {
   const { data: existing } = await supabase
     .from("users")
@@ -134,17 +138,42 @@ export async function registerUser(params: {
 
   const passwordHash = await bcrypt.hash(params.password, 10);
 
+  // Generate a unique referral code for THIS new user
+  let ownReferralCode: string | null = null;
+  try {
+    ownReferralCode = await generateUniqueReferralCode();
+  } catch {
+    // non-fatal — referral code columns may not exist yet
+  }
+
+  // Resolve the incoming referral (parent's code → assign A/B/C position)
+  let referredBy: string | null = null;
+  let position: string | null = null;
+  if (params.referralCode) {
+    try {
+      const resolved = await resolveIncomingReferral(params.referralCode);
+      if (resolved) {
+        referredBy = resolved.parentId;
+        position   = resolved.position;
+      }
+    } catch {
+      // non-fatal — skip if referral columns missing
+    }
+  }
+
+  const insertData: Record<string, unknown> = {
+    username:      params.username,
+    email:         params.email,
+    phone:         params.phone,
+    password_hash: passwordHash,
+  };
+  if (ownReferralCode) insertData["referral_code"] = ownReferralCode;
+  if (referredBy)     insertData["referred_by"]    = referredBy;
+  if (position)       insertData["position"]        = position;
+
   const { data: newUser, error } = await supabase
     .from("users")
-    .insert([
-      {
-        username: params.username,
-        email: params.email,
-        phone: params.phone,
-        password_hash: passwordHash,
-        referral_code: params.referralCode ?? null,
-      },
-    ])
+    .insert([insertData])
     .select("id, username, email, phone, created_at")
     .single();
 

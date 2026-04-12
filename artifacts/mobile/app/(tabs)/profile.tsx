@@ -36,10 +36,10 @@ const TEAM_STATS = [
 ];
 
 const TEAM_LINKS = [
-  { icon: "users", label: "Community\nenthusiasts" },
-  { icon: "award", label: "Community\ncontribution" },
-  { icon: "list", label: "Community\norders" },
-  { icon: "share-2", label: "Referral" },
+  { icon: "users",    label: "Community\nenthusiasts",  route: "/my-team" },
+  { icon: "award",    label: "Community\ncontribution", route: "/my-team" },
+  { icon: "list",     label: "Community\norders",       route: "/my-team" },
+  { icon: "share-2",  label: "Referral",                route: "/my-team" },
 ];
 
 const COMMON_FUNCS = [
@@ -207,7 +207,11 @@ export default function ProfileScreen() {
 
           <View style={styles.linkGrid}>
             {TEAM_LINKS.map((link) => (
-              <Pressable key={link.label} style={styles.linkItem}>
+              <Pressable
+                key={link.label}
+                style={styles.linkItem}
+                onPress={() => link.route && router.push(link.route as any)}
+              >
                 <View style={styles.linkIconBox}>
                   <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
                   <Feather name={link.icon as any} size={22} color="#fff" />
