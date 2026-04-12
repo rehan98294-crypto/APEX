@@ -88,12 +88,22 @@ export async function getUserReferralInfo(userId: string): Promise<{
 
   if (error || !data) throw new Error("User not found.");
 
-  const code = (data as any).referral_code ?? "—";
+  let code = (data as any).referral_code as string | null;
+
+  // Auto-generate and persist a code for existing users who don't have one
+  if (!code) {
+    code = await generateUniqueReferralCode();
+    await supabase
+      .from("users")
+      .update({ referral_code: code })
+      .eq("id", userId);
+  }
+
   return {
-    referralCode:      code,
-    referralLink:      `${APP_URL}/auth/register?ref=${code}`,
-    position:          (data as any).position ?? null,
-    referredByUserId:  (data as any).referred_by ?? null,
+    referralCode:     code,
+    referralLink:     `${APP_URL}/auth/register?ref=${code}`,
+    position:         (data as any).position ?? null,
+    referredByUserId: (data as any).referred_by ?? null,
   };
 }
 

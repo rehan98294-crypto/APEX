@@ -140,32 +140,54 @@ export default function MyTeamScreen() {
               )}
             </View>
 
-            {/* Referral code */}
-            <Pressable style={s.codeRow} onPress={() => copy(displayCode, "code")}>
-              <Text style={s.codeText}>{displayCode}</Text>
-              <View style={s.copyIcon}>
-                <Feather
-                  name={copied === "code" ? "check" : "copy"}
-                  size={16}
-                  color={copied === "code" ? "#2BD9A8" : "#9CA3AF"}
-                />
-              </View>
-            </Pressable>
+            {/* ── Referral code display ── */}
+            {loadingInfo ? (
+              <ActivityIndicator color={BLUE} style={{ marginVertical: 16 }} />
+            ) : (
+              <>
+                <Pressable style={s.codeRow} onPress={() => copy(displayCode, "code")}>
+                  <Text style={s.codeText}>{displayCode}</Text>
+                  <View style={s.copyIcon}>
+                    <Feather
+                      name={copied === "code" ? "check" : "copy"}
+                      size={18}
+                      color={copied === "code" ? "#2BD9A8" : "#5CBFFE"}
+                    />
+                  </View>
+                </Pressable>
 
-            {/* Referral link */}
-            <Pressable style={s.linkRow} onPress={() => copy(displayLink, "link")}>
-              <Text style={s.linkText} numberOfLines={2}>{displayLink}</Text>
-              <View style={s.copyIcon}>
-                <Feather
-                  name={copied === "link" ? "check" : "copy"}
-                  size={16}
-                  color={copied === "link" ? "#2BD9A8" : "#9CA3AF"}
-                />
-              </View>
-            </Pressable>
+                {/* ── Referral link ── */}
+                <Pressable style={s.linkRow} onPress={() => copy(displayLink, "link")}>
+                  <Text style={s.linkText} numberOfLines={1} ellipsizeMode="middle">
+                    {displayLink}
+                  </Text>
+                  <View style={s.copyIcon}>
+                    <Feather
+                      name={copied === "link" ? "check" : "copy"}
+                      size={16}
+                      color={copied === "link" ? "#2BD9A8" : "#9CA3AF"}
+                    />
+                  </View>
+                </Pressable>
 
-            {copied && (
-              <Text style={s.copiedNote}>Copied to clipboard</Text>
+                {copied && (
+                  <Text style={s.copiedNote}>
+                    {copied === "code" ? "Referral code copied!" : "Link copied!"}
+                  </Text>
+                )}
+
+                {/* ── Share button ── */}
+                <Pressable style={s.shareBtn} onPress={share}>
+                  <LinearGradient
+                    colors={GRAD}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 14 }]}
+                  />
+                  <Feather name="share-2" size={16} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={s.shareBtnText}>Share Referral Link</Text>
+                </Pressable>
+              </>
             )}
           </Animated.View>
         )}
@@ -345,22 +367,30 @@ const s = StyleSheet.create({
 
   codeRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 10, marginBottom: 16,
+    gap: 12, marginBottom: 14,
   },
-  codeText: { fontSize: 26, fontWeight: "800", color: "#1A1A2E", letterSpacing: 3 },
+  codeText: { fontSize: 30, fontWeight: "800", color: "#1A1A2E", letterSpacing: 5 },
   copyIcon: {
-    width: 30, height: 30, borderRadius: 8,
-    backgroundColor: "#F0F2F7", alignItems: "center", justifyContent: "center",
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: "#EBF8FF", alignItems: "center", justifyContent: "center",
   },
 
   linkRow: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "#fff", borderRadius: 14,
-    padding: 14, gap: 10,
+    paddingHorizontal: 16, paddingVertical: 14, gap: 10,
     borderWidth: 1, borderColor: "#E5E8EE",
+    marginBottom: 12,
   },
-  linkText:   { flex: 1, fontSize: 13, color: "#4B5563", lineHeight: 18 },
-  copiedNote: { textAlign: "center", fontSize: 12, color: "#2BD9A8", marginTop: 10, fontWeight: "600" },
+  linkText:   { flex: 1, fontSize: 13, color: "#4B5563" },
+  copiedNote: { textAlign: "center", fontSize: 12, color: "#2BD9A8", marginBottom: 10, fontWeight: "600" },
+
+  shareBtn: {
+    height: 50, borderRadius: 14, overflow: "hidden",
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    marginTop: 4,
+  },
+  shareBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 
   // ── Enthusiasts section ─────────────────────────────────────────────────────
   sectionTitle: { fontSize: 18, fontWeight: "700", color: "#1A1A2E", marginBottom: 4 },
