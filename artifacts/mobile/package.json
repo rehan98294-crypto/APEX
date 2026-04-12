@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.0",
+    "expo-clipboard": "^8.0.8",
     "react-native-qrcode-svg": "^6.3.21"
   }
 }
