@@ -36,10 +36,10 @@ const TEAM_STATS = [
 ];
 
 const TEAM_LINKS = [
-  { icon: "users",    label: "Community\nenthusiasts",  route: "/my-team" },
-  { icon: "award",    label: "Community\ncontribution", route: "/my-team" },
-  { icon: "list",     label: "Community\norders",       route: "/my-team" },
-  { icon: "share-2",  label: "Referral",                route: "/my-team" },
+  { icon: "users",    label: "Community\nenthusiasts",  route: "/my-team", params: { section: "enthusiasts" } },
+  { icon: "award",    label: "Community\ncontribution", route: "/my-team", params: { section: "contribution" } },
+  { icon: "list",     label: "Community\norders",       route: "/my-team", params: { section: "enthusiasts" } },
+  { icon: "share-2",  label: "Referral",                route: "/my-team", params: { section: "referral" } },
 ];
 
 const COMMON_FUNCS = [
@@ -210,7 +210,7 @@ export default function ProfileScreen() {
               <Pressable
                 key={link.label}
                 style={styles.linkItem}
-                onPress={() => link.route && router.push(link.route as any)}
+                onPress={() => link.route && router.push({ pathname: link.route as any, params: link.params })}
               >
                 <View style={styles.linkIconBox}>
                   <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
