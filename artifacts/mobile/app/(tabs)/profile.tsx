@@ -311,12 +311,18 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Google verification + User Settings */}
+            {/* 2FA + User Settings */}
             <View style={stScreen.card}>
-              <Pressable style={stScreen.verifyBox} onPress={() => { setSettingsOpen(false); router.push("/google-verification"); }}>
-                <Feather name="shield" size={28} color="#5CBFFE" />
-                <Text style={stScreen.verifyLabel}>Google verification</Text>
-                <Text style={stScreen.verifyStatus}>Manage</Text>
+              <Pressable
+                style={[stScreen.verifyBox, { flexDirection: "row", paddingHorizontal: 18, gap: 14 }]}
+                onPress={() => { setSettingsOpen(false); router.push("/security-2fa"); }}
+              >
+                <Feather name="shield" size={26} color="#5CBFFE" />
+                <View style={{ flex: 1 }}>
+                  <Text style={stScreen.verifyLabel}>Two-Factor Auth (2FA)</Text>
+                  <Text style={stScreen.verifySubLabel}>Google Authenticator</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color="#9CA3AF" />
               </Pressable>
               <View style={stScreen.cardDivider} />
               <Pressable style={stScreen.verifyBox} onPress={() => setUserSettingsOpen(true)}>
@@ -436,7 +442,8 @@ const stScreen = StyleSheet.create({
     overflow: "hidden",
   },
   verifyBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 22, gap: 8 },
-  verifyLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textPrimary, textAlign: "center" },
+  verifyLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
+  verifySubLabel: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
   verifyStatus: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#5CBFFE" },
   cardDivider: { width: 1, backgroundColor: Colors.border, marginVertical: 16 },
 
