@@ -1,5 +1,6 @@
+import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -18,10 +19,22 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { authApi } from "@/lib/authApi";
 import { useAuth } from "@/context/AuthContext";
 
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
+
+// ─── Client-side referral code preview ────────────────────────────────────────
+// Same charset/length as backend — 6 uppercase alphanumeric (no I/O)
+const CODE_CHARS = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+function generatePreviewCode(): string {
+  let result = "";
+  for (let i = 0; i < 6; i++) {
+    result += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  }
+  return result;
+}
 
 // ─── Country list ─────────────────────────────────────────────────────────────
 const COUNTRIES = [
@@ -132,23 +145,36 @@ export default function RegisterScreen() {
   const { signIn } = useAuth();
   const codeRef = useRef<TextInput>(null);
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [showCpw, setShowCpw] = useState(false);
-  const [country, setCountry] = useState(COUNTRIES[0]);
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [referral, setReferral] = useState("");
+  // Read ?ref= from URL to auto-fill the invite code
+  const urlParams = useLocalSearchParams<{ ref?: string }>();
 
-  const [codeSent, setCodeSent] = useState(false);
+  const [username,   setUsername]   = useState("");
+  const [password,   setPassword]   = useState("");
+  const [confirmPw,  setConfirmPw]  = useState("");
+  const [showPw,     setShowPw]     = useState(false);
+  const [showCpw,    setShowCpw]    = useState(false);
+  const [country,    setCountry]    = useState(COUNTRIES[0]);
+  const [phone,      setPhone]      = useState("");
+  const [email,      setEmail]      = useState("");
+  const [otpCode,    setOtpCode]    = useState("");       // email verification code
+  const [inviteCode, setInviteCode] = useState("");       // parent's referral code (optional)
+  const [myCode,     setMyCode]     = useState("------"); // this user's own referral code preview
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  const [codeSent,       setCodeSent]       = useState(false);
   const [emailDelivered, setEmailDelivered] = useState(false);
-  const [devOtp, setDevOtp] = useState<string | undefined>(undefined);
-  const [sendingCode, setSendingCode] = useState(false);
-  const [timer, setTimer] = useState(0);
+  const [devOtp,         setDevOtp]         = useState<string | undefined>(undefined);
+  const [sendingCode,    setSendingCode]    = useState(false);
+  const [timer,          setTimer]          = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Generate preview code + auto-fill invite code from URL on mount
+  useEffect(() => {
+    setMyCode(generatePreviewCode());
+    if (urlParams.ref) {
+      setInviteCode(urlParams.ref.toUpperCase().trim());
+    }
+  }, []);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -165,6 +191,12 @@ export default function RegisterScreen() {
     }, 1000);
   }
 
+  async function copyMyCode() {
+    await Clipboard.setStringAsync(myCode);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  }
+
   async function handleGetCode() {
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !trimmedEmail.includes("@")) {
@@ -178,7 +210,7 @@ export default function RegisterScreen() {
       setCodeSent(true);
       setEmailDelivered(res.emailDelivered);
       setDevOtp(res.devOtp);
-      setCode("");
+      setOtpCode("");
       startTimer();
       setTimeout(() => codeRef.current?.focus(), 200);
     } catch (e) {
@@ -196,21 +228,21 @@ export default function RegisterScreen() {
     if (!phone.trim()) return setError("Mobile number is required.");
     if (!email.trim()) return setError("Email is required.");
     if (!codeSent) return setError("Please request a verification code first.");
-    if (!code.trim() || code.length < 6) return setError("Enter the 6-digit verification code.");
+    if (!otpCode.trim() || otpCode.length < 6) return setError("Enter the 6-digit verification code.");
     setError("");
     setLoading(true);
     try {
       // 1. Verify OTP
-      const verified = await authApi.verifyCode(email.trim(), code.trim());
+      const verified = await authApi.verifyCode(email.trim(), otpCode.trim());
       if (!verified.success) throw new Error("Incorrect code. Please try again.");
       // 2. Register + auto-login
       const result = await authApi.register({
-        username: username.trim(),
-        email: email.trim(),
-        phone: `${country.dial}${phone.trim()}`,
+        username:        username.trim(),
+        email:           email.trim(),
+        phone:           `${country.dial}${phone.trim()}`,
         password,
         confirmPassword: confirmPw,
-        referralCode: referral.trim() || undefined,
+        inviteCode:      inviteCode.trim().toUpperCase() || undefined,
       });
       // 3. Sign in immediately — _layout.tsx handles redirect to /(tabs)/
       await signIn(result.token, result.user);
@@ -328,7 +360,7 @@ export default function RegisterScreen() {
               value={email}
               onChangeText={(v) => {
                 setEmail(v);
-                if (codeSent) { setCodeSent(false); setCode(""); setDevOtp(undefined); }
+                if (codeSent) { setCodeSent(false); setOtpCode(""); setDevOtp(undefined); }
               }}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -346,8 +378,8 @@ export default function RegisterScreen() {
                 style={[s.input, { paddingLeft: 14, letterSpacing: codeSent ? 4 : 0, fontWeight: codeSent ? "700" : "400" }]}
                 placeholder="Email verification code"
                 placeholderTextColor="#C4CAD4"
-                value={code}
-                onChangeText={(v) => setCode(v.replace(/[^0-9]/g, "").slice(0, 6))}
+                value={otpCode}
+                onChangeText={(v) => setOtpCode(v.replace(/[^0-9]/g, "").slice(0, 6))}
                 keyboardType="number-pad"
                 maxLength={6}
                 editable={codeSent}
@@ -396,7 +428,7 @@ export default function RegisterScreen() {
                 <Text style={s.devBoxLabel}>Dev mode — email not configured</Text>
               </View>
               <Text style={s.devBoxSub}>Your OTP code:</Text>
-              <Pressable style={s.devOtpRow} onPress={() => { if (devOtp) setCode(devOtp); }}>
+              <Pressable style={s.devOtpRow} onPress={() => { if (devOtp) setOtpCode(devOtp); }}>
                 <Text style={s.devOtpCode}>{devOtp ?? "—"}</Text>
                 <View style={s.devCopyBtn}>
                   <MaterialCommunityIcons name="content-copy" size={12} color="#D97706" />
@@ -406,18 +438,44 @@ export default function RegisterScreen() {
             </View>
           )}
 
-          {/* Referral code */}
-          <Text style={[s.label, { marginTop: 14 }]}>Referral code <Text style={s.req}>*</Text></Text>
+          {/* ── Your Referral Code (auto-generated, read-only) ── */}
+          <Text style={[s.label, { marginTop: 20 }]}>Your Referral Code</Text>
+          <View style={s.myCodeBox}>
+            <LinearGradient
+              colors={["#EBF8FF", "#F0FFF9"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Text style={s.myCodeText}>{myCode}</Text>
+            <Pressable style={s.myCodeCopyBtn} onPress={copyMyCode} hitSlop={8}>
+              <Feather name={codeCopied ? "check" : "copy"} size={16} color={codeCopied ? "#2BD9A8" : "#5CBFFE"} />
+            </Pressable>
+          </View>
+          <Text style={s.myCodeHint}>
+            This is your unique referral code. Share it so friends can join under your team.
+          </Text>
+
+          {/* ── Enter Invite Code (optional) ── */}
+          <Text style={[s.label, { marginTop: 16 }]}>Enter Invite Code <Text style={s.optional}>(optional)</Text></Text>
           <View style={s.inputBox}>
             <TextInput
               style={s.input}
-              placeholder="Please enter your Referral Code"
+              placeholder="Enter a friend's referral code"
               placeholderTextColor="#C4CAD4"
-              value={referral}
-              onChangeText={setReferral}
+              value={inviteCode}
+              onChangeText={(v) => setInviteCode(v.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 8))}
               autoCapitalize="characters"
+              autoCorrect={false}
             />
+            {inviteCode.length > 0 && (
+              <Pressable style={{ paddingRight: 14 }} onPress={() => setInviteCode("")} hitSlop={8}>
+                <MaterialCommunityIcons name="close-circle" size={17} color="#C4CAD4" />
+              </Pressable>
+            )}
           </View>
+          {!!urlParams.ref && inviteCode === urlParams.ref.toUpperCase() && (
+            <Text style={s.codeHintGreen}>✓ Invite code auto-filled from referral link</Text>
+          )}
 
           {/* Sign up */}
           <Pressable style={[s.btnWrap, loading && { opacity: 0.7 }]} onPress={handleSignUp} disabled={loading}>
@@ -527,6 +585,25 @@ const s = StyleSheet.create({
   switchRow: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
   switchLabel: { color: "#7B8794", fontSize: 14, fontWeight: "600" },
   switchLink: { color: "#5CBFFE", fontSize: 14, fontWeight: "700" },
+
+  // ── Your referral code display ─────────────────────────────────────────────
+  myCodeBox: {
+    height: 58, borderRadius: 14, overflow: "hidden",
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 18,
+    borderWidth: 1.5, borderColor: "#5CBFFE55",
+  },
+  myCodeText: {
+    fontSize: 26, fontWeight: "800", color: "#1A1A2E", letterSpacing: 5, flex: 1,
+  },
+  myCodeCopyBtn: {
+    width: 32, height: 32, borderRadius: 8,
+    backgroundColor: "#F0F8FF", alignItems: "center", justifyContent: "center",
+  },
+  myCodeHint: {
+    color: "#9CA3AF", fontSize: 11, marginTop: 6, marginBottom: 4, lineHeight: 16,
+  },
+  optional: { color: "#9CA3AF", fontWeight: "400" },
 
   // Country modal
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)" },

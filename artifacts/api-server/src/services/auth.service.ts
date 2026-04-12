@@ -114,7 +114,7 @@ export async function registerUser(params: {
   email: string;
   phone: string;
   password: string;
-  referralCode?: string;  // the INCOMING referral code used by the new user (from their parent)
+  inviteCode?: string;  // parent's referral code entered by the new user
 }): Promise<{ token: string; user: Record<string, unknown> }> {
   const { data: existing } = await supabase
     .from("users")
@@ -149,9 +149,9 @@ export async function registerUser(params: {
   // Resolve the incoming referral (parent's code → assign A/B/C position)
   let referredBy: string | null = null;
   let position: string | null = null;
-  if (params.referralCode) {
+  if (params.inviteCode) {
     try {
-      const resolved = await resolveIncomingReferral(params.referralCode);
+      const resolved = await resolveIncomingReferral(params.inviteCode);
       if (resolved) {
         referredBy = resolved.parentId;
         position   = resolved.position;

@@ -40,7 +40,8 @@ export const authApi = {
 
   register: (params: {
     username: string; email: string; phone: string;
-    password: string; confirmPassword: string; referralCode?: string;
+    password: string; confirmPassword: string;
+    inviteCode?: string;  // parent's referral code the new user entered
   }) => request<{ token: string; user: { id: string; username: string; email: string; phone: string } }>("/auth/register", params),
 
   login: (identifier: string, password: string) =>

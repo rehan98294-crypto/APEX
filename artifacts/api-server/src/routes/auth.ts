@@ -62,17 +62,17 @@ router.post("/auth/verify-code", async (req, res) => {
 
 router.post("/auth/register", async (req, res) => {
   try {
-    const { username, email, phone, password, confirmPassword, referralCode } =
+    const { username, email, phone, password, confirmPassword, inviteCode } =
       req.body as {
         username?: string; email?: string; phone?: string;
-        password?: string; confirmPassword?: string; referralCode?: string;
+        password?: string; confirmPassword?: string; inviteCode?: string;
       };
     if (!username || !email || !phone || !password || !confirmPassword) {
       return res.status(400).json({ error: "All fields are required." });
     }
     if (password !== confirmPassword) return res.status(400).json({ error: "Passwords do not match." });
     if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters." });
-    const result = await registerUser({ username, email, phone, password, referralCode });
+    const result = await registerUser({ username, email, phone, password, inviteCode });
     return res.status(201).json(result);
   } catch (err) {
     return res.status(400).json({ error: err instanceof Error ? err.message : "Registration failed." });

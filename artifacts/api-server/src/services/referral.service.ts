@@ -7,16 +7,21 @@ const APP_URL = DEV_DOMAIN
   : "https://app.apexmeta.io";
 
 // ── Referral code generation ──────────────────────────────────────────────────
-function randomAlpha(n: number): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars (0/O, 1/I)
+// Charset: digits 0-9 + uppercase A-Z, excluding I and O (visually ambiguous)
+const CODE_CHARS = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+const CODE_LEN = 6;
+
+export function generateCodeCandidate(): string {
   let result = "";
-  for (let i = 0; i < n; i++) result += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < CODE_LEN; i++) {
+    result += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  }
   return result;
 }
 
 export async function generateUniqueReferralCode(): Promise<string> {
-  for (let attempt = 0; attempt < 15; attempt++) {
-    const code = "APX" + randomAlpha(5);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const code = generateCodeCandidate();
     const { data } = await supabase
       .from("users")
       .select("id")
@@ -24,7 +29,10 @@ export async function generateUniqueReferralCode(): Promise<string> {
       .limit(1);
     if (!data || data.length === 0) return code;
   }
-  return "APX" + randomAlpha(8); // final fallback
+  // Fallback: 8-char code
+  let fallback = "";
+  for (let i = 0; i < 8; i++) fallback += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return fallback;
 }
 
 // ── A/B/C position assignment ─────────────────────────────────────────────────
@@ -83,7 +91,7 @@ export async function getUserReferralInfo(userId: string): Promise<{
   const code = (data as any).referral_code ?? "—";
   return {
     referralCode:      code,
-    referralLink:      `${APP_URL}/register?ref=${code}`,
+    referralLink:      `${APP_URL}/auth/register?ref=${code}`,
     position:          (data as any).position ?? null,
     referredByUserId:  (data as any).referred_by ?? null,
   };
