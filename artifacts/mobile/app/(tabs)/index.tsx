@@ -2,7 +2,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Image } from "expo-image";
 import {
   ActivityIndicator,
@@ -25,7 +25,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
-import { NFTSkeletonGrid } from "@/components/NFTSkeletonCard";
+import { DashboardSkeleton, FadeInView, NFTSkeletonGrid } from "@/components/Skeleton";
 import Colors from "@/constants/colors";
 import { useBalance } from "@/context/BalanceContext";
 import { useWatchlist } from "@/context/WatchlistContext";
@@ -125,7 +125,21 @@ export default function ExploreScreen() {
     loadMore,
   } = usePaginatedNFTs(selectedCat === "All" ? undefined : selectedCat);
 
+  // ── Initial skeleton gate ─────────────────────────────────────────────────
+  const [pageReady, setPageReady] = useState(false);
+
+  useEffect(() => {
+    // Show skeleton for at least 1.5 s or until first NFT page has resolved
+    const minDelay = setTimeout(() => setPageReady(true), 1500);
+    return () => clearTimeout(minDelay);
+  }, []);
+
+  if (!pageReady) {
+    return <DashboardSkeleton topPad={topPad} />;
+  }
+
   return (
+    <FadeInView duration={420}>
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <StickyGlassHeader />
@@ -382,6 +396,7 @@ export default function ExploreScreen() {
         <HomeFooter />
       </ScrollView>
     </View>
+    </FadeInView>
   );
 }
 
