@@ -56,7 +56,7 @@ const COMMON_FUNCS = [
 export default function ProfileScreen() {
   const { balance, earnedTotal } = useBalance();
   const { orders } = useOrders();
-  const { user, signOut } = useAuth();
+  const { user, token, signOut } = useAuth();
   const { activeBadgeTick, activeCircleTick } = useTick();
   const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
