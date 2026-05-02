@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { authApi } from "@/lib/authApi";
 
 export interface Transaction {
   id: string;
@@ -42,6 +44,7 @@ interface BalanceContextType {
   transactions: Transaction[];
   stakes: StakePosition[];
   reservations: Reservation[];
+  dataLoaded: boolean;
   stakeTokens: (amount: number, lockDays: number, apy: number) => boolean;
   unstakeTokens: (stakeId: string) => boolean;
   earnReward: (amount: number, description: string) => void;
@@ -54,7 +57,7 @@ interface BalanceContextType {
 }
 
 const BalanceContext = createContext<BalanceContextType>({
-  balance: 200,
+  balance: 0,
   totalDeposited: 0,
   stakedTotal: 0,
   earnedTotal: 0,
@@ -65,6 +68,7 @@ const BalanceContext = createContext<BalanceContextType>({
   transactions: [],
   stakes: [],
   reservations: [],
+  dataLoaded: false,
   stakeTokens: () => false,
   unstakeTokens: () => false,
   earnReward: () => {},
@@ -76,7 +80,6 @@ const BalanceContext = createContext<BalanceContextType>({
   cancelReservation: () => {},
 });
 
-// v5 key forces a clean reset (seed = 200)
 const STORAGE_KEY = "treasurefun_balance_v5";
 
 function genId() {
@@ -90,28 +93,120 @@ function todayTimestamp(): number {
 }
 
 export function BalanceProvider({ children }: { children: React.ReactNode }) {
-  const [balance, setBalance] = useState(200);
+  const { token, loading: authLoading } = useAuth();
+
+  const [balance, setBalance] = useState(0);
   const [totalDeposited, setTotalDeposited] = useState(0);
   const [earnedTotal, setEarnedTotal] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stakes, setStakes] = useState<StakePosition[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedRef = useRef<number | null>(null);
+
+  // Debounced DB balance sync — 800 ms delay
+  const syncToAPI = useCallback(
+    (newBalance: number) => {
+      if (!token) return;
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => {
+        if (lastSyncedRef.current === newBalance) return;
+        authApi.user
+          .syncBalance(token, newBalance)
+          .then(() => {
+            lastSyncedRef.current = newBalance;
+            console.log("[Balance] DB sync ✓", newBalance);
+          })
+          .catch((e) => console.warn("[Balance] DB sync failed:", e));
+      }, 800);
+    },
+    [token]
+  );
+
+  // Load from DB (primary) + AsyncStorage (fallback/migration) when auth resolves
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((data) => {
-      if (data) {
+    if (authLoading) return;
+
+    if (!token) {
+      // Logged out — reset to empty defaults
+      setBalance(0);
+      setTotalDeposited(0);
+      setEarnedTotal(0);
+      setTransactions([]);
+      setStakes([]);
+      setReservations([]);
+      setDataLoaded(true);
+      lastSyncedRef.current = null;
+      return;
+    }
+
+    setDataLoaded(false);
+
+    Promise.all([
+      authApi.user.getProfile(token).catch(() => null),
+      AsyncStorage.getItem(STORAGE_KEY).catch(() => null),
+    ]).then(([profile, savedData]) => {
+      let finalBalance = 0;
+      let finalDeposited = 0;
+      let finalEarned = 0;
+      let finalTx: Transaction[] = [];
+      let finalStakes: StakePosition[] = [];
+      let finalReservations: Reservation[] = [];
+
+      // Always restore non-balance data from AsyncStorage
+      if (savedData) {
         try {
-          const parsed = JSON.parse(data);
-          setBalance(parsed.balance ?? 200);
-          setTotalDeposited(parsed.totalDeposited ?? 0);
-          setEarnedTotal(parsed.earnedTotal ?? 0);
-          setTransactions(parsed.transactions ?? []);
-          setStakes(parsed.stakes ?? []);
-          setReservations(parsed.reservations ?? []);
+          const p = JSON.parse(savedData);
+          finalEarned = p.earnedTotal ?? 0;
+          finalTx = p.transactions ?? [];
+          finalStakes = p.stakes ?? [];
+          finalReservations = p.reservations ?? [];
         } catch {}
       }
+
+      if (profile) {
+        // DB is the source of truth for balance + totalDeposited
+        finalDeposited = profile.totalDeposited;
+
+        if (profile.balance > 0) {
+          finalBalance = profile.balance;
+          console.log("[Balance] Loaded from DB:", finalBalance);
+        } else {
+          // DB balance is 0 — check AsyncStorage for a one-time migration
+          try {
+            const p = savedData ? JSON.parse(savedData) : null;
+            if (p && p.balance > 0) {
+              finalBalance = p.balance;
+              console.log("[Balance] Migrating local storage to DB:", finalBalance);
+              authApi.user.syncBalance(token, finalBalance).catch(() => {});
+              lastSyncedRef.current = finalBalance;
+            }
+          } catch {}
+        }
+      } else if (savedData) {
+        // Network error — fall back entirely to AsyncStorage
+        try {
+          const p = JSON.parse(savedData);
+          finalBalance = p.balance ?? 0;
+          finalDeposited = p.totalDeposited ?? 0;
+          console.log("[Balance] Network error, using local storage:", finalBalance);
+        } catch {}
+      }
+
+      setBalance(finalBalance);
+      setTotalDeposited(finalDeposited);
+      setEarnedTotal(finalEarned);
+      setTransactions(finalTx);
+      setStakes(finalStakes);
+      setReservations(finalReservations);
+      setDataLoaded(true);
+      if (lastSyncedRef.current === null) {
+        lastSyncedRef.current = finalBalance;
+      }
     });
-  }, []);
+  }, [token, authLoading]);
 
   const persist = (
     b: number,
@@ -131,6 +226,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       STORAGE_KEY,
       JSON.stringify({ balance: b, totalDeposited: td, earnedTotal: et, transactions: tx, stakes: sk, reservations: rv })
     );
+    syncToAPI(b);
   };
 
   const stakedTotal = stakes
@@ -257,6 +353,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
         transactions,
         stakes,
         reservations,
+        dataLoaded,
         stakeTokens,
         unstakeTokens,
         earnReward,

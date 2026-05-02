@@ -146,6 +146,15 @@ export const authApi = {
       ),
   },
 
+  // ── User Profile & Balance ────────────────────────────────────────────────
+  user: {
+    getProfile: (token: string) =>
+      requestGet<{ balance: number; totalDeposited: number }>("/user/profile", token),
+
+    syncBalance: (token: string, balance: number) =>
+      request<{ success: boolean; balance: number }>("/user/balance-sync", { balance }, token),
+  },
+
   // ── Withdrawals ───────────────────────────────────────────────────────────
   withdraw: {
     create: (

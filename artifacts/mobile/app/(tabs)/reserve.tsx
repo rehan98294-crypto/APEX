@@ -170,7 +170,7 @@ function fmtAmt(n: number): string {
 export default function ReserveScreen() {
   const { balance, totalDeposited, spendBalance, earnReserveProfit, todayReserveProfit, reserveProfit } = useBalance();
   const { token } = useAuth();
-  const { createOrder, updateOrder } = useOrders();
+  const { createOrder, updateOrder, orders } = useOrders();
   const { stats: teamStats } = useReferral();
   const currentOrderIdRef = useRef<string>("");
   const bottomPad = Platform.OS === "web" ? 34 : 0;
@@ -209,9 +209,32 @@ export default function ReserveScreen() {
   const [fetchError,   setFetchError]   = useState<string | null>(null);
   const [expectedIncome, setExpectedIncome] = useState<[number, number]>([18, 19.5]);
 
-  // Collected
+  // Collected — restored from OrderContext on login, updated live during session
   const [collectedNFTs,    setCollectedNFTs]    = useState<CollectedNFT[]>([]);
   const [collectedLoading, setCollectedLoading] = useState(false);
+  const hydrated = React.useRef(false);
+
+  // Hydrate collectedNFTs once when orders load from storage (login / app restart)
+  useEffect(() => {
+    if (hydrated.current || collectedNFTs.length > 0) return;
+    const loaded = orders
+      .filter((o) => o.status === "bought" || o.status === "sold")
+      .map((o) => ({
+        id: o.order_id,
+        order_id: o.order_id,
+        name: o.nft_name,
+        imageSource: o.image_source,
+        price: o.price,
+        profit: o.profit,
+        level: o.level,
+        sold: o.status === "sold",
+      }));
+    if (loaded.length > 0) {
+      hydrated.current = true;
+      setCollectedNFTs(loaded);
+      console.log("[Reserve] Restored", loaded.length, "collected NFTs from orders");
+    }
+  }, [orders.length]);
 
   // Sell flow
   const [sellPhase,     setSellPhase]     = useState<SellPhase>("idle");

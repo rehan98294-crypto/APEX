@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 
 export interface OwnedNFT {
@@ -28,6 +30,7 @@ export interface StakedNFT {
 interface StakeContextType {
   ownedNFTs: OwnedNFT[];
   stakedNFTs: StakedNFT[];
+  stakeDataLoaded: boolean;
   buyNFT: (nft: Omit<OwnedNFT, "id">) => boolean;
   sellNFT: (nftId: string) => void;
   stakeNFT: (nftId: string, durationMinutes: number) => void;
@@ -37,6 +40,7 @@ interface StakeContextType {
 const StakeContext = createContext<StakeContextType>({
   ownedNFTs: [],
   stakedNFTs: [],
+  stakeDataLoaded: false,
   buyNFT: () => false,
   sellNFT: () => {},
   stakeNFT: () => {},
@@ -47,23 +51,58 @@ function genId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
 
+const stakeKey = (userId: string) => `apex_stake_v1_${userId}`;
+
 export function StakeProvider({ children }: { children: React.ReactNode }) {
-  const { spendBalance, creditBalance, earnReward, earnStakeReward } = useBalance();
+  const { spendBalance, creditBalance, earnStakeReward } = useBalance();
+  const { user } = useAuth();
   const [ownedNFTs, setOwnedNFTs] = useState<OwnedNFT[]>([]);
   const [stakedNFTs, setStakedNFTs] = useState<StakedNFT[]>([]);
+  const [stakeDataLoaded, setStakeDataLoaded] = useState(false);
+
+  // Load from AsyncStorage when user changes (login / logout / switch)
+  useEffect(() => {
+    if (!user?.id) {
+      setOwnedNFTs([]);
+      setStakedNFTs([]);
+      setStakeDataLoaded(true);
+      return;
+    }
+    setStakeDataLoaded(false);
+    AsyncStorage.getItem(stakeKey(user.id)).then((data) => {
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          setOwnedNFTs(parsed.ownedNFTs ?? []);
+          setStakedNFTs(parsed.stakedNFTs ?? []);
+          console.log("[StakeContext] Restored:", parsed.ownedNFTs?.length, "owned,", parsed.stakedNFTs?.length, "staked");
+        } catch {}
+      }
+      setStakeDataLoaded(true);
+    });
+  }, [user?.id]);
+
+  const save = (owned: OwnedNFT[], staked: StakedNFT[]) => {
+    if (!user?.id) return;
+    AsyncStorage.setItem(stakeKey(user.id), JSON.stringify({ ownedNFTs: owned, stakedNFTs: staked }));
+  };
 
   const buyNFT = (nft: Omit<OwnedNFT, "id">): boolean => {
     const ok = spendBalance(nft.price, `Buy NFT: ${nft.name}`);
     if (!ok) return false;
     const owned: OwnedNFT = { ...nft, id: genId() };
-    setOwnedNFTs((prev) => [owned, ...prev]);
+    const newOwned = [owned, ...ownedNFTs];
+    setOwnedNFTs(newOwned);
+    save(newOwned, stakedNFTs);
     return true;
   };
 
   const sellNFT = (nftId: string): void => {
     const nft = ownedNFTs.find((n) => n.id === nftId);
     if (!nft) return;
-    setOwnedNFTs((prev) => prev.filter((n) => n.id !== nftId));
+    const newOwned = ownedNFTs.filter((n) => n.id !== nftId);
+    setOwnedNFTs(newOwned);
+    save(newOwned, stakedNFTs);
     creditBalance(nft.price, `Sell NFT: ${nft.name}`);
   };
 
@@ -84,8 +123,11 @@ export function StakeProvider({ children }: { children: React.ReactNode }) {
       startTime: now,
       endTime: now + durationMinutes * 60 * 1000,
     };
-    setOwnedNFTs((prev) => prev.filter((n) => n.id !== nftId));
-    setStakedNFTs((prev) => [staked, ...prev]);
+    const newOwned = ownedNFTs.filter((n) => n.id !== nftId);
+    const newStaked = [staked, ...stakedNFTs];
+    setOwnedNFTs(newOwned);
+    setStakedNFTs(newStaked);
+    save(newOwned, newStaked);
   };
 
   const redeemStake = (stakeId: string): void => {
@@ -95,7 +137,6 @@ export function StakeProvider({ children }: { children: React.ReactNode }) {
       ((stake.price * stake.apr) / 100 * (stake.durationMinutes / 30)).toFixed(4)
     );
     earnStakeReward(income, `Stake Reward: ${stake.name}`);
-    setStakedNFTs((prev) => prev.filter((s) => s.stakeId !== stakeId));
     const returned: OwnedNFT = {
       id: genId(),
       name: stake.name,
@@ -105,11 +146,15 @@ export function StakeProvider({ children }: { children: React.ReactNode }) {
       apr: stake.apr,
       zoneTitle: stake.zoneTitle,
     };
-    setOwnedNFTs((prev) => [returned, ...prev]);
+    const newStaked = stakedNFTs.filter((s) => s.stakeId !== stakeId);
+    const newOwned = [returned, ...ownedNFTs];
+    setStakedNFTs(newStaked);
+    setOwnedNFTs(newOwned);
+    save(newOwned, newStaked);
   };
 
   return (
-    <StakeContext.Provider value={{ ownedNFTs, stakedNFTs, buyNFT, sellNFT, stakeNFT, redeemStake }}>
+    <StakeContext.Provider value={{ ownedNFTs, stakedNFTs, stakeDataLoaded, buyNFT, sellNFT, stakeNFT, redeemStake }}>
       {children}
     </StakeContext.Provider>
   );

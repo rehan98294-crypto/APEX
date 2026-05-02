@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { insertOrderToDB, updateOrderInDB } from "@/lib/supabase";
 
 export type OrderStatus = "processing" | "bought" | "sold";
@@ -17,12 +19,14 @@ export interface NFTOrder {
 
 interface OrderContextType {
   orders: NFTOrder[];
+  orderDataLoaded: boolean;
   createOrder: (data: Omit<NFTOrder, "order_id" | "created_at" | "updated_at">) => string;
   updateOrder: (order_id: string, updates: Partial<Omit<NFTOrder, "order_id" | "created_at">>) => void;
 }
 
 const OrderContext = createContext<OrderContextType>({
   orders: [],
+  orderDataLoaded: false,
   createOrder: () => "",
   updateOrder: () => {},
 });
@@ -35,8 +39,39 @@ function genId() {
   );
 }
 
+const orderKey = (userId: string) => `apex_orders_v1_${userId}`;
+
 export function OrderProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<NFTOrder[]>([]);
+  const [orderDataLoaded, setOrderDataLoaded] = useState(false);
+
+  // Load from AsyncStorage when user changes (login / logout / switch)
+  useEffect(() => {
+    if (!user?.id) {
+      setOrders([]);
+      setOrderDataLoaded(true);
+      return;
+    }
+    setOrderDataLoaded(false);
+    AsyncStorage.getItem(orderKey(user.id)).then((data) => {
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed)) {
+            setOrders(parsed);
+            console.log("[OrderContext] Restored:", parsed.length, "orders for user", user.id);
+          }
+        } catch {}
+      }
+      setOrderDataLoaded(true);
+    });
+  }, [user?.id]);
+
+  const save = (newOrders: NFTOrder[]) => {
+    if (!user?.id) return;
+    AsyncStorage.setItem(orderKey(user.id), JSON.stringify(newOrders));
+  };
 
   const createOrder = (
     data: Omit<NFTOrder, "order_id" | "created_at" | "updated_at">
@@ -45,13 +80,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     const now = Date.now();
     const nowISO = new Date(now).toISOString();
 
-    // Update in-memory state immediately
-    setOrders((prev) => [{ ...data, order_id, created_at: now, updated_at: now }, ...prev]);
+    const newOrder: NFTOrder = { ...data, order_id, created_at: now, updated_at: now };
+    const newOrders = [newOrder, ...orders];
 
-    // Persist to Supabase (fire-and-forget)
+    setOrders(newOrders);
+    save(newOrders);
+
+    // Persist to Supabase with real user_id (fire-and-forget)
     insertOrderToDB({
       order_id,
-      user_id: "anonymous",
+      user_id: user?.id ?? "anonymous",
       nft_id: data.nft_name || "",
       status: data.status as "processing" | "bought" | "sold",
       profit: data.profit,
@@ -68,12 +106,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     order_id: string,
     updates: Partial<Omit<NFTOrder, "order_id" | "created_at">>
   ) => {
-    // Update in-memory state immediately
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.order_id === order_id ? { ...o, ...updates, updated_at: Date.now() } : o
-      )
+    const newOrders = orders.map((o) =>
+      o.order_id === order_id ? { ...o, ...updates, updated_at: Date.now() } : o
     );
+
+    setOrders(newOrders);
+    save(newOrders);
 
     // Persist changes to Supabase (fire-and-forget)
     updateOrderInDB(order_id, {
@@ -86,7 +124,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <OrderContext.Provider value={{ orders, createOrder, updateOrder }}>
+    <OrderContext.Provider value={{ orders, orderDataLoaded, createOrder, updateOrder }}>
       {children}
     </OrderContext.Provider>
   );
