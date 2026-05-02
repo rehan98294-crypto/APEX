@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Modal,
@@ -36,7 +37,7 @@ import { useAuth } from "@/context/AuthContext";
 import { OwnedNFT, StakedNFT, useStake } from "@/context/StakeContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useStakeApi } from "@/hooks/useStakeApi";
-import { fetchAllNFTs } from "@/lib/supabase";
+import { fetchZoneNFTsByLevel } from "@/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
@@ -57,25 +58,26 @@ interface ZoneConfig {
   stakableDays?: string;
   handlingFee?: string;
   active: boolean;
-  minSubLevel: number; // minimum subscription level required (1 = free, 2 = Basic+, …)
+  minSubLevel: number;
+  nftLevel: number; // NFT level to load for this zone
 }
 
 const FREE_ZONES: ZoneConfig[] = [
-  { id: 1, title: "Free Zone 1", levelRange: "LV1", image: require("@/assets/stake/fz1.png"), status: "Open", priceRange: "50 ~ 2,000", priceMin: 50, priceMax: 2000, income: "1%", apr: 1, type: "free", stakableDays: "3~30", active: true, minSubLevel: 1 },
-  { id: 2, title: "Free Zone 2", levelRange: "LV2", image: require("@/assets/stake/fz2.png"), status: "Open", priceRange: "50 ~ 3,000", priceMin: 50, priceMax: 3000, income: "1.1%", apr: 1.1, type: "free", stakableDays: "3~30", active: true, minSubLevel: 2 },
-  { id: 3, title: "Free Zone 3", levelRange: "LV3", image: require("@/assets/stake/fz3.png"), status: "Open", priceRange: "50 ~ 4,000", priceMin: 50, priceMax: 4000, income: "1.2%", apr: 1.2, type: "free", stakableDays: "3~30", active: true, minSubLevel: 3 },
-  { id: 4, title: "Free Zone 4", levelRange: "LV4", image: require("@/assets/stake/fz4.png"), status: "Open", priceRange: "50 ~ 5,000", priceMin: 50, priceMax: 5000, income: "1.3%", apr: 1.3, type: "free", stakableDays: "3~30", active: true, minSubLevel: 4 },
-  { id: 5, title: "Free Zone 5", levelRange: "LV5", image: require("@/assets/stake/fz5.png"), status: "Open", priceRange: "50 ~ 6,000", priceMin: 50, priceMax: 6000, income: "1.4%", apr: 1.4, type: "free", stakableDays: "3~30", active: true, minSubLevel: 5 },
-  { id: 6, title: "Free Zone 6", levelRange: "LV6", image: require("@/assets/stake/fz6.png"), status: "Open", priceRange: "50 ~ 8,000", priceMin: 50, priceMax: 8000, income: "1.5%", apr: 1.5, type: "free", stakableDays: "3~30", active: true, minSubLevel: 6 },
+  { id: 1, title: "Free Zone 1", levelRange: "LV1", image: require("@/assets/stake/fz1.png"), status: "Open", priceRange: "199 ~ 499",    priceMin: 199,  priceMax: 499,  income: "1%",   apr: 1,   type: "free", stakableDays: "3~30", active: true, minSubLevel: 1, nftLevel: 1 },
+  { id: 2, title: "Free Zone 2", levelRange: "LV2", image: require("@/assets/stake/fz2.png"), status: "Open", priceRange: "499 ~ 799",    priceMin: 499,  priceMax: 799,  income: "1.1%", apr: 1.1, type: "free", stakableDays: "3~30", active: true, minSubLevel: 2, nftLevel: 2 },
+  { id: 3, title: "Free Zone 3", levelRange: "LV3", image: require("@/assets/stake/fz3.png"), status: "Open", priceRange: "799 ~ 1,299",  priceMin: 799,  priceMax: 1299, income: "1.2%", apr: 1.2, type: "free", stakableDays: "3~30", active: true, minSubLevel: 3, nftLevel: 3 },
+  { id: 4, title: "Free Zone 4", levelRange: "LV4", image: require("@/assets/stake/fz4.png"), status: "Open", priceRange: "1,299 ~ 2,099",priceMin: 1299, priceMax: 2099, income: "1.3%", apr: 1.3, type: "free", stakableDays: "3~30", active: true, minSubLevel: 4, nftLevel: 4 },
+  { id: 5, title: "Free Zone 5", levelRange: "LV5", image: require("@/assets/stake/fz5.png"), status: "Open", priceRange: "2,099 ~ 2,599",priceMin: 2099, priceMax: 2599, income: "1.4%", apr: 1.4, type: "free", stakableDays: "3~30", active: true, minSubLevel: 5, nftLevel: 5 },
+  { id: 6, title: "Free Zone 6", levelRange: "LV6", image: require("@/assets/stake/fz6.png"), status: "Open", priceRange: "2,599 ~ 3,500",priceMin: 2599, priceMax: 3500, income: "1.5%", apr: 1.5, type: "free", stakableDays: "3~30", active: true, minSubLevel: 6, nftLevel: 6 },
 ];
 
 const EXCLUSIVE_ZONES: ZoneConfig[] = [
-  { id: 1, title: "Exclusive Stake 1", levelRange: "LV2-LV3", image: require("@/assets/stake/ex1.png"), status: "Open", priceRange: "499 ~ 1,500", priceMin: 499, priceMax: 1500, income: "1.5%", apr: 1.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2 },
-  { id: 2, title: "Exclusive Stake 2", levelRange: "LV2-LV3", image: require("@/assets/stake/ex2.png"), status: "Open", priceRange: "499 ~ 2,000", priceMin: 499, priceMax: 2000, income: "1.8%", apr: 1.8, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2 },
-  { id: 3, title: "Exclusive Stake 3", levelRange: "LV3-LV4", image: require("@/assets/stake/ex3.png"), status: "Open", priceRange: "999 ~ 3,000", priceMin: 999, priceMax: 3000, income: "2.0%", apr: 2.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3 },
-  { id: 4, title: "Exclusive Stake 4", levelRange: "LV3-LV4", image: require("@/assets/stake/ex4.png"), status: "Open", priceRange: "999 ~ 4,000", priceMin: 999, priceMax: 4000, income: "2.5%", apr: 2.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3 },
-  { id: 5, title: "Exclusive Stake 5", levelRange: "LV4-LV5", image: require("@/assets/stake/ex5.png"), status: "Open", priceRange: "1,499 ~ 5,000", priceMin: 1499, priceMax: 5000, income: "3.0%", apr: 3.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 4 },
-  { id: 6, title: "Exclusive Stake 6", levelRange: "LV5-LV6", image: require("@/assets/stake/ex6.png"), status: "Open", priceRange: "1,999 ~ 6,000", priceMin: 1999, priceMax: 6000, income: "3.5%", apr: 3.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 5 },
+  { id: 1, title: "Exclusive Stake 1", levelRange: "LV2-LV3", image: require("@/assets/stake/ex1.png"), status: "Open", priceRange: "499 ~ 1,500",  priceMin: 499,  priceMax: 1500, income: "1.5%", apr: 1.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2, nftLevel: 2 },
+  { id: 2, title: "Exclusive Stake 2", levelRange: "LV2-LV3", image: require("@/assets/stake/ex2.png"), status: "Open", priceRange: "499 ~ 2,000",  priceMin: 499,  priceMax: 2000, income: "1.8%", apr: 1.8, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2, nftLevel: 2 },
+  { id: 3, title: "Exclusive Stake 3", levelRange: "LV3-LV4", image: require("@/assets/stake/ex3.png"), status: "Open", priceRange: "999 ~ 3,000",  priceMin: 999,  priceMax: 3000, income: "2.0%", apr: 2.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3, nftLevel: 3 },
+  { id: 4, title: "Exclusive Stake 4", levelRange: "LV3-LV4", image: require("@/assets/stake/ex4.png"), status: "Open", priceRange: "999 ~ 4,000",  priceMin: 999,  priceMax: 4000, income: "2.5%", apr: 2.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3, nftLevel: 4 },
+  { id: 5, title: "Exclusive Stake 5", levelRange: "LV4-LV5", image: require("@/assets/stake/ex5.png"), status: "Open", priceRange: "1,499 ~ 5,000", priceMin: 1499, priceMax: 5000, income: "3.0%", apr: 3.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 4, nftLevel: 5 },
+  { id: 6, title: "Exclusive Stake 6", levelRange: "LV5-LV6", image: require("@/assets/stake/ex6.png"), status: "Open", priceRange: "1,999 ~ 6,000", priceMin: 1999, priceMax: 6000, income: "3.5%", apr: 3.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 5, nftLevel: 6 },
 ];
 
 const CATEGORY_TABS = ["Stake", "Polygon NFT", "Art", "Collection", "Game"];
@@ -125,6 +127,9 @@ export default function StakeScreen() {
   const [activeZone, setActiveZone] = useState<ZoneConfig | null>(null);
   const [zoneNFTs, setZoneNFTs] = useState<NFTRecord[]>([]);
   const [nftsLoading, setNftsLoading] = useState(false);
+  const [zoneHasMore, setZoneHasMore] = useState(false);
+  const [zonePage, setZonePage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Buy flow
   const [buySuccessNFT, setBuySuccessNFT] = useState<OwnedNFT | null>(null);
@@ -159,15 +164,30 @@ export default function StakeScreen() {
   }, []);
   const spinStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
 
-  // Load NFTs when a zone is opened
+  // Load NFTs when a zone is opened (initial 10)
   useEffect(() => {
     if (!activeZone) return;
     setNftsLoading(true);
-    fetchAllNFTs().then((nfts) => {
-      setZoneNFTs(nfts);
+    setZoneNFTs([]);
+    setZonePage(1);
+    setZoneHasMore(false);
+    fetchZoneNFTsByLevel(activeZone.nftLevel, 1, 10).then(({ items, hasMore }) => {
+      setZoneNFTs(items);
+      setZoneHasMore(hasMore);
       setNftsLoading(false);
     });
   }, [activeZone]);
+
+  const handleLoadMore = async () => {
+    if (!activeZone || loadingMore || !zoneHasMore) return;
+    setLoadingMore(true);
+    const nextPage = zonePage + 1;
+    const { items, hasMore } = await fetchZoneNFTsByLevel(activeZone.nftLevel, nextPage, 5);
+    setZoneNFTs((prev) => [...prev, ...items]);
+    setZoneHasMore(hasMore);
+    setZonePage(nextPage);
+    setLoadingMore(false);
+  };
 
   // ─── Buy handler ───────────────────────────────────────────────────────────
   const handleBuy = (nftRecord: NFTRecord, zone: ZoneConfig) => {
@@ -398,22 +418,32 @@ export default function StakeScreen() {
                 <StakeNFTSkeletonGrid count={6} />
               </View>
             ) : (
-              <View style={styles.nftGrid}>
-                {zoneNFTs.map((nft, idx) => (
-                  <Animated.View key={idx} entering={FadeInDown.duration(300).delay(idx * 30)} style={styles.nftCard}>
-                    <Image source={{ uri: nft.image_url }} style={styles.nftImage} contentFit="cover" />
-                    <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
-                    <View style={styles.nftPriceRow}>
-                      <View style={styles.tIcon}><Text style={styles.tIconText}>T</Text></View>
-                      <Text style={styles.nftPrice}>{nftZonePrice(nft.name, activeZone).toLocaleString()}</Text>
-                    </View>
-                    <Pressable style={styles.buyBtn} onPress={() => handleBuy(nft, activeZone)}>
-                      <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={10} />
-                      <Text style={styles.buyBtnText}>Buy</Text>
-                    </Pressable>
-                  </Animated.View>
-                ))}
-              </View>
+              <>
+                <View style={styles.nftGrid}>
+                  {zoneNFTs.map((nft, idx) => (
+                    <Animated.View key={`${nft.name}-${idx}`} entering={FadeInDown.duration(300).delay((idx % 10) * 30)} style={styles.nftCard}>
+                      <Image source={{ uri: nft.image_url }} style={styles.nftImage} contentFit="cover" />
+                      <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
+                      <View style={styles.nftPriceRow}>
+                        <View style={styles.tIcon}><Text style={styles.tIconText}>T</Text></View>
+                        <Text style={styles.nftPrice}>{nftZonePrice(nft.name, activeZone).toLocaleString()}</Text>
+                      </View>
+                      <Pressable style={styles.buyBtn} onPress={() => handleBuy(nft, activeZone)}>
+                        <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={10} />
+                        <Text style={styles.buyBtnText}>Buy</Text>
+                      </Pressable>
+                    </Animated.View>
+                  ))}
+                </View>
+                {zoneHasMore && (
+                  <Pressable style={styles.loadMoreBtn} onPress={handleLoadMore} disabled={loadingMore}>
+                    <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                    {loadingMore
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Text style={styles.loadMoreText}>Load More</Text>}
+                  </Pressable>
+                )}
+              </>
             )}
           </View>
         )}
@@ -964,4 +994,8 @@ const styles = StyleSheet.create({
   apiCompletedDate: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted },
   apiCompletedAmount: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
   apiCompletedProfit: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#2BD9A8" },
+
+  // Load more
+  loadMoreBtn: { marginHorizontal: 14, marginTop: 14, marginBottom: 4, height: 44, borderRadius: 14, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  loadMoreText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
 });
