@@ -25,10 +25,8 @@ const { width } = Dimensions.get("window");
 
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 
-const DEPOSIT_ADDRESSES = [
-  { label: "USDT Deposit Address (BEP-20)", key: "bep20" },
-  { label: "USDT Deposit Address (TRC-20)", key: "trc20" },
-  { label: "USDT Deposit Address (Solana)", key: "sol" },
+const DEPOSIT_ADDRESSES: { label: string; key: string; address: string }[] = [
+  // Add deposit addresses here when ready
 ];
 
 const NODES = ["Node 1", "Node 2", "Node 3"];
@@ -137,32 +135,32 @@ export default function AssetsScreen() {
           </View>
         </View>
 
-        {/* ── Deposit Addresses ── */}
-        <View style={styles.section}>
-          <View style={styles.addressCard}>
-            {DEPOSIT_ADDRESSES.map((addr, i) => {
-              const isVisible = visibleAddress === addr.key;
-              return (
-                <View key={addr.key}>
-                  <View style={styles.addressRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.addressLabel}>{addr.label}</Text>
-                      <Text style={styles.addressValue} numberOfLines={1}>
-                        {isVisible
-                          ? "0x7f3d9a2e1b8c4f6e5a9d2b7c4f1e8a3d6b9c2f5e"
-                          : "••••••••••••••••••••••••••••••••••••"}
-                      </Text>
+        {/* ── Deposit Addresses (hidden until addresses are configured) ── */}
+        {DEPOSIT_ADDRESSES.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.addressCard}>
+              {DEPOSIT_ADDRESSES.map((addr, i) => {
+                const isVisible = visibleAddress === addr.key;
+                return (
+                  <View key={addr.key}>
+                    <View style={styles.addressRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.addressLabel}>{addr.label}</Text>
+                        <Text style={styles.addressValue} numberOfLines={1}>
+                          {isVisible ? addr.address : "••••••••••••••••••••••••••••••••••••"}
+                        </Text>
+                      </View>
+                      <Pressable onPress={() => setVisibleAddress(isVisible ? null : addr.key)} style={styles.eyeBtn}>
+                        <Feather name={isVisible ? "eye" : "eye-off"} size={16} color={Colors.textMuted} />
+                      </Pressable>
                     </View>
-                    <Pressable onPress={() => setVisibleAddress(isVisible ? null : addr.key)} style={styles.eyeBtn}>
-                      <Feather name={isVisible ? "eye" : "eye-off"} size={16} color={Colors.textMuted} />
-                    </Pressable>
+                    {i < DEPOSIT_ADDRESSES.length - 1 && <View style={styles.rowDivider} />}
                   </View>
-                  {i < DEPOSIT_ADDRESSES.length - 1 && <View style={styles.rowDivider} />}
-                </View>
-              );
-            })}
+                );
+              })}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* ── Quick Actions ── */}
         <View style={styles.section}>
