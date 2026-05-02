@@ -63,6 +63,24 @@ async function runMigration() {
         "CREATE INDEX IF NOT EXISTS idx_deposits_user_id ON deposits(user_id);",
       ].join("\n"),
     },
+    {
+      column: "payment_id", table: "deposits",
+      fullSql: [
+        "-- NOWPayments deposit columns:",
+        "ALTER TABLE deposits ADD COLUMN IF NOT EXISTS payment_id VARCHAR(100);",
+        "ALTER TABLE deposits ADD COLUMN IF NOT EXISTS pay_address TEXT;",
+        "ALTER TABLE deposits ADD COLUMN IF NOT EXISTS network VARCHAR(20);",
+        "ALTER TABLE deposits ADD COLUMN IF NOT EXISTS pay_amount DECIMAL(18,8);",
+        "ALTER TABLE deposits ADD COLUMN IF NOT EXISTS currency VARCHAR(20) DEFAULT 'USDT';",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_deposits_payment_id ON deposits(payment_id) WHERE payment_id IS NOT NULL;",
+      ].join("\n"),
+    },
+    {
+      column: "balance", table: "users",
+      fullSql: [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(18,2) NOT NULL DEFAULT 0;",
+      ].join("\n"),
+    },
   ];
 
   let anyMissing = false;

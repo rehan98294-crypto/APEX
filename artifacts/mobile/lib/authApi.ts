@@ -90,6 +90,33 @@ export const authApi = {
       request<{ success: boolean }>("/auth/2fa/disable", { password, token: code }, token),
   },
 
+  // ── Deposit ───────────────────────────────────────────────────────────────
+  deposit: {
+    create: (
+      token: string,
+      amount: number,
+      network: "TRC20" | "BEP20" | "ERC20" | "SOL"
+    ) =>
+      request<{
+        payment_id: string;
+        pay_address: string;
+        pay_amount: number;
+        network: string;
+        amount: number;
+        status: string;
+      }>("/deposit/create", { amount, network }, token),
+
+    getStatus: (token: string, payment_id: string) =>
+      requestGet<{
+        status: string;
+        amount: number;
+        network: string;
+        pay_address: string;
+        pay_amount: number;
+        created_at: string;
+      }>(`/deposit/status/${payment_id}`, token),
+  },
+
   // ── Referral & Team tree ──────────────────────────────────────────────────
   tree: {
     getReferralInfo: (token: string) =>

@@ -30,3 +30,9 @@ defaultBucketID = "replit-objstore-e0649ad8-92b0-49bd-867e-3826f9ab55ae"
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+NOWPAYMENTS_API_KEY = "TG5EV4X-2ARMN0V-QJAMHPG-GS9YPQP"
+NOWPAYMENTS_IPN_SECRET = "ijb4/N7kUTaPkX57jDEwgZWoZvmAWVVW"

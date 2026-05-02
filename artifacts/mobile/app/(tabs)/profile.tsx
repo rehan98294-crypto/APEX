@@ -255,7 +255,11 @@ export default function ProfileScreen() {
               { icon: "credit-card", label: "Deposit", isUsd: false },
               { icon: "download",    label: "Withdraw", isUsd: true },
             ].map((link) => (
-              <Pressable key={link.label} style={styles.linkItem}>
+              <Pressable
+                key={link.label}
+                style={styles.linkItem}
+                onPress={link.label === "Deposit" ? () => router.push("/(tabs)/earn") : undefined}
+              >
                 <View style={styles.linkIconBox}>
                   <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
                   {link.isUsd

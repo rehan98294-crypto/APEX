@@ -1,14 +1,20 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Clipboard,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
@@ -17,17 +23,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
+import { authApi } from "@/lib/authApi";
 
 const USD_ICON = require("../../assets/images/icon-usd.png");
 
 const { width } = Dimensions.get("window");
 
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
-
-const DEPOSIT_ADDRESSES: { label: string; key: string; address: string }[] = [
-  // Add deposit addresses here when ready
-];
 
 const NODES = ["Node 1", "Node 2", "Node 3"];
 
@@ -37,18 +41,171 @@ const MOCK_HISTORY = [
   { id: "3", type: "Staking Reward", amount: "+5.00", date: "2025-01-08 09:11", status: "Won" },
 ];
 
+type Network = "TRC20" | "BEP20" | "ERC20" | "SOL";
+
+interface NetworkOption {
+  key: Network;
+  label: string;
+  subtitle: string;
+  color: string;
+}
+
+const NETWORKS: NetworkOption[] = [
+  { key: "TRC20", label: "USDT (TRC20)", subtitle: "TRON Network",    color: "#E84141" },
+  { key: "BEP20", label: "USDT (BEP20)", subtitle: "BNB Smart Chain", color: "#F0B90B" },
+  { key: "ERC20", label: "USDT (ERC20)", subtitle: "Ethereum Network", color: "#627EEA" },
+  { key: "SOL",   label: "USDT (SOL)",   subtitle: "Solana Network",   color: "#9945FF" },
+];
+
+interface DepositPayment {
+  payment_id: string;
+  pay_address: string;
+  pay_amount: number;
+  amount: number;
+  network: string;
+  status: string;
+}
+
+const CREDITED_KEY = "apex_credited_payments";
+
+async function getCreditedIds(): Promise<string[]> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(CREDITED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function markCredited(payment_id: string) {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const ids = await getCreditedIds();
+    if (!ids.includes(payment_id)) {
+      await AsyncStorage.setItem(CREDITED_KEY, JSON.stringify([...ids, payment_id]));
+    }
+  } catch {}
+}
+
 export default function AssetsScreen() {
   const insets = useSafeAreaInsets();
-  const { balance, earnedTotal, transactions } = useBalance();
+  const { balance, earnedTotal, transactions, creditBalance } = useBalance();
+  const { token } = useAuth();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
   const [selectedNode, setSelectedNode] = useState(NODES[0]);
   const [nodeOpen, setNodeOpen] = useState(false);
-  const [visibleAddress, setVisibleAddress] = useState<string | null>(null);
 
   const totalEarnings = parseFloat(earnedTotal.toFixed(2));
   const withdrawn = 0;
   const undrawn = parseFloat(balance.toFixed(2));
+
+  // ── Deposit Modal State ─────────────────────────────────────────────────────
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [depositStep, setDepositStep] = useState<"select" | "amount" | "payment">("select");
+  const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
+  const [amountInput, setAmountInput] = useState("100");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [payment, setPayment] = useState<DepositPayment | null>(null);
+  const [pollStatus, setPollStatus] = useState<string>("waiting");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const startPolling = useCallback((pmt: DepositPayment) => {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      if (!token) return;
+      try {
+        const data = await authApi.deposit.getStatus(token, pmt.payment_id);
+        setPollStatus(data.status);
+        if (data.status === "confirmed" || data.status === "finished") {
+          stopPolling();
+          const credited = await getCreditedIds();
+          if (!credited.includes(pmt.payment_id)) {
+            creditBalance(pmt.amount, `USDT Deposit (${pmt.network})`);
+            await markCredited(pmt.payment_id);
+          }
+        } else if (data.status === "failed" || data.status === "expired") {
+          stopPolling();
+        }
+      } catch {}
+    }, 5000);
+  }, [token, stopPolling, creditBalance]);
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  const closeDepositModal = () => {
+    stopPolling();
+    setDepositOpen(false);
+    setDepositStep("select");
+    setSelectedNetwork(null);
+    setAmountInput("100");
+    setCreating(false);
+    setCreateError(null);
+    setPayment(null);
+    setPollStatus("waiting");
+  };
+
+  const handleSelectNetwork = (net: Network) => {
+    setSelectedNetwork(net);
+    setDepositStep("amount");
+    setCreateError(null);
+  };
+
+  const handleCreateDeposit = async () => {
+    if (!token) { setCreateError("Please log in first"); return; }
+    if (!selectedNetwork) { setCreateError("Select a network"); return; }
+    const amt = parseFloat(amountInput);
+    if (!amt || amt < 1) { setCreateError("Minimum deposit is $1"); return; }
+
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const result = await authApi.deposit.create(token, amt, selectedNetwork);
+      setPayment(result);
+      setPollStatus(result.status ?? "waiting");
+      setDepositStep("payment");
+      startPolling(result);
+    } catch (err: any) {
+      setCreateError(err.message ?? "Failed to create deposit");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const copyAddress = () => {
+    if (payment?.pay_address) {
+      Clipboard.setString(payment.pay_address);
+      Alert.alert("Copied", "Address copied to clipboard");
+    }
+  };
+
+  const statusColor = (s: string) => {
+    if (s === "confirmed" || s === "finished") return "#2BD9A8";
+    if (s === "failed" || s === "expired") return "#FF5C5C";
+    return "#FFB08A";
+  };
+
+  const statusLabel = (s: string) => {
+    if (s === "confirmed" || s === "finished") return "Confirmed ✓";
+    if (s === "failed") return "Failed";
+    if (s === "expired") return "Expired";
+    return "Waiting for payment…";
+  };
+
+  const qrUrl = payment?.pay_address
+    ? `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(payment.pay_address)}&size=180x180&margin=10`
+    : null;
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
@@ -135,32 +292,34 @@ export default function AssetsScreen() {
           </View>
         </View>
 
-        {/* ── Deposit Addresses (hidden until addresses are configured) ── */}
-        {DEPOSIT_ADDRESSES.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.addressCard}>
-              {DEPOSIT_ADDRESSES.map((addr, i) => {
-                const isVisible = visibleAddress === addr.key;
-                return (
-                  <View key={addr.key}>
-                    <View style={styles.addressRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.addressLabel}>{addr.label}</Text>
-                        <Text style={styles.addressValue} numberOfLines={1}>
-                          {isVisible ? addr.address : "••••••••••••••••••••••••••••••••••••"}
-                        </Text>
-                      </View>
-                      <Pressable onPress={() => setVisibleAddress(isVisible ? null : addr.key)} style={styles.eyeBtn}>
-                        <Feather name={isVisible ? "eye" : "eye-off"} size={16} color={Colors.textMuted} />
-                      </Pressable>
-                    </View>
-                    {i < DEPOSIT_ADDRESSES.length - 1 && <View style={styles.rowDivider} />}
-                  </View>
-                );
-              })}
-            </View>
+        {/* ── USDT Deposit Networks ── */}
+        <Animated.View entering={FadeInDown.duration(400).delay(60)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Deposit USDT</Text>
+          <View style={styles.networkGrid}>
+            {NETWORKS.map((net) => (
+              <Pressable
+                key={net.key}
+                style={styles.networkCard}
+                onPress={() => { setSelectedNetwork(net.key); setDepositStep("amount"); setDepositOpen(true); }}
+              >
+                <LinearGradient
+                  colors={["#fff", "#F8FBFF"]}
+                  style={StyleSheet.absoluteFill}
+                  borderRadius={16}
+                />
+                <View style={[styles.networkDot, { backgroundColor: net.color }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.networkLabel}>{net.label}</Text>
+                  <Text style={styles.networkSub}>{net.subtitle}</Text>
+                </View>
+                <View style={styles.depositBtn}>
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={20} />
+                  <Text style={styles.depositBtnText}>Deposit</Text>
+                </View>
+              </Pressable>
+            ))}
           </View>
-        )}
+        </Animated.View>
 
         {/* ── Quick Actions ── */}
         <View style={styles.section}>
@@ -170,7 +329,11 @@ export default function AssetsScreen() {
               { icon: "download",    label: "Withdraw", isUsd: true  },
               { icon: "settings",    label: "Settings", isUsd: false },
             ].map((action) => (
-              <Pressable key={action.label} style={styles.actionItem}>
+              <Pressable
+                key={action.label}
+                style={styles.actionItem}
+                onPress={action.label === "Deposit" ? () => { setDepositStep("select"); setDepositOpen(true); } : undefined}
+              >
                 <View style={styles.actionIconBox}>
                   <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
                   {action.isUsd
@@ -215,7 +378,7 @@ export default function AssetsScreen() {
               const amount = isReal ? `+${tx.amount.toFixed(2)}` : tx.amount;
               const date = isReal ? new Date(tx.timestamp).toLocaleString() : tx.date;
               return (
-                <View key={isReal ? tx.id : tx.id}>
+                <View key={tx.id}>
                   <View style={styles.historyRow}>
                     <View style={styles.historyIconBox}>
                       <Feather name="trending-up" size={16} color="#2BD9A8" />
@@ -247,6 +410,202 @@ export default function AssetsScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          DEPOSIT MODAL
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={depositOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeDepositModal}
+      >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={modal.root}>
+            {/* Header */}
+            <View style={modal.header}>
+              {depositStep !== "select" ? (
+                <Pressable
+                  style={modal.backBtn}
+                  onPress={() => {
+                    if (depositStep === "amount") setDepositStep("select");
+                    else if (depositStep === "payment") { stopPolling(); setDepositStep("amount"); setPayment(null); setPollStatus("waiting"); }
+                  }}
+                >
+                  <Feather name="arrow-left" size={20} color={Colors.textPrimary} />
+                </Pressable>
+              ) : <View style={{ width: 36 }} />}
+              <Text style={modal.title}>
+                {depositStep === "select" ? "Select Network" :
+                 depositStep === "amount" ? `Deposit USDT (${selectedNetwork})` :
+                 "Payment Details"}
+              </Text>
+              <Pressable style={modal.closeBtn} onPress={closeDepositModal}>
+                <Feather name="x" size={20} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
+
+              {/* ── Step 1: Select Network ── */}
+              {depositStep === "select" && (
+                <Animated.View entering={FadeIn.duration(200)}>
+                  <Text style={modal.subtitle}>Choose the USDT network for your deposit</Text>
+                  <View style={{ gap: 12, marginTop: 8 }}>
+                    {NETWORKS.map((net) => (
+                      <Pressable
+                        key={net.key}
+                        style={modal.netRow}
+                        onPress={() => handleSelectNetwork(net.key)}
+                      >
+                        <View style={[modal.netDot, { backgroundColor: net.color }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={modal.netLabel}>{net.label}</Text>
+                          <Text style={modal.netSub}>{net.subtitle}</Text>
+                        </View>
+                        <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+                      </Pressable>
+                    ))}
+                  </View>
+                </Animated.View>
+              )}
+
+              {/* ── Step 2: Enter Amount ── */}
+              {depositStep === "amount" && (
+                <Animated.View entering={FadeIn.duration(200)}>
+                  <Text style={modal.subtitle}>Enter the amount you want to deposit in USD</Text>
+
+                  <View style={modal.amountBox}>
+                    <Text style={modal.amountCurrency}>$</Text>
+                    <TextInput
+                      style={modal.amountInput}
+                      value={amountInput}
+                      onChangeText={(t) => { setAmountInput(t.replace(/[^0-9.]/g, "")); setCreateError(null); }}
+                      keyboardType="decimal-pad"
+                      placeholder="100"
+                      placeholderTextColor={Colors.textMuted}
+                      autoFocus
+                    />
+                    <Text style={modal.amountLabel}>USD</Text>
+                  </View>
+
+                  <View style={modal.presetRow}>
+                    {["50", "100", "200", "500"].map((p) => (
+                      <Pressable key={p} style={[modal.preset, amountInput === p && modal.presetActive]} onPress={() => setAmountInput(p)}>
+                        <Text style={[modal.presetText, amountInput === p && modal.presetActiveText]}>${p}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {createError && (
+                    <View style={modal.errorBox}>
+                      <Feather name="alert-circle" size={14} color="#FF5C5C" />
+                      <Text style={modal.errorText}>{createError}</Text>
+                    </View>
+                  )}
+
+                  <Pressable style={modal.confirmBtn} onPress={handleCreateDeposit} disabled={creating}>
+                    <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={16} />
+                    {creating
+                      ? <ActivityIndicator color="#fff" />
+                      : <Text style={modal.confirmBtnText}>Generate Deposit Address</Text>
+                    }
+                  </Pressable>
+
+                  <Text style={modal.note}>A unique USDT address will be generated for this transaction.</Text>
+                </Animated.View>
+              )}
+
+              {/* ── Step 3: Payment Screen ── */}
+              {depositStep === "payment" && payment && (
+                <Animated.View entering={FadeIn.duration(250)} style={{ gap: 20 }}>
+
+                  {/* Status Banner */}
+                  <View style={[modal.statusBanner, { borderColor: statusColor(pollStatus) }]}>
+                    {(pollStatus === "waiting" || pollStatus === "confirming") && (
+                      <ActivityIndicator size="small" color={statusColor(pollStatus)} style={{ marginRight: 8 }} />
+                    )}
+                    <Text style={[modal.statusText, { color: statusColor(pollStatus) }]}>
+                      {statusLabel(pollStatus)}
+                    </Text>
+                  </View>
+
+                  {/* Network Badge */}
+                  <View style={modal.networkBadgeRow}>
+                    <View style={[modal.networkBadge, { backgroundColor: NETWORKS.find(n => n.key === payment.network)?.color + "22" }]}>
+                      <View style={[modal.networkBadgeDot, { backgroundColor: NETWORKS.find(n => n.key === payment.network)?.color }]} />
+                      <Text style={[modal.networkBadgeText, { color: NETWORKS.find(n => n.key === payment.network)?.color }]}>
+                        {payment.network} Network
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* QR Code */}
+                  {qrUrl && (
+                    <View style={modal.qrWrap}>
+                      <Image
+                        source={{ uri: qrUrl }}
+                        style={modal.qrImage}
+                        resizeMode="contain"
+                      />
+                      <Text style={modal.qrHint}>Scan with your crypto wallet</Text>
+                    </View>
+                  )}
+
+                  {/* Address */}
+                  <View style={modal.addressBox}>
+                    <Text style={modal.addressBoxLabel}>Deposit Address</Text>
+                    <View style={modal.addressRow}>
+                      <Text style={modal.addressText} numberOfLines={2} selectable>
+                        {payment.pay_address}
+                      </Text>
+                      <Pressable style={modal.copyBtn} onPress={copyAddress}>
+                        <Feather name="copy" size={16} color="#5CBFFE" />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {/* Amount Info */}
+                  <View style={modal.infoGrid}>
+                    <View style={modal.infoItem}>
+                      <Text style={modal.infoLabel}>USD Amount</Text>
+                      <Text style={modal.infoValue}>${payment.amount.toFixed(2)}</Text>
+                    </View>
+                    <View style={modal.infoDiv} />
+                    <View style={modal.infoItem}>
+                      <Text style={modal.infoLabel}>USDT to Send</Text>
+                      <Text style={modal.infoValue}>{payment.pay_amount} USDT</Text>
+                    </View>
+                  </View>
+
+                  {/* Warning */}
+                  <View style={modal.warnBox}>
+                    <Feather name="alert-triangle" size={14} color="#FFB08A" />
+                    <Text style={modal.warnText}>
+                      Send only USDT ({payment.network}) to this address. Sending other assets will result in permanent loss.
+                    </Text>
+                  </View>
+
+                  {/* Success message */}
+                  {(pollStatus === "confirmed" || pollStatus === "finished") && (
+                    <View style={modal.successBox}>
+                      <Feather name="check-circle" size={24} color="#2BD9A8" />
+                      <Text style={modal.successText}>
+                        Your balance has been credited with ${payment.amount.toFixed(2)} USDT!
+                      </Text>
+                      <Pressable style={modal.doneBtn} onPress={closeDepositModal}>
+                        <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={12} />
+                        <Text style={modal.doneBtnText}>Done</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </Animated.View>
+              )}
+
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -311,6 +670,7 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted },
 
   section: { paddingHorizontal: 14, marginBottom: 16 },
+  sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginBottom: 12 },
 
   nodeSelector: {
     flexDirection: "row",
@@ -374,31 +734,34 @@ const styles = StyleSheet.create({
   nodeOptionActive: { backgroundColor: "#F0F9FF" },
   nodeOptionText: { fontSize: 15, fontFamily: "Inter_400Regular", color: Colors.textPrimary },
 
-  addressCard: {
-    backgroundColor: "#fff",
+  networkGrid: { gap: 10 },
+  networkCard: {
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 16,
     paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 12,
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOpacity: 0.03,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
-  addressRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    gap: 10,
+  networkDot: { width: 12, height: 12, borderRadius: 6 },
+  networkLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  networkSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 2 },
+  depositBtn: {
+    overflow: "hidden",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  addressLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
-  addressValue: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
-    marginTop: 3,
-    letterSpacing: 1,
-  },
-  eyeBtn: { padding: 6 },
+  depositBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff", zIndex: 1 },
+
   rowDivider: { height: 1, backgroundColor: Colors.border },
 
   actionsRow: {
@@ -468,4 +831,213 @@ const styles = StyleSheet.create({
 
   emptyHistory: { alignItems: "center", paddingVertical: 32, gap: 8 },
   emptyHistoryText: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+});
+
+const modal = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: Colors.offWhite,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "ios" ? 16 : 20,
+    paddingBottom: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  title: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  closeBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+
+  subtitle: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    marginBottom: 20,
+    marginTop: 20,
+    lineHeight: 20,
+  },
+
+  netRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  netDot: { width: 14, height: 14, borderRadius: 7 },
+  netLabel: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  netSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 2 },
+
+  amountBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderWidth: 2,
+    borderColor: "#5CBFFE",
+    marginBottom: 16,
+    gap: 8,
+  },
+  amountCurrency: { fontSize: 28, fontFamily: "Inter_700Bold", color: Colors.textMuted },
+  amountInput: {
+    flex: 1,
+    fontSize: 32,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textPrimary,
+  },
+  amountLabel: { fontSize: 16, fontFamily: "Inter_500Medium", color: Colors.textMuted },
+
+  presetRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
+  preset: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: "#fff",
+    alignItems: "center",
+  },
+  presetActive: { borderColor: "#5CBFFE", backgroundColor: "#EAF6FF" },
+  presetText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
+  presetActiveText: { color: "#5CBFFE", fontFamily: "Inter_700Bold" },
+
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FFF0F0",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: { fontSize: 13, fontFamily: "Inter_400Regular", color: "#FF5C5C", flex: 1 },
+
+  confirmBtn: {
+    height: 54,
+    borderRadius: 16,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  confirmBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff", zIndex: 1 },
+
+  note: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+
+  statusBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: "#fff",
+    marginTop: 16,
+  },
+  statusText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+
+  networkBadgeRow: { alignItems: "flex-start" },
+  networkBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  networkBadgeDot: { width: 8, height: 8, borderRadius: 4 },
+  networkBadgeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+
+  qrWrap: {
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 10,
+  },
+  qrImage: { width: 180, height: 180, borderRadius: 8 },
+  qrHint: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+
+  addressBox: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 8,
+  },
+  addressBoxLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted },
+  addressRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  addressText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textPrimary, lineHeight: 20 },
+  copyBtn: { padding: 8 },
+
+  infoGrid: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  infoItem: { flex: 1, alignItems: "center", gap: 4 },
+  infoDiv: { width: 1, backgroundColor: Colors.border },
+  infoLabel: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  infoValue: { fontSize: 15, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+
+  warnBox: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-start",
+    backgroundColor: "#FFF8F0",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#FFE5CC",
+  },
+  warnText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", color: "#CC7722", lineHeight: 18 },
+
+  successBox: {
+    alignItems: "center",
+    backgroundColor: "#F0FBF7",
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "#B3EDD8",
+    gap: 12,
+  },
+  successText: { fontSize: 15, fontFamily: "Inter_500Medium", color: "#1A7A55", textAlign: "center", lineHeight: 22 },
+  doneBtn: {
+    height: 48,
+    width: 180,
+    borderRadius: 12,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  doneBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff", zIndex: 1 },
 });
