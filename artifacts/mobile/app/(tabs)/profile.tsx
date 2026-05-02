@@ -407,6 +407,7 @@ export default function ProfileScreen() {
                 style={styles.linkItem}
                 onPress={
                   link.label === "Deposit"  ? () => router.push("/(tabs)/earn") :
+                  link.label === "Withdraw" ? () => router.push("/withdraw") :
                   link.label === "My Bid"   ? () => setComingSoonOpen(true) :
                   link.label === "Details"  ? () => setComingSoonOpen(true) :
                   undefined

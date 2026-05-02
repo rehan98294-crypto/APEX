@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -90,6 +91,7 @@ async function markCredited(payment_id: string) {
 
 export default function AssetsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { balance, earnedTotal, transactions, creditBalance } = useBalance();
   const { token } = useAuth();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
@@ -332,7 +334,11 @@ export default function AssetsScreen() {
               <Pressable
                 key={action.label}
                 style={styles.actionItem}
-                onPress={action.label === "Deposit" ? () => { setDepositStep("select"); setDepositOpen(true); } : undefined}
+                onPress={
+                  action.label === "Deposit"  ? () => { setDepositStep("select"); setDepositOpen(true); } :
+                  action.label === "Withdraw" ? () => router.push("/withdraw") :
+                  undefined
+                }
               >
                 <View style={styles.actionIconBox}>
                   <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
