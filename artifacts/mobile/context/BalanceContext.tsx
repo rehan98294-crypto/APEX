@@ -32,6 +32,7 @@ export interface Reservation {
 
 interface BalanceContextType {
   balance: number;
+  totalDeposited: number;
   stakedTotal: number;
   earnedTotal: number;
   reserveProfit: number;
@@ -53,7 +54,8 @@ interface BalanceContextType {
 }
 
 const BalanceContext = createContext<BalanceContextType>({
-  balance: 2000,
+  balance: 200,
+  totalDeposited: 0,
   stakedTotal: 0,
   earnedTotal: 0,
   reserveProfit: 0,
@@ -74,7 +76,8 @@ const BalanceContext = createContext<BalanceContextType>({
   cancelReservation: () => {},
 });
 
-const STORAGE_KEY = "treasurefun_balance_v4";
+// v5 key forces a clean reset (seed = 200)
+const STORAGE_KEY = "treasurefun_balance_v5";
 
 function genId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 6);
@@ -87,7 +90,8 @@ function todayTimestamp(): number {
 }
 
 export function BalanceProvider({ children }: { children: React.ReactNode }) {
-  const [balance, setBalance] = useState(2000);
+  const [balance, setBalance] = useState(200);
+  const [totalDeposited, setTotalDeposited] = useState(0);
   const [earnedTotal, setEarnedTotal] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stakes, setStakes] = useState<StakePosition[]>([]);
@@ -98,7 +102,8 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         try {
           const parsed = JSON.parse(data);
-          setBalance(parsed.balance ?? 2000);
+          setBalance(parsed.balance ?? 200);
+          setTotalDeposited(parsed.totalDeposited ?? 0);
           setEarnedTotal(parsed.earnedTotal ?? 0);
           setTransactions(parsed.transactions ?? []);
           setStakes(parsed.stakes ?? []);
@@ -110,19 +115,21 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
 
   const persist = (
     b: number,
+    td: number,
     et: number,
     tx: Transaction[],
     sk: StakePosition[],
     rv: Reservation[]
   ) => {
     setBalance(b);
+    setTotalDeposited(td);
     setEarnedTotal(et);
     setTransactions(tx);
     setStakes(sk);
     setReservations(rv);
     AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ balance: b, earnedTotal: et, transactions: tx, stakes: sk, reservations: rv })
+      JSON.stringify({ balance: b, totalDeposited: td, earnedTotal: et, transactions: tx, stakes: sk, reservations: rv })
     );
   };
 
@@ -165,7 +172,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       description: `Staked ${amount} TFT for ${lockDays} days at ${apy}% APY`,
       timestamp: Date.now(),
     };
-    persist(balance - amount, earnedTotal, [tx, ...transactions].slice(0, 100), [newStake, ...stakes], reservations);
+    persist(balance - amount, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), [newStake, ...stakes], reservations);
     return true;
   };
 
@@ -187,42 +194,43 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       description: `Unstaked ${stake.amount} TFT + ${rewardEarned} reward`,
       timestamp: Date.now(),
     };
-    persist(balance + totalReturn, earnedTotal + rewardEarned, [tx, ...transactions].slice(0, 100), updatedStakes, reservations);
+    persist(balance + totalReturn, totalDeposited, earnedTotal + rewardEarned, [tx, ...transactions].slice(0, 100), updatedStakes, reservations);
     return true;
   };
 
   const earnReward = (amount: number, description: string) => {
     const tx: Transaction = { id: genId(), type: "earn", amount, description, timestamp: Date.now() };
-    persist(balance + amount, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(balance + amount, totalDeposited, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const earnReserveProfit = (profit: number, price: number, description: string) => {
     const tx: Transaction = { id: genId(), type: "reserve_profit", amount: profit, description, timestamp: Date.now() };
-    persist(balance + price + profit, earnedTotal + profit, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(balance + price + profit, totalDeposited, earnedTotal + profit, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const earnStakeReward = (amount: number, description: string) => {
     const tx: Transaction = { id: genId(), type: "stake_reward", amount, description, timestamp: Date.now() };
-    persist(balance + amount, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(balance + amount, totalDeposited, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const spendBalance = (amount: number, description: string): boolean => {
     if (amount > balance || amount <= 0) return false;
     const tx: Transaction = { id: genId(), type: "reserve", amount, description, timestamp: Date.now() };
-    persist(balance - amount, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(balance - amount, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
     return true;
   };
 
+  // creditBalance counts as a real deposit — increments totalDeposited
   const creditBalance = (amount: number, description: string): void => {
     const tx: Transaction = { id: genId(), type: "earn", amount, description, timestamp: Date.now() };
-    persist(balance + amount, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(balance + amount, totalDeposited + amount, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const addReservation = (r: Omit<Reservation, "id" | "reserveDate">): boolean => {
     if (r.reservePrice > balance) return false;
     const reservation: Reservation = { ...r, id: genId(), reserveDate: Date.now() };
     const tx: Transaction = { id: genId(), type: "reserve", amount: r.reservePrice, description: `Reserved ${r.nftName}`, timestamp: Date.now() };
-    persist(balance - r.reservePrice, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, [reservation, ...reservations]);
+    persist(balance - r.reservePrice, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, [reservation, ...reservations]);
     return true;
   };
 
@@ -232,13 +240,14 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     const updatedReservations = reservations.map((r) =>
       r.id === id ? { ...r, status: "expired" as const } : r
     );
-    persist(balance + reservation.reservePrice, earnedTotal, transactions, stakes, updatedReservations);
+    persist(balance + reservation.reservePrice, totalDeposited, earnedTotal, transactions, stakes, updatedReservations);
   };
 
   return (
     <BalanceContext.Provider
       value={{
         balance,
+        totalDeposited,
         stakedTotal,
         earnedTotal,
         reserveProfit,

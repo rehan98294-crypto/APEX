@@ -31,6 +31,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { useOrders } from "@/context/OrderContext";
+import { useReferral } from "@/hooks/useReferral";
 import { authApi, nftApi } from "@/lib/authApi";
 
 const { width, height } = Dimensions.get("window");
@@ -38,12 +39,48 @@ const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 
 // ─── Level & Amount configs ────────────────────────────────────────────────────
 const LEVELS = [
-  { lv: 1, label: "Lv1", rate: "1.8-1.95%", minPrice: 50,    maxPrice: 1000,   rateMin: 1.80, rateMax: 1.95, systemCut: 0.30 },
-  { lv: 2, label: "Lv2", rate: "2.1-2.5%",  minPrice: 500,   maxPrice: 2000,   rateMin: 2.10, rateMax: 2.50, systemCut: 0.28 },
-  { lv: 3, label: "Lv3", rate: "2.6-2.9%",  minPrice: 2000,  maxPrice: 5000,   rateMin: 2.60, rateMax: 2.90, systemCut: 0.28 },
-  { lv: 4, label: "Lv4", rate: "3.1-3.5%",  minPrice: 5000,  maxPrice: 15000,  rateMin: 3.10, rateMax: 3.50, systemCut: 0.28 },
-  { lv: 5, label: "Lv5", rate: "3.7-4.3%",  minPrice: 15000, maxPrice: 50000,  rateMin: 3.70, rateMax: 4.30, systemCut: 0.25 },
-  { lv: 6, label: "Lv6", rate: "4.35-4.65%",minPrice: 50000, maxPrice: 200000, rateMin: 4.35, rateMax: 4.65, systemCut: 0.20 },
+  {
+    lv: 1, label: "Lv1", rate: "1.8-1.95%",
+    minPrice: 50,    maxPrice: 500,
+    rateMin: 1.80, rateMax: 1.95, systemCut: 0.30,
+    minDeposit: 0,
+    teamReq: { total: 0, A: 0, B: 0, C: 0 },
+  },
+  {
+    lv: 2, label: "Lv2", rate: "2.1-2.5%",
+    minPrice: 500,   maxPrice: 2000,
+    rateMin: 2.10, rateMax: 2.50, systemCut: 0.28,
+    minDeposit: 500,
+    teamReq: { total: 8, A: 5, B: 2, C: 1 },
+  },
+  {
+    lv: 3, label: "Lv3", rate: "2.6-2.9%",
+    minPrice: 2000,  maxPrice: 5000,
+    rateMin: 2.60, rateMax: 2.90, systemCut: 0.28,
+    minDeposit: 2000,
+    teamReq: { total: 26, A: 12, B: 8, C: 6 },
+  },
+  {
+    lv: 4, label: "Lv4", rate: "3.1-3.5%",
+    minPrice: 5000,  maxPrice: 8000,
+    rateMin: 3.10, rateMax: 3.50, systemCut: 0.28,
+    minDeposit: 5000,
+    teamReq: { total: 45, A: 20, B: 15, C: 10 },
+  },
+  {
+    lv: 5, label: "Lv5", rate: "3.7-4.3%",
+    minPrice: 8000,  maxPrice: 15000,
+    rateMin: 3.70, rateMax: 4.30, systemCut: 0.25,
+    minDeposit: 8000,
+    teamReq: { total: 100, A: 50, B: 40, C: 20 },
+  },
+  {
+    lv: 6, label: "Lv6", rate: "4.35-4.65%",
+    minPrice: 15000, maxPrice: 50000,
+    rateMin: 4.35, rateMax: 4.65, systemCut: 0.20,
+    minDeposit: 15000,
+    teamReq: { total: 250, A: 100, B: 90, C: 60 },
+  },
 ];
 
 const AMOUNTS = [
@@ -123,20 +160,48 @@ function EmptyState({ icon, title, sub }: { icon: any; title: string; sub: strin
   );
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+function fmtAmt(n: number): string {
+  if (n >= 1000) return `${n / 1000}k`;
+  return String(n);
+}
+
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function ReserveScreen() {
-  const { balance, spendBalance, earnReserveProfit, todayReserveProfit, reserveProfit } = useBalance();
+  const { balance, totalDeposited, spendBalance, earnReserveProfit, todayReserveProfit, reserveProfit } = useBalance();
   const { token } = useAuth();
   const { createOrder, updateOrder } = useOrders();
+  const { stats: teamStats } = useReferral();
   const currentOrderIdRef = useRef<string>("");
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
-  const [activeTab,    setActiveTab]    = useState<"todays" | "reserve" | "collected">("reserve");
-  const [selectedLevel,  setSelectedLevel]  = useState(LEVELS[1]);
-  const [selectedAmount, setSelectedAmount] = useState(AMOUNTS[1]);
-  const [levelOpen,    setLevelOpen]    = useState(false);
-  const [amountOpen,   setAmountOpen]   = useState(false);
-  const [teamBenefits] = useState(0.1);
+  const [activeTab,      setActiveTab]      = useState<"todays" | "reserve" | "collected">("reserve");
+  const [selectedLevel,  setSelectedLevel]  = useState(LEVELS[0]);
+  const [selectedAmount, setSelectedAmount] = useState(AMOUNTS[0]);
+  const [levelOpen,      setLevelOpen]      = useState(false);
+  const [amountOpen,     setAmountOpen]     = useState(false);
+
+  // Team rewards (fetched from API)
+  const [teamTotalReward, setTeamTotalReward] = useState(0);
+  const [teamTodayReward, setTeamTodayReward] = useState(0);
+
+  useEffect(() => {
+    if (!token) return;
+    authApi.rewards.getTeamReward(token).then((d: any) => {
+      setTeamTotalReward(d.totalReward ?? 0);
+      setTeamTodayReward(d.todayReward ?? 0);
+    }).catch(() => {});
+  }, [token]);
+
+  // ── Level lock check ─────────────────────────────────────────────────────────
+  function isLevelLocked(lvl: typeof LEVELS[0]): boolean {
+    if (lvl.lv === 1) return false;
+    if (totalDeposited < lvl.minDeposit) return true;
+    if (teamStats.A.total < lvl.teamReq.A) return true;
+    if (teamStats.B.total < lvl.teamReq.B) return true;
+    if (teamStats.C.total < lvl.teamReq.C) return true;
+    return false;
+  }
 
   // Reserve flow
   const [reservePhase, setReservePhase] = useState<ReservePhase>("idle");
@@ -154,19 +219,39 @@ export default function ReserveScreen() {
   const [activeSellNFT, setActiveSellNFT] = useState<CollectedNFT | null>(null);
 
   // ── 6 stat boxes ─────────────────────────────────────────────────────────────
+  const rangeLabel = `${fmtAmt(selectedLevel.minPrice)}~${fmtAmt(selectedLevel.maxPrice)}`;
   const STAT_BOXES = [
     { label: "Today\nEarnings",         value: todayReserveProfit.toFixed(2), borderColor: "#5CBFFE"  },
     { label: "Cumulative\nIncome",      value: reserveProfit.toFixed(2),      borderColor: "#00AC4F"  },
-    { label: "Team Benefits",           value: teamBenefits.toFixed(1), borderColor: "#BBBBBB"  },
-    { label: "Reservation\nrange",      value: "1~2000",                borderColor: "#FF8C00"  },
-    { label: "Wallet\nBalance",         value: balance.toFixed(1),      borderColor: "#5CBFFE"  },
-    { label: "Balance for\nReservation",value: balance.toFixed(1),      borderColor: "#333333"  },
+    { label: "Team\nBenefits",          value: teamTotalReward.toFixed(2),    borderColor: "#BBBBBB"  },
+    { label: "Reservation\nRange",      value: rangeLabel,                    borderColor: "#FF8C00"  },
+    { label: "Wallet\nBalance",         value: balance.toFixed(1),            borderColor: "#5CBFFE"  },
+    { label: "Balance for\nReservation",value: balance.toFixed(1),            borderColor: "#333333"  },
   ];
 
   // ── STEP 1: Tap "Reserve" ─────────────────────────────────────────────────
   const handleReserve = async () => {
     setFetchError(null);
+
+    // Check level is unlocked
+    if (isLevelLocked(selectedLevel)) {
+      setFetchError(`Level ${selectedLevel.lv} is locked. Meet the deposit & team requirements first.`);
+      return;
+    }
+
+    // Check sufficient balance for this level's minimum price
+    if (balance < selectedLevel.minPrice) {
+      setFetchError(`Need at least $${selectedLevel.minPrice} balance for ${selectedLevel.label}. Current: $${balance.toFixed(2)}`);
+      return;
+    }
+
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // NFT price is capped at min(balance, levelMax)
+    const nftMaxPrice = Math.min(balance, selectedLevel.maxPrice);
+    const cappedPrice = parseFloat(
+      (selectedLevel.minPrice + Math.random() * (nftMaxPrice - selectedLevel.minPrice)).toFixed(2)
+    );
 
     const base = 10 + selectedLevel.lv * 3;
     setExpectedIncome([parseFloat(base.toFixed(1)), parseFloat((base + 1.5).toFixed(1))]);
@@ -180,26 +265,29 @@ export default function ReserveScreen() {
 
       setReservePhase("opening");
 
+      // Use the balance-capped price, not the raw API price
+      const finalPrice = cappedPrice;
+
       const orderId = createOrder({
         nft_name:     nftData.title,
         image_source: { uri: nftData.image_url },
         status:       "processing",
         profit:       0,
-        price:        nftData.price,
-        level:        nftData.level,
+        price:        finalPrice,
+        level:        selectedLevel.lv,
       });
       currentOrderIdRef.current = orderId;
 
-      const profit = calcProfit(nftData.price, selectedLevel);
+      const profit = calcProfit(finalPrice, selectedLevel);
 
       await new Promise<void>((res) => setTimeout(res, 3500 + Math.random() * 3000));
 
       setPendingNFT({
         name:        nftData.title,
         imageSource: { uri: nftData.image_url },
-        price:       nftData.price,
+        price:       finalPrice,
         profit,
-        level:       nftData.level,
+        level:       selectedLevel.lv,
       });
       setReservePhase("nft_reveal");
 
@@ -571,18 +659,41 @@ export default function ReserveScreen() {
                 <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.inlineDropdown}>
                   <View style={styles.dropdownHeader}>
                     <Text style={styles.dropdownHdrLv}>LV</Text>
-                    <Text style={styles.dropdownHdrInc}>Income (%)</Text>
+                    <Text style={[styles.dropdownHdrInc, { flex: 1 }]}>Income (%)  |  Range</Text>
+                    <Text style={styles.dropdownHdrInc}>Status</Text>
                   </View>
                   {LEVELS.map((lvl) => {
-                    const isSel = lvl.lv === selectedLevel.lv;
+                    const isSel    = lvl.lv === selectedLevel.lv;
+                    const locked   = isLevelLocked(lvl);
+                    const req      = lvl.teamReq;
                     return (
                       <Pressable
                         key={lvl.lv}
-                        style={[styles.dropdownRow, isSel && styles.dropdownRowActive]}
-                        onPress={() => { setSelectedLevel(lvl); setLevelOpen(false); setFetchError(null); }}
+                        style={[styles.dropdownRow, isSel && styles.dropdownRowActive, locked && { opacity: 0.6 }]}
+                        onPress={() => {
+                          if (locked) {
+                            setFetchError(`Lv${lvl.lv} requires $${lvl.minDeposit} deposit + ${req.A}A/${req.B}B/${req.C}C members`);
+                            setLevelOpen(false);
+                            return;
+                          }
+                          setSelectedLevel(lvl);
+                          setLevelOpen(false);
+                          setFetchError(null);
+                        }}
                       >
-                        <Text style={[styles.dropdownLv, isSel && styles.dropdownLvActive]}>{lvl.label}</Text>
-                        <Text style={[styles.dropdownRate, isSel && styles.dropdownRateActive]}>{lvl.rate}</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                          {locked
+                            ? <Feather name="lock" size={13} color="#FF6B6B" />
+                            : <Feather name="unlock" size={13} color="#2BD9A8" />
+                          }
+                          <Text style={[styles.dropdownLv, isSel && styles.dropdownLvActive, locked && { color: "#FF6B6B" }]}>{lvl.label}</Text>
+                        </View>
+                        <Text style={[styles.dropdownRate, isSel && styles.dropdownRateActive, { flex: 2 }]}>
+                          {lvl.rate}  {fmtAmt(lvl.minPrice)}~{fmtAmt(lvl.maxPrice)}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: locked ? "#FF6B6B" : "#2BD9A8", fontFamily: "Inter_600SemiBold" }}>
+                          {locked ? "Locked" : "Open"}
+                        </Text>
                       </Pressable>
                     );
                   })}

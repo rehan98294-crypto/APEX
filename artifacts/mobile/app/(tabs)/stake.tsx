@@ -35,8 +35,10 @@ import {
 } from "@/components/NFTSkeletonCard";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
+import { useBalance } from "@/context/BalanceContext";
 import { OwnedNFT, StakedNFT, useStake } from "@/context/StakeContext";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { useReferral } from "@/hooks/useReferral";
 import { useStakeApi } from "@/hooks/useStakeApi";
 import { fetchZoneNFTsByLevel } from "@/lib/supabase";
 
@@ -115,9 +117,14 @@ export default function StakeScreen() {
   const { ownedNFTs, stakedNFTs, buyNFT, sellNFT, stakeNFT, redeemStake } = useStake();
   const { user } = useAuth();
   const { userLevel, stakeBoost, activePlan } = useSubscription();
+  const { totalDeposited } = useBalance();
+  const { stats: teamStats } = useReferral();
   const stakeApi = useStakeApi(user?.id);
   const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
+
+  // Exclusive zone unlock: need 500+ deposit AND 18+ total members
+  const exclusiveUnlocked = totalDeposited >= 500 && teamStats.totalMembers >= 18;
 
   // Navigation state
   const [categoryTab, setCategoryTab] = useState(0);
@@ -329,7 +336,8 @@ export default function StakeScreen() {
             ) : null}
             <View style={[styles.zoneList, zoneLoading && { display: "none" }]}>
               {(zoneTab === "free" ? FREE_ZONES : EXCLUSIVE_ZONES).map((zone, i) => {
-                const isLocked = userLevel < zone.minSubLevel;
+                // Free zones are always open; exclusive zones need 500 deposit + 18 members
+                const isLocked = zone.type === "exclusive" ? !exclusiveUnlocked : false;
                 const boostedApr = (zone.apr + stakeBoost).toFixed(1);
                 const showBoost = stakeBoost > 0 && !isLocked;
                 return (
@@ -347,13 +355,20 @@ export default function StakeScreen() {
                           <View style={styles.lockIconWrap}>
                             <Feather name="lock" size={28} color="#fff" />
                           </View>
-                          <Text style={styles.lockTitle}>Level {zone.minSubLevel} Required</Text>
-                          <Text style={styles.lockSub}>Activate a subscription plan to unlock this zone</Text>
-                          <Pressable style={styles.lockSubBtn} onPress={() => router.push("/subscriptions")}>
-                            <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={12} />
-                            <Feather name="star" size={13} color="#fff" />
-                            <Text style={styles.lockSubBtnText}>Subscribe</Text>
-                          </Pressable>
+                          <Text style={styles.lockTitle}>Exclusive Zone Locked</Text>
+                          <Text style={styles.lockSub}>Requires: 18 team members + $500 deposit</Text>
+                          <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                            <View style={[styles.lockSubBtn, { backgroundColor: "rgba(255,255,255,0.15)", flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 10 }]}>
+                              <Text style={{ color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" }}>
+                                👥 {teamStats.totalMembers}/18
+                              </Text>
+                            </View>
+                            <View style={[styles.lockSubBtn, { backgroundColor: "rgba(255,255,255,0.15)", flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 10 }]}>
+                              <Text style={{ color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" }}>
+                                💵 ${totalDeposited}/500
+                              </Text>
+                            </View>
+                          </View>
                         </View>
                       )}
                     </View>
@@ -372,12 +387,23 @@ export default function StakeScreen() {
                         )}
                       </View>
                       {zone.stakableDays && <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Stakable Days:</Text><Text style={styles.zoneInfoValue}>{zone.stakableDays}</Text></View>}
-                      {zone.type === "exclusive" && <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Handling fee:</Text><Text style={styles.zoneInfoValue}>{zone.handlingFee}</Text></View>}
+                      {zone.type === "exclusive" && (
+                        <View style={styles.zoneInfoRow}>
+                          <Text style={styles.zoneInfoLabel}>Handling fee:</Text>
+                          <Text style={[styles.zoneInfoValue, { color: "#FF8C00" }]}>{zone.handlingFee}</Text>
+                        </View>
+                      )}
                     </View>
                     <Pressable
                       style={styles.stakeBtn}
                       onPress={() => {
-                        if (isLocked) { router.push("/subscriptions"); return; }
+                        if (isLocked) {
+                          Alert.alert(
+                            "Exclusive Zone Locked",
+                            `You need 18 team members and $500 total deposit to unlock exclusive zones.\n\nCurrent: ${teamStats.totalMembers} members, $${totalDeposited} deposited.`
+                          );
+                          return;
+                        }
                         if (zone.active) setActiveZone(zone);
                       }}
                     >
@@ -389,7 +415,7 @@ export default function StakeScreen() {
                       }
                       <Feather name={isLocked ? "lock" : "zap"} size={14} color={isLocked ? "#aaa" : "#fff"} />
                       <Text style={[styles.stakeBtnText, (isLocked || !zone.active) && { color: "#aaa" }]}>
-                        {isLocked ? "Subscribe to Unlock" : "Go to stake"}
+                        {isLocked ? "Unlock: 18 Members + $500" : "Go to stake"}
                       </Text>
                     </Pressable>
                   </Animated.View>
