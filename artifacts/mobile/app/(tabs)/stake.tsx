@@ -25,7 +25,12 @@ import Animated, {
 } from "react-native-reanimated";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
-import { NFTSkeletonGrid } from "@/components/NFTSkeletonCard";
+import {
+  CollectionGridSkeleton,
+  MyStakeListSkeleton,
+  StakeNFTSkeletonGrid,
+  ZoneListSkeleton,
+} from "@/components/NFTSkeletonCard";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { OwnedNFT, StakedNFT, useStake } from "@/context/StakeContext";
@@ -113,6 +118,8 @@ export default function StakeScreen() {
   const [categoryTab, setCategoryTab] = useState(0);
   const [mainTab, setMainTab] = useState<"stake" | "collection" | "mystake">("stake");
   const [zoneTab, setZoneTab] = useState<"free" | "exclusive">("free");
+  const [zoneLoading, setZoneLoading] = useState(false);
+  const [tabLoading, setTabLoading] = useState(false);
 
   // Zone NFT grid state
   const [activeZone, setActiveZone] = useState<ZoneConfig | null>(null);
@@ -262,7 +269,15 @@ export default function StakeScreen() {
         {/* Main tabs */}
         <Animated.View entering={FadeInDown.duration(300)} style={styles.mainTabsCard}>
           {([["stake", "Stake"], ["collection", "Collection"], ["mystake", "My Stake"]] as const).map(([key, label]) => (
-            <Pressable key={key} onPress={() => { setMainTab(key); setActiveZone(null); }} style={[styles.mainTabBtn, mainTab === key && styles.mainTabBtnActive]}>
+            <Pressable key={key} onPress={() => {
+              if (key === mainTab) return;
+              setMainTab(key);
+              setActiveZone(null);
+              if (key !== "stake") {
+                setTabLoading(true);
+                setTimeout(() => setTabLoading(false), 450);
+              }
+            }} style={[styles.mainTabBtn, mainTab === key && styles.mainTabBtnActive]}>
               {mainTab === key && <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />}
               <Text style={[styles.mainTabText, mainTab === key && styles.mainTabTextActive]}>{label}</Text>
             </Pressable>
@@ -274,14 +289,22 @@ export default function StakeScreen() {
           <>
             <View style={styles.zoneTabs}>
               {([["exclusive", "Exclusive Zone"], ["free", "Free Zone"]] as const).map(([key, label]) => (
-                <Pressable key={key} onPress={() => setZoneTab(key)} style={styles.zoneTabBtn}>
+                <Pressable key={key} onPress={() => {
+                  if (key === zoneTab) return;
+                  setZoneTab(key);
+                  setZoneLoading(true);
+                  setTimeout(() => setZoneLoading(false), 350);
+                }} style={styles.zoneTabBtn}>
                   <Text style={[styles.zoneTabText, zoneTab === key && styles.zoneTabTextActive]}>{label}</Text>
                   {zoneTab === key && <View style={styles.zoneUnderline} />}
                 </Pressable>
               ))}
             </View>
 
-            <View style={styles.zoneList}>
+            {zoneLoading ? (
+              <ZoneListSkeleton count={3} />
+            ) : null}
+            <View style={[styles.zoneList, zoneLoading && { display: "none" }]}>
               {(zoneTab === "free" ? FREE_ZONES : EXCLUSIVE_ZONES).map((zone, i) => {
                 const isLocked = userLevel < zone.minSubLevel;
                 const boostedApr = (zone.apr + stakeBoost).toFixed(1);
@@ -372,7 +395,7 @@ export default function StakeScreen() {
 
             {nftsLoading ? (
               <View style={{ marginTop: 8 }}>
-                <NFTSkeletonGrid count={6} />
+                <StakeNFTSkeletonGrid count={6} />
               </View>
             ) : (
               <View style={styles.nftGrid}>
@@ -398,7 +421,9 @@ export default function StakeScreen() {
         {/* ── COLLECTION TAB ───────────────────────────────────────────────── */}
         {mainTab === "collection" && (
           <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
-            {ownedNFTs.length === 0 ? (
+            {tabLoading ? (
+              <CollectionGridSkeleton count={4} />
+            ) : ownedNFTs.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <Feather name="layers" size={38} color={Colors.textMuted} />
                 <Text style={styles.emptyText}>No NFTs in collection</Text>
@@ -434,6 +459,10 @@ export default function StakeScreen() {
         {/* ── MY STAKE TAB ─────────────────────────────────────────────────── */}
         {mainTab === "mystake" && (
           <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
+            {tabLoading ? (
+              <MyStakeListSkeleton count={2} />
+            ) : (
+            <>
             {/* API Summary Banner */}
             {stakeApi.summary && (stakeApi.summary.active.length > 0 || stakeApi.summary.completed.length > 0) && (
               <Animated.View entering={FadeInDown.duration(300)} style={styles.apiSummaryCard}>
@@ -536,6 +565,8 @@ export default function StakeScreen() {
                   </Animated.View>
                 );
               })
+            )}
+            </>
             )}
           </View>
         )}

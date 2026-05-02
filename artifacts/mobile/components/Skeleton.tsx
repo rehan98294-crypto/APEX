@@ -362,6 +362,135 @@ export function NFTSkeletonGrid({ count = 6 }: { count?: number }) {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// STAKE TAB SKELETONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const STAKE_CARD_W = (SW - 28 - 12) / 2;
+
+// ─── Stake zone NFT card skeleton ─────────────────────────────────────────────
+export function StakeNFTSkeletonCard() {
+  return (
+    <View style={sk.stakeNFTCard}>
+      <ShimmerBox height={STAKE_CARD_W - 20} width="100%" borderRadius={10} />
+      <ShimmerBox height={12} width="80%" borderRadius={5} style={{ marginTop: 4 }} />
+      <ShimmerBox height={12} width="50%" borderRadius={5} />
+      <ShimmerBox height={34} width="100%" borderRadius={10} />
+    </View>
+  );
+}
+
+export function StakeNFTSkeletonGrid({ count = 6 }: { count?: number }) {
+  return (
+    <View style={sk.stakeNFTGrid}>
+      {Array.from({ length: count }).map((_, i) => (
+        <StakeNFTSkeletonCard key={i} />
+      ))}
+    </View>
+  );
+}
+
+// ─── Zone card skeleton ────────────────────────────────────────────────────────
+export function ZoneCardSkeleton() {
+  return (
+    <View style={sk.zoneCard}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <ShimmerBox height={16} width={110} borderRadius={6} />
+        <View style={{ flex: 1 }} />
+        <ShimmerBox height={20} width={36} borderRadius={6} />
+      </View>
+      <ShimmerBox height={130} width="100%" borderRadius={12} />
+      {[1, 2, 3, 4].map((n) => (
+        <View key={n} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <ShimmerBox height={12} width={80} borderRadius={5} />
+          <ShimmerBox height={12} width={60} borderRadius={5} />
+        </View>
+      ))}
+      <ShimmerBox height={46} width="100%" borderRadius={14} />
+    </View>
+  );
+}
+
+export function ZoneListSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <View style={sk.zoneList}>
+      {Array.from({ length: count }).map((_, i) => (
+        <ZoneCardSkeleton key={i} />
+      ))}
+    </View>
+  );
+}
+
+// ─── Collection card skeleton ─────────────────────────────────────────────────
+export function CollectionCardSkeleton() {
+  return (
+    <View style={sk.stakeNFTCard}>
+      <ShimmerBox height={STAKE_CARD_W - 20} width="100%" borderRadius={10} />
+      <ShimmerBox height={12} width="80%" borderRadius={5} style={{ marginTop: 4 }} />
+      <ShimmerBox height={12} width="50%" borderRadius={5} />
+      <ShimmerBox height={11} width="65%" borderRadius={5} />
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <ShimmerBox height={34} width="48%" borderRadius={10} />
+        <ShimmerBox height={34} width="48%" borderRadius={10} />
+      </View>
+    </View>
+  );
+}
+
+export function CollectionGridSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <View style={sk.stakeNFTGrid}>
+      {Array.from({ length: count }).map((_, i) => (
+        <CollectionCardSkeleton key={i} />
+      ))}
+    </View>
+  );
+}
+
+// ─── My Stake card skeleton ────────────────────────────────────────────────────
+export function MyStakeCardSkeleton() {
+  return (
+    <View style={sk.myStakeCard}>
+      <View style={{ flexDirection: "row", gap: 14 }}>
+        <ShimmerBox height={80} width={80} borderRadius={12} />
+        <View style={{ flex: 1, gap: 8, paddingTop: 4 }}>
+          <ShimmerBox height={14} width="85%" borderRadius={6} />
+          <ShimmerBox height={11} width="60%" borderRadius={5} />
+          <ShimmerBox height={11} width="70%" borderRadius={5} />
+          <ShimmerBox height={11} width="55%" borderRadius={5} />
+        </View>
+      </View>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <ShimmerBox height={12} width={90} borderRadius={5} />
+        <ShimmerBox height={12} width={55} borderRadius={5} />
+      </View>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <ShimmerBox height={12} width={70} borderRadius={5} />
+        <ShimmerBox height={12} width={80} borderRadius={5} />
+      </View>
+      <ShimmerBox height={40} width="100%" borderRadius={10} />
+    </View>
+  );
+}
+
+export function MyStakeListSkeleton({ count = 2 }: { count?: number }) {
+  return (
+    <View>
+      <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+        {[0, 1].map((i) => (
+          <View key={i} style={sk.summaryCard}>
+            <ShimmerBox height={11} width={90} borderRadius={5} />
+            <ShimmerBox height={16} width={70} borderRadius={6} style={{ marginTop: 6 }} />
+          </View>
+        ))}
+      </View>
+      {Array.from({ length: count }).map((_, i) => (
+        <MyStakeCardSkeleton key={i} />
+      ))}
+    </View>
+  );
+}
+
 // ─── Inline page-load fade animation ─────────────────────────────────────────
 interface FadeInViewProps {
   children: React.ReactNode;
@@ -455,4 +584,64 @@ const sk = StyleSheet.create({
 
   // Hot Picks
   hotSection: { paddingHorizontal: 16, marginTop: 8, marginBottom: 16 },
+
+  // Stake tab
+  stakeNFTCard: {
+    width: STAKE_CARD_W,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 10,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    overflow: "hidden",
+  },
+  stakeNFTGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  zoneCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    gap: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+  },
+  zoneList: {
+    marginTop: 14,
+    paddingHorizontal: 14,
+    gap: 16,
+    paddingBottom: 8,
+  },
+  myStakeCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 14,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
 });
