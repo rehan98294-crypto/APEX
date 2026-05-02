@@ -34,46 +34,31 @@ import { nftApi } from "@/lib/authApi";
 const { width, height } = Dimensions.get("window");
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 
-// ─── Level configuration ───────────────────────────────────────────────────────
-interface LevelConfig {
-  lv: number;
-  label: string;
-  minPrice: number;
-  maxPrice: number;
-  rateMin: number;
-  rateMax: number;
-  systemCut: number;
-  royalty: number;
-  unlockLabel: string;
-}
-
-const LEVEL_CONFIG: LevelConfig[] = [
-  { lv: 1, label: "Lv 1", minPrice: 50,    maxPrice: 1000,   rateMin: 1.80, rateMax: 1.95, systemCut: 0.30, royalty: 0.002, unlockLabel: "Default" },
-  { lv: 2, label: "Lv 2", minPrice: 500,   maxPrice: 2000,   rateMin: 2.10, rateMax: 2.50, systemCut: 0.28, royalty: 0.002, unlockLabel: "8 members + $500 deposit" },
-  { lv: 3, label: "Lv 3", minPrice: 2000,  maxPrice: 5000,   rateMin: 2.60, rateMax: 2.90, systemCut: 0.28, royalty: 0.002, unlockLabel: "Complete Lv 2" },
-  { lv: 4, label: "Lv 4", minPrice: 5000,  maxPrice: 15000,  rateMin: 3.10, rateMax: 3.50, systemCut: 0.28, royalty: 0.002, unlockLabel: "Complete Lv 3" },
-  { lv: 5, label: "Lv 5", minPrice: 15000, maxPrice: 50000,  rateMin: 3.70, rateMax: 4.30, systemCut: 0.25, royalty: 0.002, unlockLabel: "Complete Lv 4" },
-  { lv: 6, label: "Lv 6", minPrice: 50000, maxPrice: 200000, rateMin: 4.35, rateMax: 4.65, systemCut: 0.20, royalty: 0.002, unlockLabel: "Complete Lv 5" },
+// ─── Level & Amount configs ────────────────────────────────────────────────────
+const LEVELS = [
+  { lv: 1, label: "Lv1", rate: "1.8-1.95%", minPrice: 50,    maxPrice: 1000,   rateMin: 1.80, rateMax: 1.95, systemCut: 0.30 },
+  { lv: 2, label: "Lv2", rate: "2.1-2.5%",  minPrice: 500,   maxPrice: 2000,   rateMin: 2.10, rateMax: 2.50, systemCut: 0.28 },
+  { lv: 3, label: "Lv3", rate: "2.6-2.9%",  minPrice: 2000,  maxPrice: 5000,   rateMin: 2.60, rateMax: 2.90, systemCut: 0.28 },
+  { lv: 4, label: "Lv4", rate: "3.1-3.5%",  minPrice: 5000,  maxPrice: 15000,  rateMin: 3.10, rateMax: 3.50, systemCut: 0.28 },
+  { lv: 5, label: "Lv5", rate: "3.7-4.3%",  minPrice: 15000, maxPrice: 50000,  rateMin: 3.70, rateMax: 4.30, systemCut: 0.25 },
+  { lv: 6, label: "Lv6", rate: "4.35-4.65%",minPrice: 50000, maxPrice: 200000, rateMin: 4.35, rateMax: 4.65, systemCut: 0.20 },
 ];
 
-// ─── Profit calculation ────────────────────────────────────────────────────────
-function calcProfit(price: number, lvl: LevelConfig): { profit: number; rate: number } {
+const AMOUNTS = [
+  { label: "100-500",   token: "100-500"   },
+  { label: "500-2K",    token: "500-2K"    },
+  { label: "1K-5K",     token: "1K-5K"    },
+  { label: "2K-10K",    token: "2K-10K"   },
+  { label: "5K-20K",    token: "5K-20K"   },
+];
+
+const ROYALTY = 0.002;
+
+// ─── Profit calc ───────────────────────────────────────────────────────────────
+function calcProfit(price: number, lvl: typeof LEVELS[0]): number {
   const rate  = lvl.rateMin + Math.random() * (lvl.rateMax - lvl.rateMin);
   const gross = price * (rate / 100);
-  const profit = parseFloat((gross * (1 - lvl.systemCut) * (1 - lvl.royalty)).toFixed(4));
-  return { profit, rate };
-}
-
-function profitRangeFor(lvl: LevelConfig, price?: number): [number, number] {
-  const p = price ?? ((lvl.minPrice + lvl.maxPrice) / 2);
-  const lo = parseFloat((p * (lvl.rateMin / 100) * (1 - lvl.systemCut) * (1 - lvl.royalty)).toFixed(2));
-  const hi = parseFloat((p * (lvl.rateMax / 100) * (1 - lvl.systemCut) * (1 - lvl.royalty)).toFixed(2));
-  return [lo, hi];
-}
-
-function fmtMoney(n: number): string {
-  if (n >= 1000) return `$${(n / 1000).toFixed(0)}K`;
-  return `$${n}`;
+  return parseFloat((gross * (1 - lvl.systemCut) * (1 - ROYALTY)).toFixed(4));
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -91,7 +76,7 @@ interface CollectedNFT {
 type ReservePhase = "idle" | "fetching" | "opening" | "nft_reveal" | "insufficient";
 type SellPhase   = "idle" | "sell_sheet" | "listed" | "matchmaking" | "profit";
 
-// ─── Spinner & Dots ────────────────────────────────────────────────────────────
+// ─── Spinner ───────────────────────────────────────────────────────────────────
 function SpinnerRing() {
   const rotate = useSharedValue(0);
   useEffect(() => {
@@ -103,6 +88,7 @@ function SpinnerRing() {
   );
 }
 
+// ─── Dots loader ───────────────────────────────────────────────────────────────
 function DotsLoader() {
   const d1 = useSharedValue(0.3);
   const d2 = useSharedValue(0.3);
@@ -137,55 +123,59 @@ function EmptyState({ icon, title, sub }: { icon: any; title: string; sub: strin
 
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function ReserveScreen() {
-  const insets     = useSafeAreaInsets();
   const { balance, spendBalance, creditBalance } = useBalance();
   const { createOrder, updateOrder } = useOrders();
   const currentOrderIdRef = useRef<string>("");
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
-  // User level — in a real app this comes from the auth context / API
-  const [userLevel] = useState(1);
-
-  const [activeTab,      setActiveTab]      = useState<"todays" | "reserve" | "collected">("reserve");
-  const [selectedLv,     setSelectedLv]     = useState<LevelConfig>(LEVEL_CONFIG[0]);
-  const [levelOpen,      setLevelOpen]      = useState(false);
-  const [todayIncome,    setTodayIncome]    = useState(0);
-  const [totalIncome,    setTotalIncome]    = useState(0);
+  const [activeTab,    setActiveTab]    = useState<"todays" | "reserve" | "collected">("reserve");
+  const [selectedLevel,  setSelectedLevel]  = useState(LEVELS[1]);
+  const [selectedAmount, setSelectedAmount] = useState(AMOUNTS[1]);
+  const [levelOpen,    setLevelOpen]    = useState(false);
+  const [amountOpen,   setAmountOpen]   = useState(false);
+  const [todayIncome,  setTodayIncome]  = useState(0);
+  const [totalIncome,  setTotalIncome]  = useState(0);
+  const [teamBenefits] = useState(0.1);
 
   // Reserve flow
-  const [reservePhase, setReservePhase]   = useState<ReservePhase>("idle");
-  const [pendingNFT,   setPendingNFT]     = useState<{ name: string; imageSource: any; price: number; profit: number; level: number } | null>(null);
-  const [fetchError,   setFetchError]     = useState<string | null>(null);
+  const [reservePhase, setReservePhase] = useState<ReservePhase>("idle");
+  const [pendingNFT,   setPendingNFT]   = useState<{ name: string; imageSource: any; price: number; profit: number; level: number } | null>(null);
+  const [fetchError,   setFetchError]   = useState<string | null>(null);
+  const [expectedIncome, setExpectedIncome] = useState<[number, number]>([18, 19.5]);
 
   // Collected
   const [collectedNFTs,    setCollectedNFTs]    = useState<CollectedNFT[]>([]);
   const [collectedLoading, setCollectedLoading] = useState(false);
 
   // Sell flow
-  const [sellPhase,    setSellPhase]    = useState<SellPhase>("idle");
+  const [sellPhase,     setSellPhase]     = useState<SellPhase>("idle");
   const [activeSellNFT, setActiveSellNFT] = useState<CollectedNFT | null>(null);
 
-  const profitRange  = profitRangeFor(selectedLv);
-  const isLevelLocked = selectedLv.lv > userLevel;
+  // ── 6 stat boxes ─────────────────────────────────────────────────────────────
+  const STAT_BOXES = [
+    { label: "Today\nEarnings",         value: todayIncome.toFixed(2),  borderColor: "#5CBFFE"  },
+    { label: "Cumulative\nIncome",      value: totalIncome.toFixed(2),  borderColor: "#00AC4F"  },
+    { label: "Team Benefits",           value: teamBenefits.toFixed(1), borderColor: "#BBBBBB"  },
+    { label: "Reservation\nrange",      value: "1~2000",                borderColor: "#FF8C00"  },
+    { label: "Wallet\nBalance",         value: balance.toFixed(1),      borderColor: "#5CBFFE"  },
+    { label: "Balance for\nReservation",value: balance.toFixed(1),      borderColor: "#333333"  },
+  ];
 
   // ── STEP 1: Tap "Reserve" ─────────────────────────────────────────────────
   const handleReserve = async () => {
     setFetchError(null);
-
-    if (isLevelLocked) return;
-
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    const base = 10 + selectedLevel.lv * 3;
+    setExpectedIncome([parseFloat(base.toFixed(1)), parseFloat((base + 1.5).toFixed(1))]);
     setReservePhase("fetching");
 
     try {
-      // Fetch random NFT for selected level + add an artificial suspense delay
       const [nftData] = await Promise.all([
-        nftApi.getRandom(selectedLv.lv),
+        nftApi.getRandom(selectedLevel.lv),
         new Promise<void>((res) => setTimeout(res, 1500 + Math.random() * 2000)),
       ]);
 
-      // Transition to "opening" animation phase
       setReservePhase("opening");
 
       const orderId = createOrder({
@@ -198,10 +188,8 @@ export default function ReserveScreen() {
       });
       currentOrderIdRef.current = orderId;
 
-      // Calculate actual profit for this NFT
-      const { profit } = calcProfit(nftData.price, selectedLv);
+      const profit = calcProfit(nftData.price, selectedLevel);
 
-      // Wait an additional animation delay before reveal
       await new Promise<void>((res) => setTimeout(res, 3500 + Math.random() * 3000));
 
       setPendingNFT({
@@ -219,7 +207,7 @@ export default function ReserveScreen() {
     }
   };
 
-  // ── STEP 2: Confirm NFT reveal (deduct balance) ───────────────────────────
+  // ── STEP 2: Confirm NFT reveal ────────────────────────────────────────────
   const handleNFTConfirm = () => {
     if (!pendingNFT) return;
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -261,14 +249,14 @@ export default function ReserveScreen() {
     }, 2000);
   };
 
-  // ── STEP 3: Tap Sell on collected card ────────────────────────────────────
+  // ── STEP 3: Tap Sell ──────────────────────────────────────────────────────
   const handleSell = (nft: CollectedNFT) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setActiveSellNFT(nft);
     setSellPhase("sell_sheet");
   };
 
-  // ── STEP 4: Tap "Completed" → list then matchmake ─────────────────────────
+  // ── STEP 4: Confirm sale ──────────────────────────────────────────────────
   const handleCompleted = () => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSellPhase("listed");
@@ -278,14 +266,12 @@ export default function ReserveScreen() {
     }, 1500);
   };
 
-  // ── STEP 5: Confirm profit (credit balance) ───────────────────────────────
+  // ── STEP 5: Collect profit ────────────────────────────────────────────────
   const handleProfitConfirm = () => {
     if (!activeSellNFT) return;
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Return original price + profit silently; only SHOW profit
     creditBalance(activeSellNFT.price + activeSellNFT.profit, `NFT Sale: ${activeSellNFT.name}`);
-
     setTodayIncome((p) => parseFloat((p + activeSellNFT.profit).toFixed(4)));
     setTotalIncome((p) => parseFloat((p + activeSellNFT.profit).toFixed(4)));
     setCollectedNFTs((prev) =>
@@ -297,12 +283,6 @@ export default function ReserveScreen() {
     setActiveSellNFT(null);
   };
 
-  const STAT_BOXES = [
-    { label: "Today\nEarnings",    value: `$${todayIncome.toFixed(2)}`,    borderColor: "#5CBFFE"  },
-    { label: "Cumulative\nIncome", value: `$${totalIncome.toFixed(2)}`,    borderColor: "#00AC4F"  },
-    { label: "Wallet\nBalance",    value: `$${balance.toFixed(0)}`,        borderColor: "#FFB08A"  },
-  ];
-
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
 
@@ -310,7 +290,7 @@ export default function ReserveScreen() {
       <Modal visible={reservePhase !== "idle"} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.overlay}>
 
-          {/* Fetching */}
+          {/* Fetching / Opening */}
           {(reservePhase === "fetching" || reservePhase === "opening") && (
             <Animated.View entering={FadeIn.duration(300)} style={styles.modalCard}>
               <View style={{ alignItems: "center", marginBottom: 20 }}>
@@ -321,12 +301,10 @@ export default function ReserveScreen() {
                   {reservePhase === "fetching" ? "Finding your NFT…" : "Preparing your NFT…"}
                 </Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
-                  <Text style={styles.incomeRange}>
-                    {fmtMoney(selectedLv.minPrice)} – {fmtMoney(selectedLv.maxPrice)}
-                  </Text>
+                  <Text style={styles.incomeRange}>{expectedIncome[0]}~{expectedIncome[1]}</Text>
                 </View>
                 <Text style={[styles.incomeBoxLabel, { marginTop: 4 }]}>
-                  Profit: {selectedLv.rateMin}% – {selectedLv.rateMax}%
+                  Profit: {selectedLevel.rateMin}% – {selectedLevel.rateMax}%
                 </Text>
               </View>
               <Text style={styles.openingTitle}>
@@ -361,7 +339,6 @@ export default function ReserveScreen() {
               <Text style={styles.revealTitle}>NFT Matched!</Text>
 
               <Image source={pendingNFT.imageSource} style={styles.revealImage} contentFit="cover" />
-
               <Text style={styles.revealName} numberOfLines={1}>{pendingNFT.name}</Text>
 
               <View style={styles.incomeBox}>
@@ -444,7 +421,7 @@ export default function ReserveScreen() {
             </Animated.View>
           )}
 
-          {/* Listed Successfully */}
+          {/* Listed */}
           {sellPhase === "listed" && (
             <Animated.View entering={FadeIn.duration(300)} style={styles.successCard}>
               <View style={styles.successCircle}>
@@ -465,17 +442,14 @@ export default function ReserveScreen() {
             </Animated.View>
           )}
 
-          {/* Profit Popup — show ONLY profit */}
+          {/* Profit popup */}
           {sellPhase === "profit" && activeSellNFT && (
             <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.modalCard}>
               <View style={styles.successCircle}>
                 <Feather name="trending-up" size={28} color="#fff" />
               </View>
-
               <Text style={styles.revealTitle}>Sale Complete!</Text>
-
               <Image source={activeSellNFT.imageSource} style={styles.revealImage} contentFit="cover" />
-
               <View style={[styles.incomeBox, { borderWidth: 2, borderColor: "#2BD9A8" }]}>
                 <Text style={styles.incomeBoxLabel}>Profit Received</Text>
                 <Text style={[styles.incomeRange, { color: "#2BD9A8", fontSize: 28, marginTop: 4 }]}>
@@ -483,7 +457,6 @@ export default function ReserveScreen() {
                 </Text>
                 <Text style={[styles.incomeBoxLabel, { marginTop: 2 }]}>USDT credited to balance</Text>
               </View>
-
               <Pressable onPress={handleProfitConfirm} style={styles.gradBtn}>
                 <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
                 <Text style={styles.gradBtnText}>Collect Profit</Text>
@@ -498,12 +471,12 @@ export default function ReserveScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 150 }}
-        onScrollBeginDrag={() => setLevelOpen(false)}
+        onScrollBeginDrag={() => { setLevelOpen(false); setAmountOpen(false); }}
       >
         <StickyGlassHeader />
         <View style={{ height: 20 }} />
 
-        {/* Stat Boxes */}
+        {/* ── 6 Stat Boxes ─────────────────────────────────────────────── */}
         <View style={styles.boxGrid}>
           {STAT_BOXES.map((box, i) => (
             <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor }]}>
@@ -513,14 +486,18 @@ export default function ReserveScreen() {
           ))}
         </View>
 
-        {/* Tabs Card */}
+        {/* ── Tabs Card ────────────────────────────────────────────────── */}
         <View style={styles.card}>
           <View style={styles.tabsRow}>
             {(["todays", "reserve", "collected"] as const).map((tab) => {
               const label = tab === "todays" ? "Today's" : tab === "reserve" ? "Reserve" : "Collected";
               const isActive = activeTab === tab;
               return (
-                <Pressable key={tab} onPress={() => { setActiveTab(tab); setLevelOpen(false); }} style={styles.tabBtn}>
+                <Pressable
+                  key={tab}
+                  onPress={() => { setActiveTab(tab); setLevelOpen(false); setAmountOpen(false); }}
+                  style={styles.tabBtn}
+                >
                   <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{label}</Text>
                   {isActive && <View style={styles.tabUnderline} />}
                 </Pressable>
@@ -540,109 +517,75 @@ export default function ReserveScreen() {
                 </View>
               )}
 
-              {/* Level selector button */}
-              <Pressable
-                style={styles.levelSelectorBtn}
-                onPress={() => setLevelOpen((o) => !o)}
-              >
-                <View style={styles.levelSelectorLeft}>
-                  <View style={[styles.lvChip, { backgroundColor: isLevelLocked ? "#ccc" : "#5CBFFE" }]}>
-                    <Text style={styles.lvChipText}>{selectedLv.label}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.lvPriceRange}>
-                      {fmtMoney(selectedLv.minPrice)} – {fmtMoney(selectedLv.maxPrice)} NFTs
-                    </Text>
-                    <Text style={styles.lvRateRange}>
-                      Profit: {selectedLv.rateMin}% – {selectedLv.rateMax}% daily
-                    </Text>
-                  </View>
-                </View>
-                {isLevelLocked
-                  ? <Feather name="lock" size={16} color="#ccc" />
-                  : <Feather name={levelOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
-                }
-              </Pressable>
+              {/* Two selector buttons side by side */}
+              <View style={styles.selectorsRow}>
+                {/* Level selector */}
+                <Pressable
+                  style={[styles.selectorBtn, { flex: 1 }]}
+                  onPress={() => { setLevelOpen((o) => !o); setAmountOpen(false); }}
+                >
+                  <Text style={styles.selectorLvLabel}>{selectedLevel.label}</Text>
+                  <Text style={styles.selectorRate}>{selectedLevel.rate}</Text>
+                  <Feather name={levelOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
+                </Pressable>
+
+                {/* Amount selector */}
+                <Pressable
+                  style={[styles.selectorBtn, { flex: 1 }]}
+                  onPress={() => { setAmountOpen((o) => !o); setLevelOpen(false); }}
+                >
+                  <View style={styles.tokenBadge}><Text style={styles.tokenBadgeText}>T</Text></View>
+                  <Text style={styles.selectorAmountText}>{selectedAmount.token}</Text>
+                  <Feather name={amountOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.textSecondary} />
+                </Pressable>
+              </View>
 
               {/* Level dropdown */}
               {levelOpen && (
-                <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.levelDropdown}>
-                  {LEVEL_CONFIG.map((lvl) => {
-                    const locked = lvl.lv > userLevel;
-                    const isSel  = lvl.lv === selectedLv.lv;
+                <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.inlineDropdown}>
+                  <View style={styles.dropdownHeader}>
+                    <Text style={styles.dropdownHdrLv}>LV</Text>
+                    <Text style={styles.dropdownHdrInc}>Income (%)</Text>
+                  </View>
+                  {LEVELS.map((lvl) => {
+                    const isSel = lvl.lv === selectedLevel.lv;
                     return (
                       <Pressable
                         key={lvl.lv}
-                        style={[styles.lvDropRow, isSel && styles.lvDropRowActive]}
-                        onPress={() => { setSelectedLv(lvl); setLevelOpen(false); setFetchError(null); }}
+                        style={[styles.dropdownRow, isSel && styles.dropdownRowActive]}
+                        onPress={() => { setSelectedLevel(lvl); setLevelOpen(false); setFetchError(null); }}
                       >
-                        <View style={[styles.lvChipSm, { backgroundColor: locked ? "#ddd" : isSel ? "#5CBFFE" : "#E0F4FF" }]}>
-                          <Text style={[styles.lvChipSmText, { color: locked ? "#aaa" : isSel ? "#fff" : "#5CBFFE" }]}>
-                            {lvl.label}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.lvDropPriceText, locked && { color: "#bbb" }]}>
-                            {fmtMoney(lvl.minPrice)} – {fmtMoney(lvl.maxPrice)}
-                          </Text>
-                          <Text style={[styles.lvDropRateText, locked && { color: "#ccc" }]}>
-                            {lvl.rateMin}% – {lvl.rateMax}% daily
-                          </Text>
-                        </View>
-                        {locked
-                          ? <Feather name="lock" size={14} color="#ccc" />
-                          : isSel && <Feather name="check" size={14} color="#5CBFFE" />
-                        }
+                        <Text style={[styles.dropdownLv, isSel && styles.dropdownLvActive]}>{lvl.label}</Text>
+                        <Text style={[styles.dropdownRate, isSel && styles.dropdownRateActive]}>{lvl.rate}</Text>
                       </Pressable>
                     );
                   })}
                 </Animated.View>
               )}
 
-              {/* Info card for selected level */}
-              <View style={styles.lvInfoCard}>
-                <View style={styles.lvInfoRow}>
-                  <Text style={styles.lvInfoLabel}>Price Range</Text>
-                  <Text style={styles.lvInfoValue}>
-                    {fmtMoney(selectedLv.minPrice)} – {fmtMoney(selectedLv.maxPrice)}
-                  </Text>
-                </View>
-                <View style={styles.lvInfoRow}>
-                  <Text style={styles.lvInfoLabel}>Daily Profit Rate</Text>
-                  <Text style={styles.lvInfoValue}>{selectedLv.rateMin}% – {selectedLv.rateMax}%</Text>
-                </View>
-                <View style={styles.lvInfoRow}>
-                  <Text style={styles.lvInfoLabel}>Est. Profit Range</Text>
-                  <Text style={[styles.lvInfoValue, { color: "#2BD9A8" }]}>
-                    ${profitRange[0].toFixed(2)} – ${profitRange[1].toFixed(2)}
-                  </Text>
-                </View>
-                <View style={[styles.lvInfoRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.lvInfoLabel}>Unlock</Text>
-                  <Text style={styles.lvInfoValue}>{selectedLv.unlockLabel}</Text>
-                </View>
-              </View>
-
-              {/* Balance check */}
-              {balance < selectedLv.minPrice && (
-                <View style={styles.warnBanner}>
-                  <Feather name="alert-triangle" size={14} color="#FF8C00" />
-                  <Text style={styles.warnText}>
-                    Balance (${balance.toFixed(0)}) is below minimum price ({fmtMoney(selectedLv.minPrice)})
-                  </Text>
-                </View>
+              {/* Amount dropdown */}
+              {amountOpen && (
+                <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)} style={styles.inlineDropdown}>
+                  {AMOUNTS.map((amt) => {
+                    const isSel = amt.token === selectedAmount.token;
+                    return (
+                      <Pressable
+                        key={amt.token}
+                        style={[styles.dropdownRow, isSel && styles.dropdownRowActive]}
+                        onPress={() => { setSelectedAmount(amt); setAmountOpen(false); }}
+                      >
+                        <View style={styles.tokenBadgeSm}><Text style={styles.tokenBadgeSmText}>T</Text></View>
+                        <Text style={[styles.dropdownAmtText, isSel && styles.dropdownRateActive]}>{amt.token}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </Animated.View>
               )}
 
               {/* Reserve button */}
-              <Pressable
-                onPress={handleReserve}
-                disabled={isLevelLocked}
-                style={[styles.gradBtn, isLevelLocked && { opacity: 0.35 }]}
-              >
+              <Pressable onPress={handleReserve} style={styles.gradBtn}>
                 <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
-                <Text style={styles.gradBtnText}>
-                  {isLevelLocked ? `Locked — ${selectedLv.unlockLabel}` : "Reserve NFT"}
-                </Text>
+                <Text style={styles.gradBtnText}>Reserve NFT</Text>
               </Pressable>
 
             </View>
@@ -669,14 +612,12 @@ export default function ReserveScreen() {
                       <Image source={nft.imageSource} style={styles.collectedImage} contentFit="cover" />
                       <Text style={styles.collectedName} numberOfLines={1}>{nft.name}</Text>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
-                        <View style={styles.lvChipTiny}>
-                          <Text style={styles.lvChipTinyText}>Lv{nft.level}</Text>
-                        </View>
-                        <Text style={styles.collectedPrice}>${nft.price.toFixed(2)}</Text>
+                        <View style={styles.tBadgeSm}><Text style={styles.tBadgeSmText}>T</Text></View>
+                        <Text style={styles.collectedPrice}>{nft.price.toFixed(2)}</Text>
                       </View>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
                         <Feather name="trending-up" size={12} color="#2BD9A8" />
-                        <Text style={styles.collectedProfit}>+${nft.profit.toFixed(4)}</Text>
+                        <Text style={styles.collectedProfit}>+{nft.profit.toFixed(4)}</Text>
                       </View>
                       {!nft.sold ? (
                         <Pressable onPress={() => handleSell(nft)} style={[styles.gradBtn, { marginTop: 10, paddingVertical: 10 }]}>
@@ -718,7 +659,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 28,
     alignItems: "center",
-    gap: 14,
+    gap: 16,
   },
 
   sellCard: {
@@ -770,7 +711,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignItems: "center",
   },
-  incomeBoxLabel: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
+  incomeBoxLabel: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
   incomeRange: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#5CBFFE" },
   openingTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
   matchingSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
@@ -802,7 +743,7 @@ const styles = StyleSheet.create({
   },
   gradBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff", zIndex: 1 },
 
-  // Stat boxes
+  // ── 6 Stat boxes ──────────────────────────────────────────────────────────
   boxGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 14, gap: 10, marginBottom: 16 },
   statBox: {
     width: (width - 48) / 3,
@@ -821,6 +762,7 @@ const styles = StyleSheet.create({
   boxLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: Colors.textMuted, lineHeight: 13 },
   boxValue: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary, marginTop: 4 },
 
+  // ── Tabs card ──────────────────────────────────────────────────────────────
   card: {
     marginHorizontal: 14,
     paddingBottom: 20,
@@ -831,9 +773,8 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
-    minHeight: height * 0.62,
+    minHeight: height * 0.55,
   },
-
   tabsRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: Colors.border, paddingHorizontal: 16 },
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 14, position: "relative" },
   tabText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textMuted },
@@ -843,29 +784,29 @@ const styles = StyleSheet.create({
   reserveBody: { padding: 16, gap: 14 },
   listBody:    { padding: 16 },
 
-  // Level selector
-  levelSelectorBtn: {
+  // ── Two selectors ──────────────────────────────────────────────────────────
+  selectorsRow: { flexDirection: "row", gap: 10 },
+  selectorBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: Colors.white,
-    borderRadius: 14,
+    gap: 6,
+    backgroundColor: Colors.offWhite,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-  levelSelectorLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  lvChip: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, minWidth: 50, alignItems: "center" },
-  lvChipText: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#fff" },
-  lvPriceRange: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
-  lvRateRange: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#5CBFFE", marginTop: 2 },
+  selectorLvLabel: { fontSize: 15, fontFamily: "Inter_700Bold", color: Colors.textPrimary, flex: 1 },
+  selectorRate: { fontSize: 11, fontFamily: "Inter_400Regular", color: "#5CBFFE" },
+  tokenBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
+  tokenBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#fff" },
+  selectorAmountText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, flex: 1 },
 
-  // Level dropdown
-  levelDropdown: {
+  // ── Inline dropdowns ───────────────────────────────────────────────────────
+  inlineDropdown: {
     backgroundColor: Colors.white,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: "#000",
@@ -875,31 +816,29 @@ const styles = StyleSheet.create({
     elevation: 4,
     overflow: "hidden",
   },
-  lvDropRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, gap: 12 },
-  lvDropRowActive: { backgroundColor: "#F0F9FF" },
-  lvChipSm: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, minWidth: 44, alignItems: "center" },
-  lvChipSmText: { fontSize: 12, fontFamily: "Inter_700Bold" },
-  lvDropPriceText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
-  lvDropRateText: { fontSize: 11, fontFamily: "Inter_400Regular", color: "#5CBFFE", marginTop: 1 },
-
-  // Level info card
-  lvInfoCard: {
-    backgroundColor: Colors.offWhite,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  lvInfoRow: {
+  dropdownHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: Colors.offWhite,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  lvInfoLabel: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted },
-  lvInfoValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  dropdownHdrLv: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textMuted },
+  dropdownHdrInc: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: Colors.textMuted },
+  dropdownRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
+  dropdownRowActive: { backgroundColor: "#F0F9FF" },
+  dropdownLv: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
+  dropdownLvActive: { color: "#5CBFFE", fontFamily: "Inter_700Bold" },
+  dropdownRate: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  dropdownRateActive: { color: "#5CBFFE", fontFamily: "Inter_600SemiBold" },
+  dropdownAmtText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary, flex: 1, marginLeft: 8 },
 
-  // Banners
+  tokenBadgeSm: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
+  tokenBadgeSmText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
+
+  // ── Banners ────────────────────────────────────────────────────────────────
   errorBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -910,22 +849,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   errorText: { fontSize: 13, fontFamily: "Inter_400Regular", color: "#FF6B6B", flex: 1 },
-  warnBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#FFF8EC",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  warnText: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#FF8C00", flex: 1 },
 
+  // ── Empty state ────────────────────────────────────────────────────────────
   emptyBox: { alignItems: "center", gap: 10, paddingVertical: 40 },
   emptyTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
   emptySub: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textMuted, textAlign: "center" },
 
-  // Collected grid
+  // ── Collected grid ─────────────────────────────────────────────────────────
   collectedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   collectedCard: {
     width: (width - 56) / 2,
@@ -946,6 +876,6 @@ const styles = StyleSheet.create({
   soldBadge: { marginTop: 10, backgroundColor: "#F0FFF4", borderRadius: 10, paddingVertical: 8, alignItems: "center" },
   soldText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#00C853" },
 
-  lvChipTiny: { backgroundColor: "#E0F4FF", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
-  lvChipTinyText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#5CBFFE" },
+  tBadgeSm: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
+  tBadgeSmText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
 });
