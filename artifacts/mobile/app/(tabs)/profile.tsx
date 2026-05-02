@@ -1,5 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -62,6 +64,9 @@ export default function ProfileScreen() {
   const [teamRewardToday, setTeamRewardToday] = useState(0);
   const [teamRewardByLine, setTeamRewardByLine] = useState({ A: 0, B: 0, C: 0 });
 
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
+  const [bannerImageUri, setBannerImageUri] = useState<string | null>(null);
+
   const processingOrders = orders.filter((o) => o.status === "processing");
   const boughtOrders = orders.filter((o) => o.status === "bought");
   const soldOrders = orders.filter((o) => o.status === "sold");
@@ -105,7 +110,41 @@ export default function ProfileScreen() {
         })
         .catch(() => {});
     }
+    AsyncStorage.getItem("apex_profile_image").then((v) => v && setProfileImageUri(v)).catch(() => {});
+    AsyncStorage.getItem("apex_banner_image").then((v) => v && setBannerImageUri(v)).catch(() => {});
   }, [token]);
+
+  const pickProfileImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const uri = result.assets[0].uri;
+      setProfileImageUri(uri);
+      AsyncStorage.setItem("apex_profile_image", uri).catch(() => {});
+    }
+  };
+
+  const pickBannerImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const uri = result.assets[0].uri;
+      setBannerImageUri(uri);
+      AsyncStorage.setItem("apex_banner_image", uri).catch(() => {});
+    }
+  };
+
+  const initials = user?.username
+    ? user.username.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+    : "JD";
 
   const openChangePw = () => {
     setCpStep("verify"); setCpEmailCode(""); setCp2FACode("");
@@ -182,26 +221,30 @@ export default function ProfileScreen() {
 
         {/* ── Profile Header ── */}
         <Animated.View entering={FadeInDown.duration(350)} style={styles.profileHeader}>
-          <LinearGradient
-            colors={["#D0F0FF", "#E6F8FF", "#F8F0FF"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
+          {bannerImageUri
+            ? <Image source={{ uri: bannerImageUri }} style={[StyleSheet.absoluteFill, { borderRadius: 20 }]} contentFit="cover" />
+            : <LinearGradient colors={["#D0F0FF", "#E6F8FF", "#F8F0FF"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          }
+          <Pressable style={styles.bannerEditBtn} onPress={pickBannerImage}>
+            <Feather name="camera" size={13} color="#fff" />
+          </Pressable>
 
           <View style={styles.profileTopRow}>
-            <View style={styles.avatarWrap}>
-              <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarGrad}>
-                <Text style={styles.avatarInitials}>JD</Text>
-              </LinearGradient>
+            <Pressable style={styles.avatarWrap} onPress={pickProfileImage}>
+              {profileImageUri
+                ? <Image source={{ uri: profileImageUri }} style={styles.avatarGrad} contentFit="cover" />
+                : <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarGrad}>
+                    <Text style={styles.avatarInitials}>{initials}</Text>
+                  </LinearGradient>
+              }
               <View style={styles.avatarVerify}>
                 <Feather name="check" size={8} color="#fff" />
               </View>
-            </View>
+            </Pressable>
 
             <View style={{ flex: 1, gap: 6 }}>
               <View style={styles.nameRow}>
-                <Text style={styles.nameHidden}>{user?.name ?? "James Doe"}</Text>
+                <Text style={styles.nameHidden}>{user?.username ?? "James Doe"}</Text>
                 {activeBadgeTick && (
                   <View style={{ marginLeft: 5 }}>
                     {activeBadgeTick.imageSource ? (
@@ -411,12 +454,17 @@ export default function ProfileScreen() {
             <View style={stScreen.profileCard}>
               <LinearGradient colors={["#D0F0FF", "#E6F8FF", "#F8F0FF"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={20} />
               <View style={stScreen.profileRow}>
-                <View style={stScreen.avatarRing}>
-                  <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={32} />
-                  <Feather name="user" size={28} color="#fff" />
-                </View>
+                <Pressable style={stScreen.avatarRing} onPress={pickProfileImage}>
+                  {profileImageUri
+                    ? <Image source={{ uri: profileImageUri }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+                    : <>
+                        <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={32} />
+                        <Feather name="user" size={28} color="#fff" />
+                      </>
+                  }
+                </Pressable>
                 <View style={stScreen.profileInfo}>
-                  <Text style={stScreen.profileName}>— —</Text>
+                  <Text style={stScreen.profileName}>{user?.username ?? "— —"}</Text>
                   <Text style={stScreen.profilePoints}>Points : — —</Text>
                 </View>
               </View>
@@ -492,10 +540,15 @@ export default function ProfileScreen() {
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={stScreen.userSettingsContent}>
 
             {/* Avatar */}
-            <View style={stScreen.uiAvatarWrap}>
-              <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={44} />
-              <Feather name="user" size={38} color="#fff" />
-            </View>
+            <Pressable style={stScreen.uiAvatarWrap} onPress={pickProfileImage}>
+              {profileImageUri
+                ? <Image source={{ uri: profileImageUri }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+                : <>
+                    <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={44} />
+                    <Feather name="user" size={38} color="#fff" />
+                  </>
+              }
+            </Pressable>
 
             {[
               { label: "Full Name",   value: user?.username ?? "— —" },
@@ -936,6 +989,14 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   profileTopRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+
+  bannerEditBtn: {
+    position: "absolute", top: 10, right: 10,
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: "rgba(0,0,0,0.40)",
+    alignItems: "center", justifyContent: "center",
+    zIndex: 10,
+  },
 
   avatarWrap: { position: "relative" },
   avatarGrad: {
