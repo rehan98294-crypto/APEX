@@ -13,6 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -72,16 +73,18 @@ const FREE_ZONES: ZoneConfig[] = [
 ];
 
 const EXCLUSIVE_ZONES: ZoneConfig[] = [
-  { id: 1, title: "Exclusive Stake 1", levelRange: "LV2-LV3", image: require("@/assets/stake/ex1.png"), status: "Open", priceRange: "499 ~ 999",     priceMin: 499,   priceMax: 999,   income: "1.5%", apr: 1.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2, nftLevel: 2 },
-  { id: 2, title: "Exclusive Stake 2", levelRange: "LV2-LV3", image: require("@/assets/stake/ex2.png"), status: "Open", priceRange: "999 ~ 1,999",   priceMin: 999,   priceMax: 1999,  income: "1.8%", apr: 1.8, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2, nftLevel: 3 },
-  { id: 3, title: "Exclusive Stake 3", levelRange: "LV3-LV4", image: require("@/assets/stake/ex3.png"), status: "Open", priceRange: "1,999 ~ 4,999", priceMin: 1999,  priceMax: 4999,  income: "2.0%", apr: 2.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3, nftLevel: 4 },
-  { id: 4, title: "Exclusive Stake 4", levelRange: "LV3-LV4", image: require("@/assets/stake/ex4.png"), status: "Open", priceRange: "4,999 ~ 7,999", priceMin: 4999,  priceMax: 7999,  income: "2.5%", apr: 2.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3, nftLevel: 5 },
-  { id: 5, title: "Exclusive Stake 5", levelRange: "LV4-LV5", image: require("@/assets/stake/ex5.png"), status: "Open", priceRange: "7,999 ~ 12,999",priceMin: 7999,  priceMax: 12999, income: "3.0%", apr: 3.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 4, nftLevel: 6 },
-  { id: 6, title: "Exclusive Stake 6", levelRange: "LV5-LV6", image: require("@/assets/stake/ex6.png"), status: "Open", priceRange: "12,999 ~ 19,999",priceMin: 12999, priceMax: 19999, income: "3.5%", apr: 3.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 5, nftLevel: 6 },
+  { id: 1, title: "Exclusive Stake 1", levelRange: "LV2-LV3", image: require("@/assets/stake/ex1.png"), status: "Open", priceRange: "499 ~ 999",     priceMin: 499,   priceMax: 999,   income: "1.5%", apr: 1.5, type: "exclusive", handlingFee: "1%", stakableDays: "3~30", active: true, minSubLevel: 2, nftLevel: 2 },
+  { id: 2, title: "Exclusive Stake 2", levelRange: "LV2-LV3", image: require("@/assets/stake/ex2.png"), status: "Open", priceRange: "999 ~ 1,999",   priceMin: 999,   priceMax: 1999,  income: "1.8%", apr: 1.8, type: "exclusive", handlingFee: "1%", stakableDays: "3~30", active: true, minSubLevel: 2, nftLevel: 3 },
+  { id: 3, title: "Exclusive Stake 3", levelRange: "LV3-LV4", image: require("@/assets/stake/ex3.png"), status: "Open", priceRange: "1,999 ~ 4,999", priceMin: 1999,  priceMax: 4999,  income: "2.0%", apr: 2.0, type: "exclusive", handlingFee: "1%", stakableDays: "3~30", active: true, minSubLevel: 3, nftLevel: 4 },
+  { id: 4, title: "Exclusive Stake 4", levelRange: "LV3-LV4", image: require("@/assets/stake/ex4.png"), status: "Open", priceRange: "4,999 ~ 7,999", priceMin: 4999,  priceMax: 7999,  income: "2.5%", apr: 2.5, type: "exclusive", handlingFee: "1%", stakableDays: "3~30", active: true, minSubLevel: 3, nftLevel: 5 },
+  { id: 5, title: "Exclusive Stake 5", levelRange: "LV4-LV5", image: require("@/assets/stake/ex5.png"), status: "Open", priceRange: "7,999 ~ 12,999",priceMin: 7999,  priceMax: 12999, income: "3.0%", apr: 3.0, type: "exclusive", handlingFee: "1%", stakableDays: "3~30", active: true, minSubLevel: 4, nftLevel: 6 },
+  { id: 6, title: "Exclusive Stake 6", levelRange: "LV5-LV6", image: require("@/assets/stake/ex6.png"), status: "Open", priceRange: "12,999 ~ 19,999",priceMin: 12999, priceMax: 19999, income: "3.5%", apr: 3.5, type: "exclusive", handlingFee: "1%", stakableDays: "3~30", active: true, minSubLevel: 5, nftLevel: 6 },
 ];
 
 const CATEGORY_TABS = ["Stake", "Polygon NFT", "Art", "Collection", "Game"];
-const TIME_OPTIONS: (10 | 20 | 30)[] = [10, 20, 30];
+const QUICK_DAYS = [3, 7, 14, 30];
+const MIN_DAYS = 3;
+const MAX_DAYS = 30;
 
 interface NFTRecord { name: string; image_url: string; level: number }
 
@@ -136,8 +139,8 @@ export default function StakeScreen() {
 
   // Stake modal flow
   const [stakeModalNFT, setStakeModalNFT] = useState<OwnedNFT | null>(null);
-  const [stakeTimeOption, setStakeTimeOption] = useState<10 | 20 | 30>(10);
-  const [showTimeDropdown, setShowTimeDropdown] = useState(false);
+  const [stakeDays, setStakeDays] = useState<number>(3);
+  const [stakeDaysInput, setStakeDaysInput] = useState<string>("3");
   const [stakeSuccess, setStakeSuccess] = useState(false);
 
   // Sell flow
@@ -226,7 +229,7 @@ export default function StakeScreen() {
     );
     if (!real) return;
     // 1. Update local context (instant UI feedback)
-    stakeNFT(real.id, stakeTimeOption);
+    stakeNFT(real.id, stakeDays * 30);
     setStakeModalNFT(null);
     setStakeSuccess(true);
     // 2. Persist to backend (non-blocking)
@@ -368,7 +371,7 @@ export default function StakeScreen() {
                           <Text style={styles.zoneInfoValue}>{zone.income}</Text>
                         )}
                       </View>
-                      {zone.type === "free" && <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Stakable Days:</Text><Text style={styles.zoneInfoValue}>{zone.stakableDays}</Text></View>}
+                      {zone.stakableDays && <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Stakable Days:</Text><Text style={styles.zoneInfoValue}>{zone.stakableDays}</Text></View>}
                       {zone.type === "exclusive" && <View style={styles.zoneInfoRow}><Text style={styles.zoneInfoLabel}>Handling fee:</Text><Text style={styles.zoneInfoValue}>{zone.handlingFee}</Text></View>}
                     </View>
                     <Pressable
@@ -471,7 +474,7 @@ export default function StakeScreen() {
                     </View>
                     <Text style={styles.collectionZone}>{nft.zoneTitle} · APR {nft.apr}%</Text>
                     <View style={styles.collectionBtns}>
-                      <Pressable style={styles.collStakeBtn} onPress={() => setStakeModalNFT(nft)}>
+                      <Pressable style={styles.collStakeBtn} onPress={() => { setStakeDays(3); setStakeDaysInput("3"); setStakeModalNFT(nft); }}>
                         <Text style={styles.collStakeBtnText}>Stake</Text>
                       </Pressable>
                       <Pressable style={styles.collSellBtn} onPress={() => handleSell(nft)}>
@@ -565,7 +568,7 @@ export default function StakeScreen() {
                         <Text style={styles.myStakeName} numberOfLines={1}>{stake.name}</Text>
                         <View style={styles.myStakeRow}><Text style={styles.myStakeLabel}>Stake Value</Text><Text style={styles.myStakeValueGreen}>{stake.price.toLocaleString()} TFT</Text></View>
                         <View style={styles.myStakeRow}><Text style={styles.myStakeLabel}>APR</Text><Text style={styles.myStakeBold}>{stake.apr}%</Text></View>
-                        <View style={styles.myStakeRow}><Text style={styles.myStakeLabel}>Duration</Text><Text style={styles.myStakeBold}>{stake.durationMinutes} min</Text></View>
+                        <View style={styles.myStakeRow}><Text style={styles.myStakeLabel}>Duration</Text><Text style={styles.myStakeBold}>{Math.round(stake.durationMinutes / 30)} days</Text></View>
                       </View>
                     </View>
                     <View style={styles.myStakeRow}>
@@ -611,7 +614,7 @@ export default function StakeScreen() {
             </View>
             <Text style={styles.successTitle}>BuySuccess!</Text>
             <View style={styles.successBtnRow}>
-              <Pressable style={styles.successBtnOutline} onPress={() => { setStakeModalNFT(buySuccessNFT); setBuySuccessNFT(null); }}>
+              <Pressable style={styles.successBtnOutline} onPress={() => { setStakeDays(3); setStakeDaysInput("3"); setStakeModalNFT(buySuccessNFT); setBuySuccessNFT(null); }}>
                 <Text style={styles.successBtnOutlineText}>Stake</Text>
               </Pressable>
               <Pressable style={styles.successBtnGrad} onPress={() => { setBuySuccessNFT(null); setMainTab("collection"); }}>
@@ -643,29 +646,66 @@ export default function StakeScreen() {
                   <View style={styles.tIcon}><Text style={styles.tIconText}>T</Text></View>
                 </View>
                 <View style={styles.stakeModalDivider} />
-                {/* Time selector */}
-                <View style={styles.stakeModalRow}>
-                  <Text style={styles.stakeModalLabel}>Stakable Time:</Text>
-                  <Pressable style={styles.dropdownBtn} onPress={() => setShowTimeDropdown(!showTimeDropdown)}>
-                    <Text style={styles.dropdownText}>{stakeTimeOption} min</Text>
-                    <Feather name="chevron-down" size={14} color={Colors.textSecondary} />
-                  </Pressable>
-                </View>
-                {showTimeDropdown && (
-                  <View style={styles.dropdown}>
-                    {TIME_OPTIONS.map((t) => (
-                      <Pressable key={t} style={styles.dropdownItem} onPress={() => { setStakeTimeOption(t); setShowTimeDropdown(false); }}>
-                        <Text style={[styles.dropdownItemText, stakeTimeOption === t && { color: "#5CBFFE", fontFamily: "Inter_700Bold" }]}>{t} min</Text>
+
+                {/* ── Days selector card ── */}
+                <View style={styles.daysCard}>
+                  <View style={styles.daysCardHeader}>
+                    <Feather name="calendar" size={15} color="#5CBFFE" />
+                    <Text style={styles.daysCardTitle}>Staking Duration</Text>
+                    <Text style={styles.daysCardRange}>(3 – 30 days)</Text>
+                  </View>
+
+                  {/* Quick preset buttons */}
+                  <View style={styles.daysPresetRow}>
+                    {QUICK_DAYS.map((d) => (
+                      <Pressable
+                        key={d}
+                        style={[styles.daysPresetBtn, stakeDays === d && styles.daysPresetBtnActive]}
+                        onPress={() => { setStakeDays(d); setStakeDaysInput(String(d)); }}
+                      >
+                        {stakeDays === d && (
+                          <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={10} />
+                        )}
+                        <Text style={[styles.daysPresetText, stakeDays === d && styles.daysPresetTextActive]}>
+                          {d}d
+                        </Text>
                       </Pressable>
                     ))}
                   </View>
-                )}
+
+                  {/* Manual input */}
+                  <View style={styles.daysInputRow}>
+                    <Text style={styles.daysInputLabel}>Custom days:</Text>
+                    <TextInput
+                      style={styles.daysInput}
+                      keyboardType="number-pad"
+                      value={stakeDaysInput}
+                      maxLength={2}
+                      onChangeText={(v) => {
+                        setStakeDaysInput(v);
+                        const n = parseInt(v, 10);
+                        if (!isNaN(n) && n >= MIN_DAYS && n <= MAX_DAYS) setStakeDays(n);
+                      }}
+                      onBlur={() => {
+                        const n = parseInt(stakeDaysInput, 10);
+                        const clamped = isNaN(n) ? MIN_DAYS : Math.min(MAX_DAYS, Math.max(MIN_DAYS, n));
+                        setStakeDays(clamped);
+                        setStakeDaysInput(String(clamped));
+                      }}
+                      placeholder="3-30"
+                      placeholderTextColor="#9CA3AF"
+                      selectTextOnFocus
+                    />
+                    <Text style={styles.daysInputSuffix}>days</Text>
+                  </View>
+                </View>
+
                 <View style={styles.stakeModalRow}><Text style={styles.stakeModalLabel}>APR:</Text><Text style={styles.stakeModalValue}>{stakeModalNFT.apr}%</Text></View>
-                <View style={styles.stakeModalRow}><Text style={styles.stakeModalLabel}>Duration:</Text><Text style={styles.stakeModalValue}>{stakeTimeOption} min</Text></View>
+                <View style={styles.stakeModalRow}><Text style={styles.stakeModalLabel}>Duration:</Text><Text style={styles.stakeModalValue}>{stakeDays} days</Text></View>
                 <View style={styles.stakeModalRow}>
                   <Text style={styles.stakeModalLabel}>Est. Income:</Text>
                   <Text style={[styles.stakeModalValue, { color: "#2BD9A8" }]}>
-                    {((stakeModalNFT.price * stakeModalNFT.apr / 100) * (stakeTimeOption / 30)).toFixed(4)} TFT
+                    {((stakeModalNFT.price * stakeModalNFT.apr / 100) * stakeDays).toFixed(4)} TFT
                   </Text>
                 </View>
                 <Pressable style={styles.stakeBtn} onPress={handleConfirmStake}>
@@ -968,11 +1008,30 @@ const styles = StyleSheet.create({
   stakeModalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   stakeModalLabel: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
   stakeModalValue: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
-  dropdownBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.offWhite, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  dropdownText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
-  dropdown: { backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: Colors.border, overflow: "hidden" },
-  dropdownItem: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  dropdownItemText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
+  daysCard: {
+    backgroundColor: Colors.offWhite, borderRadius: 14,
+    padding: 14, gap: 12, borderWidth: 1, borderColor: Colors.border,
+  },
+  daysCardHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  daysCardTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary, flex: 1 },
+  daysCardRange: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  daysPresetRow: { flexDirection: "row", gap: 8 },
+  daysPresetBtn: {
+    flex: 1, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center",
+    backgroundColor: "#fff", borderWidth: 1, borderColor: Colors.border, overflow: "hidden",
+    position: "relative",
+  },
+  daysPresetBtnActive: { borderColor: "transparent" },
+  daysPresetText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
+  daysPresetTextActive: { color: "#fff" },
+  daysInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  daysInputLabel: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
+  daysInput: {
+    flex: 1, height: 40, borderRadius: 10, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: "#fff", paddingHorizontal: 12, textAlign: "center",
+    fontSize: 16, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary,
+  },
+  daysInputSuffix: { fontSize: 13, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
   detailsSectionTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
   redemptionIncomeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   redemptionLabel: { fontSize: 15, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
