@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from "express";
+import bcrypt from "bcryptjs";
 import {
   sendOtp,
   verifyOtp,
@@ -15,6 +16,7 @@ import {
   disable2FA,
   get2FAStatus,
 } from "../services/totp.service.js";
+import supabase from "../lib/supabase.js";
 
 const router = Router();
 
@@ -194,6 +196,85 @@ router.post("/auth/2fa/disable", requireAuth, async (req, res) => {
     return res.json({ success: true });
   } catch (err) {
     return res.status(400).json({ error: err instanceof Error ? err.message : "Failed to disable 2FA." });
+  }
+});
+
+// ── POST /api/auth/change-password ────────────────────────────────────────────
+router.post("/auth/change-password", requireAuth, async (req, res) => {
+  try {
+    const userId    = (req as any).userId  as string;
+    const userEmail = (req as any).userEmail as string;
+    const { oldPassword, newPassword, confirmPassword, emailCode, twoFaCode } =
+      req.body as {
+        oldPassword?: string; newPassword?: string; confirmPassword?: string;
+        emailCode?: string;   twoFaCode?: string;
+      };
+
+    if (!oldPassword || !newPassword || !confirmPassword || !emailCode) {
+      return res.status(400).json({ error: "All fields are required." });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match." });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters." });
+    }
+
+    // Verify email OTP
+    const otpValid = await verifyOtp(userEmail, emailCode);
+    if (!otpValid) return res.status(400).json({ error: "Invalid or expired email code." });
+
+    // Fetch user and verify old password
+    const { data: userData, error: userErr } = await supabase
+      .from("users")
+      .select("password_hash, twofa_enabled, twofa_secret")
+      .eq("id", userId)
+      .single();
+
+    if (userErr || !userData) return res.status(404).json({ error: "User not found." });
+
+    const match = await bcrypt.compare(oldPassword, (userData as any).password_hash);
+    if (!match) return res.status(400).json({ error: "Current password is incorrect." });
+
+    // Verify 2FA if enabled
+    if ((userData as any).twofa_enabled) {
+      if (!twoFaCode || twoFaCode.length !== 6) {
+        return res.status(400).json({ error: "2FA code is required." });
+      }
+      await verify2FA(userId, twoFaCode);
+    }
+
+    // Update password
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await supabase.from("users").update({ password_hash: passwordHash }).eq("id", userId);
+
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(400).json({ error: err instanceof Error ? err.message : "Failed to change password." });
+  }
+});
+
+// ── DELETE /api/auth/delete-account ───────────────────────────────────────────
+router.delete("/auth/delete-account", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).userId as string;
+
+    // Delete related data first (foreign key order)
+    await supabase.from("deposits").delete().eq("user_id", userId);
+    await supabase.from("stakes").delete().eq("user_id", userId);
+
+    const { data: userRow } = await supabase
+      .from("users").select("email").eq("id", userId).single();
+    if (userRow) {
+      await supabase.from("otps").delete().eq("email", (userRow as any).email);
+    }
+
+    const { error } = await supabase.from("users").delete().eq("id", userId);
+    if (error) return res.status(500).json({ error: "Failed to delete account." });
+
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: err instanceof Error ? err.message : "Deletion failed." });
   }
 });
 

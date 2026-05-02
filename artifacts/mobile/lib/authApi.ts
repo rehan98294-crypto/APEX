@@ -90,6 +90,24 @@ export const authApi = {
       request<{ success: boolean }>("/auth/2fa/disable", { password, token: code }, token),
   },
 
+  // ── Account management ────────────────────────────────────────────────────
+  changePassword: (
+    token: string,
+    params: { oldPassword: string; newPassword: string; confirmPassword: string; emailCode: string; twoFaCode?: string }
+  ) => request<{ success: boolean }>("/auth/change-password", params, token),
+
+  deleteAccount: (token: string) => {
+    const url = `${API_BASE}/auth/delete-account`;
+    return fetch(url, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (r) => {
+      const j = await r.json() as { error?: string; success?: boolean };
+      if (!r.ok) throw new Error(j.error ?? "Deletion failed");
+      return j as { success: boolean };
+    });
+  },
+
   // ── Deposit ───────────────────────────────────────────────────────────────
   deposit: {
     create: (

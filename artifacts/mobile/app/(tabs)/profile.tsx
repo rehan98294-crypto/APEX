@@ -2,10 +2,12 @@ import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Image as RNImage,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -13,9 +15,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
@@ -23,6 +26,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { useOrders } from "@/context/OrderContext";
 import { useTick } from "@/context/TickContext";
+import { authApi } from "@/lib/authApi";
 
 const { width } = Dimensions.get("window");
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
@@ -63,6 +67,86 @@ export default function ProfileScreen() {
   const [uidVisible, setUidVisible] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [userSettingsOpen, setUserSettingsOpen] = useState(false);
+  const [changePwOpen, setChangePwOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [has2FA, setHas2FA] = useState(false);
+
+  // Change password state
+  const [cpStep, setCpStep] = useState<"verify" | "password">("verify");
+  const [cpEmailCode, setCpEmailCode] = useState("");
+  const [cp2FACode, setCp2FACode] = useState("");
+  const [cpOldPw, setCpOldPw] = useState("");
+  const [cpNewPw, setCpNewPw] = useState("");
+  const [cpConfirmPw, setCpConfirmPw] = useState("");
+  const [cpSending, setCpSending] = useState(false);
+  const [cpLoading, setCpLoading] = useState(false);
+  const [cpError, setCpError] = useState<string | null>(null);
+  const [cpSuccess, setCpSuccess] = useState(false);
+  const [cpCodeSent, setCpCodeSent] = useState(false);
+  const [showOldPw, setShowOldPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+
+  // Delete account state
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (token) {
+      authApi.twofa.getStatus(token)
+        .then((s) => setHas2FA(s.enabled))
+        .catch(() => {});
+    }
+  }, [token]);
+
+  const openChangePw = () => {
+    setCpStep("verify"); setCpEmailCode(""); setCp2FACode("");
+    setCpOldPw(""); setCpNewPw(""); setCpConfirmPw("");
+    setCpError(null); setCpSuccess(false); setCpCodeSent(false);
+    setCpLoading(false); setCpSending(false);
+    setChangePwOpen(true);
+  };
+
+  const sendCpCode = async () => {
+    if (!user?.email) return;
+    setCpSending(true); setCpError(null);
+    try {
+      await authApi.sendCode(user.email, "verify");
+      setCpCodeSent(true);
+    } catch (e: any) { setCpError(e.message ?? "Failed to send code"); }
+    finally { setCpSending(false); }
+  };
+
+  const handleChangePassword = async () => {
+    if (!token || !user?.email) return;
+    setCpLoading(true); setCpError(null);
+    try {
+      await authApi.changePassword(token, {
+        oldPassword: cpOldPw,
+        newPassword: cpNewPw,
+        confirmPassword: cpConfirmPw,
+        emailCode: cpEmailCode,
+        twoFaCode: has2FA ? cp2FACode : undefined,
+      });
+      setCpSuccess(true);
+    } catch (e: any) { setCpError(e.message ?? "Failed to change password"); }
+    finally { setCpLoading(false); }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!token) return;
+    setDeleting(true); setDeleteError(null);
+    try {
+      await authApi.deleteAccount(token);
+      setDeleteConfirmOpen(false);
+      setSettingsOpen(false);
+      await signOut();
+      router.replace("/auth/login");
+    } catch (e: any) {
+      setDeleteError(e.message ?? "Deletion failed");
+      setDeleting(false);
+    }
+  };
 
   const INCOME_ROWS = [
     { label: "Comprehensive", daily: "0.0", total: earnedTotal.toFixed(2), star: false },
@@ -298,7 +382,12 @@ export default function ProfileScreen() {
       {/* ── Settings Modal ── */}
       <Modal visible={settingsOpen} animationType="slide" presentationStyle="fullScreen">
         <SafeAreaView style={stScreen.root}>
-          <StickyGlassHeader showBalance={false} showMenu={false} />
+          <View style={stScreen.modalTopBar}>
+            <Text style={stScreen.modalTopTitle}>Settings</Text>
+            <Pressable style={stScreen.xBtn} onPress={() => setSettingsOpen(false)}>
+              <Feather name="x" size={20} color={Colors.textSecondary} />
+            </Pressable>
+          </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
             {/* Profile mini-header */}
             <View style={stScreen.profileCard}>
@@ -337,7 +426,7 @@ export default function ProfileScreen() {
 
             {/* Change Password + Line Settings */}
             <View style={stScreen.listCard}>
-              <Pressable style={stScreen.listRow}>
+              <Pressable style={stScreen.listRow} onPress={openChangePw}>
                 <Feather name="lock" size={20} color={Colors.textPrimary} style={{ marginRight: 14 }} />
                 <Text style={stScreen.listRowLabel}>Change Password</Text>
                 <Feather name="chevron-right" size={18} color={Colors.textMuted} />
@@ -366,9 +455,8 @@ export default function ProfileScreen() {
             </Pressable>
 
             {/* Delete account */}
-            <Pressable style={stScreen.actionBtn}>
-              <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={30} />
-              <Text style={stScreen.actionBtnText}>Delete account</Text>
+            <Pressable style={stScreen.deleteBtn} onPress={() => { setDeleteError(null); setDeleteConfirmOpen(true); }}>
+              <Text style={stScreen.deleteBtnText}>Delete account</Text>
             </Pressable>
           </ScrollView>
         </SafeAreaView>
@@ -377,42 +465,249 @@ export default function ProfileScreen() {
       {/* ── User Settings Modal ── */}
       <Modal visible={userSettingsOpen} animationType="slide" presentationStyle="fullScreen">
         <SafeAreaView style={stScreen.root}>
-          <StickyGlassHeader showBalance={false} showMenu={false} />
+          <View style={stScreen.modalTopBar}>
+            <Text style={stScreen.modalTopTitle}>User Info</Text>
+            <Pressable style={stScreen.xBtn} onPress={() => setUserSettingsOpen(false)}>
+              <Feather name="x" size={20} color={Colors.textSecondary} />
+            </Pressable>
+          </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={stScreen.userSettingsContent}>
-            {/* Back + Title */}
-            <View style={stScreen.userSettingsHeader}>
-              <Pressable onPress={() => setUserSettingsOpen(false)} style={stScreen.backBtn}>
-                <Feather name="chevron-left" size={22} color={Colors.textPrimary} />
-              </Pressable>
-              <Text style={stScreen.userSettingsTitle}>User Settings</Text>
+
+            {/* Avatar */}
+            <View style={stScreen.uiAvatarWrap}>
+              <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={44} />
+              <Feather name="user" size={38} color="#fff" />
             </View>
 
             {[
-              { label: "Nationality" },
-              { label: "wallet address" },
-              { label: "User name" },
-              { label: "Mobile no." },
-              { label: "Email", hasEdit: true },
+              { label: "Full Name",   value: user?.username ?? "— —" },
+              { label: "Username",    value: user?.username ?? "— —" },
+              { label: "Email",       value: user?.email    ?? "— —" },
+              { label: "Phone",       value: user?.phone    ?? "— —" },
+              { label: "User ID",     value: user?.id       ? user.id.slice(0, 8).toUpperCase() + "…" : "— —" },
+              { label: "Nationality", value: "— —" },
+              { label: "Gender",      value: "— —" },
+              { label: "Wallet Address", value: "— —" },
             ].map((field) => (
               <View key={field.label} style={stScreen.fieldGroup}>
                 <Text style={stScreen.fieldLabel}>{field.label}</Text>
                 <View style={stScreen.fieldBox}>
-                  <View style={{ flex: 1 }} />
-                  {field.hasEdit && <Feather name="edit-2" size={16} color={Colors.textMuted} />}
+                  <Text style={stScreen.fieldValue}>{field.value}</Text>
+                  <View style={stScreen.fieldReadBadge}>
+                    <Text style={stScreen.fieldReadBadgeText}>Read-only</Text>
+                  </View>
                 </View>
               </View>
             ))}
-
-            {/* Gender */}
-            <View style={stScreen.fieldGroup}>
-              <Text style={stScreen.fieldLabel}>Gender</Text>
-              <Pressable style={stScreen.dropdownBox}>
-                <Text style={stScreen.dropdownPlaceholder}>— —</Text>
-                <Feather name="chevron-down" size={16} color={Colors.textMuted} />
-              </Pressable>
-            </View>
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+
+      {/* ── Change Password Modal ── */}
+      <Modal visible={changePwOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setChangePwOpen(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <SafeAreaView style={stScreen.root}>
+            <View style={stScreen.modalTopBar}>
+              <Text style={stScreen.modalTopTitle}>Change Password</Text>
+              <Pressable style={stScreen.xBtn} onPress={() => setChangePwOpen(false)}>
+                <Feather name="x" size={20} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 60 }}>
+              {cpSuccess ? (
+                <Animated.View entering={FadeIn.duration(300)} style={stScreen.successBox}>
+                  <Feather name="check-circle" size={52} color="#2BD9A8" />
+                  <Text style={stScreen.successTitle}>Password Changed!</Text>
+                  <Text style={stScreen.successSub}>Your password has been updated successfully.</Text>
+                  <Pressable style={stScreen.cpSubmitBtn} onPress={() => setChangePwOpen(false)}>
+                    <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                    <Text style={stScreen.cpSubmitText}>Done</Text>
+                  </Pressable>
+                </Animated.View>
+              ) : (
+                <>
+                  {/* Step indicator */}
+                  <View style={stScreen.stepRow}>
+                    <View style={[stScreen.stepDot, { backgroundColor: "#5CBFFE" }]} />
+                    <View style={[stScreen.stepLine, cpStep === "password" && { backgroundColor: "#5CBFFE" }]} />
+                    <View style={[stScreen.stepDot, cpStep === "password" && { backgroundColor: "#5CBFFE" }]} />
+                  </View>
+                  <View style={stScreen.stepLabels}>
+                    <Text style={stScreen.stepLabel}>Verify Identity</Text>
+                    <Text style={[stScreen.stepLabel, { textAlign: "right" }]}>New Password</Text>
+                  </View>
+
+                  {cpStep === "verify" && (
+                    <Animated.View entering={FadeIn.duration(200)} style={{ gap: 16, marginTop: 8 }}>
+                      <Text style={stScreen.cpSectionLabel}>Email Verification</Text>
+
+                      {/* Email code row */}
+                      <View style={stScreen.cpCodeRow}>
+                        <TextInput
+                          style={[stScreen.cpInput, { flex: 1 }]}
+                          placeholder="6-digit email code"
+                          placeholderTextColor={Colors.textMuted}
+                          value={cpEmailCode}
+                          onChangeText={setCpEmailCode}
+                          keyboardType="number-pad"
+                          maxLength={6}
+                        />
+                        <Pressable style={stScreen.sendCodeBtn} onPress={sendCpCode} disabled={cpSending}>
+                          {cpSending
+                            ? <ActivityIndicator size="small" color="#fff" />
+                            : <Text style={stScreen.sendCodeText}>{cpCodeSent ? "Resend" : "Send Code"}</Text>
+                          }
+                        </Pressable>
+                      </View>
+                      {cpCodeSent && (
+                        <Text style={stScreen.cpHint}>Code sent to {user?.email}</Text>
+                      )}
+
+                      {/* 2FA code (only if enabled) */}
+                      {has2FA && (
+                        <>
+                          <Text style={stScreen.cpSectionLabel}>Authenticator Code</Text>
+                          <TextInput
+                            style={stScreen.cpInput}
+                            placeholder="6-digit 2FA code"
+                            placeholderTextColor={Colors.textMuted}
+                            value={cp2FACode}
+                            onChangeText={setCp2FACode}
+                            keyboardType="number-pad"
+                            maxLength={6}
+                          />
+                        </>
+                      )}
+
+                      {cpError && (
+                        <View style={stScreen.cpError}>
+                          <Feather name="alert-circle" size={14} color="#FF5C5C" />
+                          <Text style={stScreen.cpErrorText}>{cpError}</Text>
+                        </View>
+                      )}
+
+                      <Pressable
+                        style={stScreen.cpSubmitBtn}
+                        onPress={() => {
+                          setCpError(null);
+                          if (!cpEmailCode || cpEmailCode.length < 6) { setCpError("Enter the 6-digit email code"); return; }
+                          if (has2FA && (!cp2FACode || cp2FACode.length < 6)) { setCpError("Enter your 2FA code"); return; }
+                          setCpStep("password");
+                        }}
+                      >
+                        <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                        <Text style={stScreen.cpSubmitText}>Continue</Text>
+                      </Pressable>
+                    </Animated.View>
+                  )}
+
+                  {cpStep === "password" && (
+                    <Animated.View entering={FadeIn.duration(200)} style={{ gap: 16, marginTop: 8 }}>
+                      <Text style={stScreen.cpSectionLabel}>Current Password</Text>
+                      <View style={stScreen.cpPwRow}>
+                        <TextInput
+                          style={[stScreen.cpInput, { flex: 1 }]}
+                          placeholder="Enter current password"
+                          placeholderTextColor={Colors.textMuted}
+                          value={cpOldPw}
+                          onChangeText={setCpOldPw}
+                          secureTextEntry={!showOldPw}
+                        />
+                        <Pressable style={stScreen.eyeToggle} onPress={() => setShowOldPw(v => !v)}>
+                          <Feather name={showOldPw ? "eye" : "eye-off"} size={18} color={Colors.textMuted} />
+                        </Pressable>
+                      </View>
+
+                      <Text style={stScreen.cpSectionLabel}>New Password</Text>
+                      <View style={stScreen.cpPwRow}>
+                        <TextInput
+                          style={[stScreen.cpInput, { flex: 1 }]}
+                          placeholder="Enter new password (min. 8 chars)"
+                          placeholderTextColor={Colors.textMuted}
+                          value={cpNewPw}
+                          onChangeText={setCpNewPw}
+                          secureTextEntry={!showNewPw}
+                        />
+                        <Pressable style={stScreen.eyeToggle} onPress={() => setShowNewPw(v => !v)}>
+                          <Feather name={showNewPw ? "eye" : "eye-off"} size={18} color={Colors.textMuted} />
+                        </Pressable>
+                      </View>
+
+                      <Text style={stScreen.cpSectionLabel}>Confirm New Password</Text>
+                      <View style={stScreen.cpPwRow}>
+                        <TextInput
+                          style={[stScreen.cpInput, { flex: 1 }]}
+                          placeholder="Re-enter new password"
+                          placeholderTextColor={Colors.textMuted}
+                          value={cpConfirmPw}
+                          onChangeText={setCpConfirmPw}
+                          secureTextEntry={!showConfirmPw}
+                        />
+                        <Pressable style={stScreen.eyeToggle} onPress={() => setShowConfirmPw(v => !v)}>
+                          <Feather name={showConfirmPw ? "eye" : "eye-off"} size={18} color={Colors.textMuted} />
+                        </Pressable>
+                      </View>
+
+                      {cpError && (
+                        <View style={stScreen.cpError}>
+                          <Feather name="alert-circle" size={14} color="#FF5C5C" />
+                          <Text style={stScreen.cpErrorText}>{cpError}</Text>
+                        </View>
+                      )}
+
+                      <Pressable style={stScreen.cpSubmitBtn} onPress={handleChangePassword} disabled={cpLoading}>
+                        <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                        {cpLoading
+                          ? <ActivityIndicator color="#fff" />
+                          : <Text style={stScreen.cpSubmitText}>Change Password</Text>
+                        }
+                      </Pressable>
+                    </Animated.View>
+                  )}
+                </>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Delete Account Confirm Modal ── */}
+      <Modal visible={deleteConfirmOpen} animationType="fade" transparent>
+        <View style={stScreen.delOverlay}>
+          <Animated.View entering={FadeIn.duration(200)} style={stScreen.delCard}>
+            <View style={stScreen.delIconWrap}>
+              <Feather name="alert-triangle" size={32} color="#FF5C5C" />
+            </View>
+            <Text style={stScreen.delTitle}>Delete Account?</Text>
+            <Text style={stScreen.delSub}>
+              This will permanently delete your account and all associated data. This action cannot be undone.
+            </Text>
+
+            {deleteError && (
+              <View style={stScreen.cpError}>
+                <Feather name="alert-circle" size={14} color="#FF5C5C" />
+                <Text style={stScreen.cpErrorText}>{deleteError}</Text>
+              </View>
+            )}
+
+            <View style={stScreen.delBtnRow}>
+              <Pressable
+                style={stScreen.delCancelBtn}
+                onPress={() => { setDeleteConfirmOpen(false); setDeleteError(null); }}
+                disabled={deleting}
+              >
+                <Text style={stScreen.delCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={stScreen.delConfirmBtn} onPress={handleDeleteAccount} disabled={deleting}>
+                {deleting
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={stScreen.delConfirmText}>Yes, Delete</Text>
+                }
+              </Pressable>
+            </View>
+          </Animated.View>
+        </View>
       </Modal>
     </View>
   );
@@ -421,6 +716,117 @@ export default function ProfileScreen() {
 const stScreen = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.offWhite },
   userSettingsContent: { paddingHorizontal: 20, paddingBottom: 60 },
+
+  modalTopBar: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 18, paddingVertical: 14,
+    backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  modalTopTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  xBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: Colors.offWhite, alignItems: "center", justifyContent: "center",
+  },
+
+  deleteBtn: {
+    marginHorizontal: 20, marginBottom: 14,
+    height: 52, borderRadius: 30, overflow: "hidden",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: "#FF5C5C",
+  },
+  deleteBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#FF5C5C" },
+
+  uiAvatarWrap: {
+    width: 88, height: 88, borderRadius: 44, overflow: "hidden",
+    alignItems: "center", justifyContent: "center",
+    alignSelf: "center", marginTop: 24, marginBottom: 28,
+  },
+  fieldValue: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
+  fieldReadBadge: {
+    backgroundColor: "#EFF6FF", borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  fieldReadBadgeText: { fontSize: 10, fontFamily: "Inter_500Medium", color: "#5CBFFE" },
+
+  stepRow: { flexDirection: "row", alignItems: "center", marginTop: 24, marginBottom: 6 },
+  stepDot: {
+    width: 12, height: 12, borderRadius: 6,
+    backgroundColor: Colors.border,
+  },
+  stepLine: { flex: 1, height: 2, backgroundColor: Colors.border, marginHorizontal: 4 },
+  stepLabels: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  stepLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: Colors.textMuted },
+
+  cpSectionLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  cpCodeRow: { flexDirection: "row", gap: 10 },
+  cpInput: {
+    backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 15, fontFamily: "Inter_400Regular", color: Colors.textPrimary,
+  },
+  sendCodeBtn: {
+    backgroundColor: "#5CBFFE", borderRadius: 12,
+    paddingHorizontal: 14, alignItems: "center", justifyContent: "center", minWidth: 90,
+  },
+  sendCodeText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  cpHint: { fontSize: 12, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: -8 },
+
+  cpPwRow: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
+    paddingRight: 12,
+  },
+  eyeToggle: { padding: 6 },
+
+  cpError: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "#FFF0F0", borderRadius: 10, padding: 12,
+  },
+  cpErrorText: { fontSize: 13, fontFamily: "Inter_400Regular", color: "#FF5C5C", flex: 1 },
+
+  cpSubmitBtn: {
+    height: 52, borderRadius: 14, overflow: "hidden",
+    alignItems: "center", justifyContent: "center",
+  },
+  cpSubmitText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff", zIndex: 1 },
+
+  successBox: {
+    alignItems: "center", gap: 14,
+    backgroundColor: "#F0FBF7", borderRadius: 20,
+    padding: 32, marginTop: 40,
+    borderWidth: 1, borderColor: "#B3EDD8",
+  },
+  successTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  successSub: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
+
+  delOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center", justifyContent: "center", padding: 24,
+  },
+  delCard: {
+    backgroundColor: "#fff", borderRadius: 24,
+    padding: 28, width: "100%", gap: 12,
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 10,
+  },
+  delIconWrap: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: "#FFF0F0", alignItems: "center", justifyContent: "center",
+    alignSelf: "center", marginBottom: 4,
+  },
+  delTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.textPrimary, textAlign: "center" },
+  delSub: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textSecondary, textAlign: "center", lineHeight: 22 },
+  delBtnRow: { flexDirection: "row", gap: 12, marginTop: 8 },
+  delCancelBtn: {
+    flex: 1, height: 50, borderRadius: 14,
+    borderWidth: 1.5, borderColor: Colors.border,
+    alignItems: "center", justifyContent: "center",
+  },
+  delCancelText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
+  delConfirmBtn: {
+    flex: 1, height: 50, borderRadius: 14,
+    backgroundColor: "#FF5C5C", alignItems: "center", justifyContent: "center",
+  },
+  delConfirmText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
 
   profileCard: {
     margin: 14,
