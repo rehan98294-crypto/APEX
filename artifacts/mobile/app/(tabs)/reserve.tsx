@@ -93,11 +93,15 @@ const AMOUNTS = [
 
 const ROYALTY = 0.002;
 
-// ─── Countdown helpers ─────────────────────────────────────────────────────────
-function secsToMidnightUTC(): number {
+// ─── Countdown helpers (12-hour UTC windows) ──────────────────────────────────
+/** Seconds until the next 12-hour boundary (noon or midnight UTC). */
+function secsToNext12HrUTC(): number {
   const now = new Date();
-  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-  return Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000));
+  const h = now.getUTCHours();
+  const next = h < 12
+    ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0))      // noon
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));  // midnight
+  return Math.max(0, Math.floor((next.getTime() - now.getTime()) / 1000));
 }
 function fmtCountdown(s: number): string {
   const h = Math.floor(s / 3600);
@@ -228,7 +232,7 @@ export default function ReserveScreen() {
     authApi.reserve.checkToday(token)
       .then((d) => {
         setReservedToday(d.reserved_today);
-        if (d.reserved_today) setSecondsLeft(secsToMidnightUTC());
+        if (d.reserved_today) setSecondsLeft(secsToNext12HrUTC());
       })
       .catch(() => {})
       .finally(() => setCheckingDaily(false));
@@ -240,9 +244,9 @@ export default function ReserveScreen() {
       if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
       return;
     }
-    setSecondsLeft(secsToMidnightUTC());
+    setSecondsLeft(secsToNext12HrUTC());
     countdownRef.current = setInterval(() => {
-      const s = secsToMidnightUTC();
+      const s = secsToNext12HrUTC();
       setSecondsLeft(s);
       if (s <= 0) {
         clearInterval(countdownRef.current!);
@@ -308,7 +312,7 @@ export default function ReserveScreen() {
 
     // Check daily limit
     if (reservedToday) {
-      setFetchError(`You've already reserved today. Next round opens in ${fmtCountdown(secondsLeft)}.`);
+      setFetchError(`You've already reserved this window. Next round opens in ${fmtCountdown(secondsLeft)}.`);
       return;
     }
 
@@ -332,8 +336,8 @@ export default function ReserveScreen() {
       } catch (e: any) {
         if (e.message?.includes("already")) {
           setReservedToday(true);
-          setSecondsLeft(secsToMidnightUTC());
-          setFetchError(`You've already reserved today. Next round opens in ${fmtCountdown(secsToMidnightUTC())}.`);
+          setSecondsLeft(secsToNext12HrUTC());
+          setFetchError(`You've already reserved this window. Next round opens in ${fmtCountdown(secsToNext12HrUTC())}.`);
           return;
         }
         // non-fatal if column doesn't exist yet

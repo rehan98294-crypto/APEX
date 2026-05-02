@@ -19,12 +19,15 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
   }
 }
 
-function isSameUTCDay(a: Date, b: Date): boolean {
-  return (
+/** Returns true when both timestamps fall in the same 12-hour UTC window.
+ *  Window 1: 00:00–11:59 UTC   Window 2: 12:00–23:59 UTC */
+function isSame12HrWindow(a: Date, b: Date): boolean {
+  const sameDay =
     a.getUTCFullYear() === b.getUTCFullYear() &&
     a.getUTCMonth()    === b.getUTCMonth()    &&
-    a.getUTCDate()     === b.getUTCDate()
-  );
+    a.getUTCDate()     === b.getUTCDate();
+  if (!sameDay) return false;
+  return (a.getUTCHours() < 12) === (b.getUTCHours() < 12);
 }
 
 // GET /api/reserve/today — check if user has already reserved today (UTC day)
@@ -44,7 +47,7 @@ router.get("/reserve/today", requireAuth, async (req, res) => {
     }
 
     const lastAt    = user?.last_reserved_at ?? null;
-    const reserved  = lastAt ? isSameUTCDay(new Date(lastAt), new Date()) : false;
+    const reserved  = lastAt ? isSame12HrWindow(new Date(lastAt), new Date()) : false;
 
     return res.json({ reserved_today: reserved, last_reserved_at: lastAt });
   } catch {
@@ -62,9 +65,9 @@ router.post("/reserve/record", requireAuth, async (req, res) => {
       .eq("id", userId)
       .single();
 
-    if (!fetchErr && user?.last_reserved_at && isSameUTCDay(new Date(user.last_reserved_at), new Date())) {
+    if (!fetchErr && user?.last_reserved_at && isSame12HrWindow(new Date(user.last_reserved_at), new Date())) {
       return res.status(400).json({
-        error: "You have already made a reservation today. Come back after midnight (UTC).",
+        error: "You have already reserved in this 12-hour window. Next window opens at 12:00 AM or 12:00 PM UTC.",
         reserved_today: true,
       });
     }
