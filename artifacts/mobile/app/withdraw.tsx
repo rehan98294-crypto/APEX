@@ -104,31 +104,20 @@ export default function WithdrawScreen() {
       // Step 1: verify email code
       await authApi.verifyCode(user!.email, emailCode.trim());
 
-      // Step 2: create withdrawal record in DB (deducts balance server-side)
-      // then mirror the deduction in local state for instant UI feedback
-      if (token) {
-        try {
-          await authApi.withdraw.create(token, {
-            amount: numAmount,
-            wallet_address: address.trim(),
-            network: "TRC20",
-          });
-          // Server succeeded — mirror locally for UI
-          spendBalance(numAmount, `Withdrawal to ${address.slice(0, 8)}…`);
-        } catch {
-          // Server failed — do local-only deduction as fallback
-          const ok = spendBalance(numAmount, `Withdrawal to ${address.slice(0, 8)}…`);
-          if (!ok) throw new Error("Insufficient balance");
-        }
-      } else {
-        // No token — local deduction only
-        const ok = spendBalance(numAmount, `Withdrawal to ${address.slice(0, 8)}…`);
-        if (!ok) throw new Error("Insufficient balance");
-      }
+      // Step 2: submit withdrawal to server — this deducts balance in DB
+      // and creates a pending record for admin review
+      await authApi.withdraw.create(token!, {
+        amount: numAmount,
+        wallet_address: address.trim(),
+        network: "TRC20",
+      });
+
+      // Step 3: mirror balance deduction locally for instant UI feedback
+      spendBalance(numAmount, `Withdrawal to ${address.slice(0, 8)}…`);
 
       setSuccess(true);
     } catch (e: any) {
-      Alert.alert("Failed", e.message ?? "Withdrawal failed. Please try again.");
+      Alert.alert("Withdrawal Failed", e.message ?? "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }

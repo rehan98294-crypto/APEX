@@ -65,19 +65,24 @@ router.post("/withdraw/create", requireAuth, async (req, res) => {
 
     if (balErr) throw balErr;
 
-    // Create withdrawal record
-    const { data: withdrawal, error: wErr } = await supabase
+    // Create withdrawal record — try with fee column first, fall back without it
+    let withdrawal: any = null;
+    let wErr: any = null;
+
+    ({ data: withdrawal, error: wErr } = await supabase
       .from("withdrawals")
-      .insert({
-        user_id: userId,
-        amount,
-        fee,
-        wallet_address: wallet_address.trim(),
-        network,
-        status: "pending",
-      })
+      .insert({ user_id: userId, amount, fee, wallet_address: wallet_address.trim(), network, status: "pending" })
       .select()
-      .single();
+      .single());
+
+    if (wErr && (wErr.code === "42703" || wErr.message?.includes("fee"))) {
+      // fee column doesn't exist yet — insert without it
+      ({ data: withdrawal, error: wErr } = await supabase
+        .from("withdrawals")
+        .insert({ user_id: userId, amount, wallet_address: wallet_address.trim(), network, status: "pending" })
+        .select()
+        .single());
+    }
 
     if (wErr) {
       // Rollback balance

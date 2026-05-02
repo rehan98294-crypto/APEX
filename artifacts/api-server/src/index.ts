@@ -117,6 +117,14 @@ async function runMigration() {
         ");",
       ].join("\n"),
     },
+    {
+      column: "fee", table: "withdrawals",
+      fullSql: [
+        "ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS fee DECIMAL(18,2) NOT NULL DEFAULT 0;",
+        "ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();",
+        "ALTER TABLE admin_action_log ADD COLUMN IF NOT EXISTS target_type VARCHAR(50);",
+      ].join("\n"),
+    },
   ];
 
   let anyMissing = false;

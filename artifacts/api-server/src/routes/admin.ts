@@ -34,7 +34,7 @@ router.get("/admin/withdrawals", requireAdmin, async (req, res) => {
   try {
     let query = supabase
       .from("withdrawals")
-      .select("id, user_id, amount, fee, wallet_address, network, status, created_at, users(username, email)")
+      .select("id, user_id, amount, wallet_address, network, status, created_at")
       .order("created_at", { ascending: false })
       .limit(200);
 
@@ -42,9 +42,39 @@ router.get("/admin/withdrawals", requireAdmin, async (req, res) => {
       query = query.eq("status", status);
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return res.json({ withdrawals: data ?? [] });
+    const { data: withdrawals, error } = await query;
+    if (error) {
+      console.error("[Admin] Supabase withdrawals error:", JSON.stringify(error));
+      throw error;
+    }
+
+    if (!withdrawals || withdrawals.length === 0) {
+      return res.json({ withdrawals: [] });
+    }
+
+    // Fetch user info separately and merge
+    const userIds = [...new Set(withdrawals.map((w: any) => w.user_id))];
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, username, email")
+      .in("id", userIds);
+
+    const userMap: Record<string, { username: string; email: string }> = {};
+    for (const u of (users ?? [])) {
+      userMap[u.id] = { username: u.username, email: u.email };
+    }
+
+    const FEE_RATE = 0.05;
+    const enriched = withdrawals.map((w: any) => {
+      const fee = parseFloat((parseFloat(w.amount) * FEE_RATE).toFixed(2));
+      return {
+        ...w,
+        fee,
+        users: userMap[w.user_id] ?? { username: "Unknown", email: "" },
+      };
+    });
+
+    return res.json({ withdrawals: enriched });
   } catch (err) {
     console.error("[Admin] list withdrawals error:", err);
     return res.status(500).json({ error: "Failed to load withdrawals." });
