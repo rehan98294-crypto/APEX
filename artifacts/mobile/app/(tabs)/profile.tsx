@@ -219,6 +219,7 @@ export default function ProfileScreen() {
     <View style={[styles.container, { paddingBottom: bottomPad }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 150 }}>
         <StickyGlassHeader showBalance={false} showMenu={false} />
+        <View style={{ height: 20 }} />
 
         {/* ── Profile Header ── */}
         <Animated.View entering={FadeInDown.duration(350)} style={styles.profileHeader}>
