@@ -146,6 +146,35 @@ export const authApi = {
       ),
   },
 
+  // ── Withdrawals ───────────────────────────────────────────────────────────
+  withdraw: {
+    create: (
+      token: string,
+      params: { amount: number; wallet_address: string; network: string }
+    ) =>
+      request<{
+        success: boolean;
+        withdrawal_id: string;
+        amount: number;
+        fee: number;
+        receive: number;
+        status: string;
+      }>("/withdraw/create", params, token),
+
+    getHistory: (token: string) =>
+      requestGet<{
+        withdrawals: Array<{
+          id: string;
+          amount: number;
+          fee: number;
+          wallet_address: string;
+          network: string;
+          status: string;
+          created_at: string;
+        }>;
+      }>("/withdraw/history", token),
+  },
+
   // ── Referral & Team tree ──────────────────────────────────────────────────
   tree: {
     getReferralInfo: (token: string) =>

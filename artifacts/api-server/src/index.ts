@@ -90,6 +90,33 @@ async function runMigration() {
         "CREATE INDEX IF NOT EXISTS idx_team_rewards_user_id ON team_rewards(user_id);",
       ].join("\n"),
     },
+    {
+      column: "wallet_address", table: "withdrawals",
+      fullSql: [
+        "CREATE TABLE IF NOT EXISTS withdrawals (",
+        "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+        "  user_id UUID NOT NULL REFERENCES users(id),",
+        "  amount DECIMAL(18,2) NOT NULL,",
+        "  fee DECIMAL(18,2) NOT NULL DEFAULT 0,",
+        "  wallet_address TEXT NOT NULL,",
+        "  network VARCHAR(20) NOT NULL DEFAULT 'TRC20',",
+        "  status VARCHAR(20) NOT NULL DEFAULT 'pending',",
+        "  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),",
+        "  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        ");",
+        "CREATE INDEX IF NOT EXISTS idx_withdrawals_user_id ON withdrawals(user_id);",
+        "CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawals(status);",
+        "CREATE TABLE IF NOT EXISTS admin_action_log (",
+        "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+        "  action VARCHAR(50) NOT NULL,",
+        "  target_id UUID,",
+        "  target_type VARCHAR(50),",
+        "  note TEXT,",
+        "  ip_address TEXT,",
+        "  created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        ");",
+      ].join("\n"),
+    },
   ];
 
   let anyMissing = false;
