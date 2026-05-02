@@ -13,6 +13,7 @@ import withdrawRouter from "./withdraw";
 import adminRouter from "./admin";
 import userRouter from "./user";
 import withdrawalAddressesRouter from "./withdrawal-addresses";
+import reserveRouter from "./reserve";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(withdrawRouter);
 router.use(adminRouter);
 router.use(userRouter);
 router.use(withdrawalAddressesRouter);
+router.use(reserveRouter);
 
 export default router;

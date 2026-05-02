@@ -20,7 +20,7 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 }
 
 const FEE_RATE = 0.05;
-const MIN_AMOUNT = 10;
+const MIN_AMOUNT = 50;
 
 // POST /api/withdraw/create
 router.post("/withdraw/create", requireAuth, async (req, res) => {
@@ -39,6 +39,21 @@ router.post("/withdraw/create", requireAuth, async (req, res) => {
   }
 
   try {
+    // Block if user already has a pending withdrawal
+    const { data: pendingRows } = await supabase
+      .from("withdrawals")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .limit(1);
+
+    if (pendingRows && pendingRows.length > 0) {
+      return res.status(400).json({
+        error: "You have a pending withdrawal. Please wait for it to be approved or rejected before submitting a new one.",
+        has_pending: true,
+      });
+    }
+
     // Check user balance + withdrawal cooldown in DB
     const { data: user, error: userErr } = await supabase
       .from("users")

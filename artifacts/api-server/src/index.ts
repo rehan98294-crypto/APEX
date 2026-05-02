@@ -143,6 +143,16 @@ async function runMigration() {
         "CREATE INDEX IF NOT EXISTS idx_withdrawal_addresses_user_id ON withdrawal_addresses(user_id);",
       ].join("\n"),
     },
+    {
+      column: "trial_balance", table: "users",
+      fullSql: [
+        "-- Registration gift + trial columns:",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_balance DECIMAL(18,2) NOT NULL DEFAULT 0;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_expires_at TIMESTAMPTZ;",
+        "-- Daily reservation tracking:",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_reserved_at TIMESTAMPTZ;",
+      ].join("\n"),
+    },
   ];
 
   let anyMissing = false;

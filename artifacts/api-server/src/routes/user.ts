@@ -19,10 +19,11 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
   }
 }
 
-// GET /api/user/profile — returns { balance, totalDeposited } from DB
+// GET /api/user/profile — returns { balance, totalDeposited, trial_balance, trial_expires_at }
 router.get("/user/profile", requireAuth, async (req, res) => {
   const userId = (req as any).userId as string;
   try {
+    // Select core balance first (always present)
     const { data: user, error } = await supabase
       .from("users")
       .select("balance")
@@ -31,6 +32,38 @@ router.get("/user/profile", requireAuth, async (req, res) => {
 
     if (error || !user) return res.status(404).json({ error: "User not found." });
 
+    let currentBalance = parseFloat(String(user.balance ?? 0));
+    let trialBalance   = 0;
+    let trialExpires: string | null = null;
+
+    // Trial columns — gracefully absent until migration runs
+    try {
+      const { data: trialData } = await supabase
+        .from("users")
+        .select("trial_balance, trial_expires_at")
+        .eq("id", userId)
+        .single();
+
+      if (trialData) {
+        trialBalance  = parseFloat(String(trialData.trial_balance ?? 0));
+        trialExpires  = trialData.trial_expires_at ?? null;
+      }
+    } catch { /* columns don't exist yet */ }
+
+    // ── Trial expiry check ─────────────────────────────────────────────────────
+    if (trialBalance > 0 && trialExpires && new Date(trialExpires) <= new Date()) {
+      const deduction  = Math.min(trialBalance, currentBalance);
+      currentBalance   = parseFloat(Math.max(0, currentBalance - deduction).toFixed(2));
+      trialBalance     = 0;
+      try {
+        await supabase
+          .from("users")
+          .update({ balance: currentBalance, trial_balance: 0 })
+          .eq("id", userId);
+      } catch { /* non-fatal */ }
+      console.log(`[UserProfile] Trial expired for user ${userId}, deducted ${deduction} USDT`);
+    }
+
     const { data: deposits } = await supabase
       .from("deposits")
       .select("amount")
@@ -38,13 +71,15 @@ router.get("/user/profile", requireAuth, async (req, res) => {
       .eq("status", "success");
 
     const totalDeposited = parseFloat(
-      ((deposits ?? []).reduce((s, d) => s + parseFloat(String(d.amount)), 0)).toFixed(2)
+      ((deposits ?? []).reduce((s: number, d: any) => s + parseFloat(String(d.amount)), 0)).toFixed(2)
     );
 
-    console.log(`[UserProfile] user=${userId} balance=${user.balance} deposited=${totalDeposited}`);
+    console.log(`[UserProfile] user=${userId} balance=${currentBalance} trial=${trialBalance} deposited=${totalDeposited}`);
     return res.json({
-      balance: parseFloat(String(user.balance ?? 0)),
+      balance: currentBalance,
       totalDeposited,
+      trial_balance: trialBalance,
+      trial_expires_at: trialExpires ?? null,
     });
   } catch (err) {
     console.error("[UserProfile] error:", err);

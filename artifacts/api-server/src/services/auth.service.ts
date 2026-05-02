@@ -181,6 +181,23 @@ export async function registerUser(params: {
     throw new Error("Failed to create account: " + (error?.message ?? "unknown"));
   }
 
+  // ── Registration gifts ───────────────────────────────────────────────────────
+  // 5 USDT welcome gift + 150 USDT 3-day reservation trial
+  const trialExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    await supabase
+      .from("users")
+      .update({
+        balance:           155,   // 5 gift + 150 trial
+        trial_balance:     150,
+        trial_expires_at:  trialExpiresAt,
+      })
+      .eq("id", newUser.id);
+    console.log(`[Auth] Registration gifts credited to user ${newUser.id}`);
+  } catch {
+    // non-fatal — columns may not exist yet in older DBs
+  }
+
   const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, {
     expiresIn: "30d",
   });

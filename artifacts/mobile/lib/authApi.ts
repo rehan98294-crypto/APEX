@@ -146,10 +146,24 @@ export const authApi = {
       ),
   },
 
+  // ── Reservation daily check ───────────────────────────────────────────────
+  reserve: {
+    checkToday: (token: string) =>
+      requestGet<{ reserved_today: boolean; last_reserved_at: string | null }>("/reserve/today", token),
+
+    recordToday: (token: string) =>
+      request<{ success: boolean; last_reserved_at: string }>("/reserve/record", {}, token),
+  },
+
   // ── User Profile & Balance ────────────────────────────────────────────────
   user: {
     getProfile: (token: string) =>
-      requestGet<{ balance: number; totalDeposited: number }>("/user/profile", token),
+      requestGet<{
+        balance: number;
+        totalDeposited: number;
+        trial_balance: number;
+        trial_expires_at: string | null;
+      }>("/user/profile", token),
 
     syncBalance: (token: string, balance: number) =>
       request<{ success: boolean; balance: number }>("/user/balance-sync", { balance }, token),

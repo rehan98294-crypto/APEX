@@ -169,7 +169,7 @@ export default function AssetsScreen() {
     if (!token) { setCreateError("Please log in first"); return; }
     if (!selectedNetwork) { setCreateError("Select a network"); return; }
     const amt = parseFloat(amountInput);
-    if (!amt || amt < 1) { setCreateError("Minimum deposit is $1"); return; }
+    if (!amt || amt < 50) { setCreateError("Minimum deposit is $50"); return; }
 
     setCreating(true);
     setCreateError(null);

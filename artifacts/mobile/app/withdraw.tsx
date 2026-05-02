@@ -25,7 +25,7 @@ import { authApi } from "@/lib/authApi";
 
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 const FEE_RATE = 0.05;
-const MIN_WITHDRAWAL = 10;
+const MIN_WITHDRAWAL = 50;
 
 const NETWORK_INFO: Record<string, { label: string; color: string; bg: string; letter: string }> = {
   TRC20:   { label: "USDT (TRC-20)",          color: "#E84141", bg: "#FFF1F1", letter: "T" },
@@ -69,6 +69,7 @@ export default function WithdrawScreen() {
   const [selectedNetwork, setSelectedNetwork]   = useState<string | null>(null);
   const [disabledUntil, setDisabledUntil]       = useState<string | null>(null);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [hasPendingWithdrawal, setHasPendingWithdrawal] = useState(false);
 
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -76,14 +77,19 @@ export default function WithdrawScreen() {
   const fee       = numAmount * FEE_RATE;
   const receive   = numAmount - fee;
 
-  // Fetch saved addresses + cooldown status
+  // Fetch saved addresses + cooldown status + pending check
   const fetchAddresses = useCallback(async () => {
     if (!token) return;
     setLoadingAddresses(true);
     try {
-      const data = await authApi.withdrawAddresses.get(token);
-      setSavedAddresses(data.addresses ?? []);
-      setDisabledUntil(data.withdrawal_disabled_until ?? null);
+      const [addrData, historyData] = await Promise.all([
+        authApi.withdrawAddresses.get(token),
+        authApi.withdraw.getHistory(token).catch(() => ({ withdrawals: [] })),
+      ]);
+      setSavedAddresses(addrData.addresses ?? []);
+      setDisabledUntil(addrData.withdrawal_disabled_until ?? null);
+      const pending = (historyData.withdrawals ?? []).some((w) => w.status === "pending");
+      setHasPendingWithdrawal(pending);
     } catch {
       // table may not exist yet — silent fallback
     } finally {
@@ -206,6 +212,16 @@ export default function WithdrawScreen() {
               <Text style={sty.chainBadgeText}>Chain Transfer</Text>
             </View>
           </Animated.View>
+
+          {/* Pending withdrawal banner */}
+          {hasPendingWithdrawal && (
+            <Animated.View entering={FadeInDown.duration(300)} style={sty.pendingBanner}>
+              <Feather name="clock" size={16} color="#7C3AED" />
+              <Text style={sty.pendingBannerText}>
+                You have a <Text style={{ fontFamily: "Inter_700Bold" }}>pending withdrawal</Text> in review. You can submit the next one once it is approved or rejected.
+              </Text>
+            </Animated.View>
+          )}
 
           {/* Withdrawal cooldown warning */}
           {isWithdrawalDisabled && (
@@ -405,9 +421,9 @@ export default function WithdrawScreen() {
               <Text style={sty.cancelBtnText}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={[sty.submitBtn, isWithdrawalDisabled && { opacity: 0.6 }]}
+              style={[sty.submitBtn, (isWithdrawalDisabled || hasPendingWithdrawal) && { opacity: 0.5 }]}
               onPress={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || hasPendingWithdrawal}
             >
               <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
               {submitting
@@ -499,6 +515,16 @@ const sty = StyleSheet.create({
   },
   disabledBannerText: {
     flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: "#C62828", lineHeight: 19,
+  },
+
+  pendingBanner: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    backgroundColor: "#F5F3FF", borderRadius: 12,
+    borderWidth: 1, borderColor: "#DDD6FE",
+    paddingHorizontal: 14, paddingVertical: 11,
+  },
+  pendingBannerText: {
+    flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: "#5B21B6", lineHeight: 19,
   },
 
   warnBanner: {

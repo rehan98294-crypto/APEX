@@ -93,6 +93,19 @@ const AMOUNTS = [
 
 const ROYALTY = 0.002;
 
+// ─── Countdown helpers ─────────────────────────────────────────────────────────
+function secsToMidnightUTC(): number {
+  const now = new Date();
+  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  return Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000));
+}
+function fmtCountdown(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
 // ─── Profit calc ───────────────────────────────────────────────────────────────
 function calcProfit(price: number, lvl: typeof LEVELS[0]): number {
   const rate  = lvl.rateMin + Math.random() * (lvl.rateMax - lvl.rateMin);
@@ -203,6 +216,43 @@ export default function ReserveScreen() {
     return false;
   }
 
+  // Daily reservation limit
+  const [reservedToday,    setReservedToday]    = useState(false);
+  const [secondsLeft,      setSecondsLeft]      = useState(0);
+  const [checkingDaily,    setCheckingDaily]    = useState(true);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fetch daily status on mount
+  useEffect(() => {
+    if (!token) { setCheckingDaily(false); return; }
+    authApi.reserve.checkToday(token)
+      .then((d) => {
+        setReservedToday(d.reserved_today);
+        if (d.reserved_today) setSecondsLeft(secsToMidnightUTC());
+      })
+      .catch(() => {})
+      .finally(() => setCheckingDaily(false));
+  }, [token]);
+
+  // Countdown ticker
+  useEffect(() => {
+    if (!reservedToday) {
+      if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+      return;
+    }
+    setSecondsLeft(secsToMidnightUTC());
+    countdownRef.current = setInterval(() => {
+      const s = secsToMidnightUTC();
+      setSecondsLeft(s);
+      if (s <= 0) {
+        clearInterval(countdownRef.current!);
+        countdownRef.current = null;
+        setReservedToday(false);
+      }
+    }, 1000);
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+  }, [reservedToday]);
+
   // Reserve flow
   const [reservePhase, setReservePhase] = useState<ReservePhase>("idle");
   const [pendingNFT,   setPendingNFT]   = useState<{ name: string; imageSource: any; price: number; profit: number; level: number } | null>(null);
@@ -256,6 +306,12 @@ export default function ReserveScreen() {
   const handleReserve = async () => {
     setFetchError(null);
 
+    // Check daily limit
+    if (reservedToday) {
+      setFetchError(`You've already reserved today. Next round opens in ${fmtCountdown(secondsLeft)}.`);
+      return;
+    }
+
     // Check level is unlocked
     if (isLevelLocked(selectedLevel)) {
       setFetchError(`Level ${selectedLevel.lv} is locked. Meet the deposit & team requirements first.`);
@@ -266,6 +322,22 @@ export default function ReserveScreen() {
     if (balance < selectedLevel.minPrice) {
       setFetchError(`Need at least $${selectedLevel.minPrice} balance for ${selectedLevel.label}. Current: $${balance.toFixed(2)}`);
       return;
+    }
+
+    // Record today's reservation on backend (blocks double-tap)
+    if (token) {
+      try {
+        await authApi.reserve.recordToday(token);
+        setReservedToday(true);
+      } catch (e: any) {
+        if (e.message?.includes("already")) {
+          setReservedToday(true);
+          setSecondsLeft(secsToMidnightUTC());
+          setFetchError(`You've already reserved today. Next round opens in ${fmtCountdown(secsToMidnightUTC())}.`);
+          return;
+        }
+        // non-fatal if column doesn't exist yet
+      }
     }
 
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -742,10 +814,22 @@ export default function ReserveScreen() {
                 </Animated.View>
               )}
 
-              {/* Reserve button */}
-              <Pressable onPress={handleReserve} style={styles.gradBtn}>
+              {/* Reserve button — shows countdown after daily reservation */}
+              <Pressable
+                onPress={handleReserve}
+                style={[styles.gradBtn, (reservedToday || checkingDaily) && { opacity: 0.65 }]}
+                disabled={reservedToday || checkingDaily}
+              >
                 <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
-                <Text style={styles.gradBtnText}>Reserve NFT</Text>
+                {reservedToday
+                  ? (
+                    <View style={{ alignItems: "center", gap: 2 }}>
+                      <Text style={[styles.gradBtnText, { fontSize: 13 }]}>Next Round In</Text>
+                      <Text style={[styles.gradBtnText, { fontSize: 17, letterSpacing: 1 }]}>{fmtCountdown(secondsLeft)}</Text>
+                    </View>
+                  )
+                  : <Text style={styles.gradBtnText}>Reserve NFT</Text>
+                }
               </Pressable>
 
             </View>
