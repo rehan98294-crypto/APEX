@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Modal,
   Platform,
@@ -149,6 +150,7 @@ export default function ReserveScreen() {
 
   // Sell flow
   const [sellPhase,     setSellPhase]     = useState<SellPhase>("idle");
+  const [profitRevealed, setProfitRevealed] = useState(false);
   const [activeSellNFT, setActiveSellNFT] = useState<CollectedNFT | null>(null);
 
   // ── 6 stat boxes ─────────────────────────────────────────────────────────────
@@ -262,9 +264,18 @@ export default function ReserveScreen() {
     setSellPhase("listed");
     setTimeout(() => {
       setSellPhase("matchmaking");
-      setTimeout(() => setSellPhase("profit"), 5000 + Math.random() * 2000);
+      setTimeout(() => { setSellPhase("profit"); setProfitRevealed(false); }, 5000 + Math.random() * 2000);
     }, 1500);
   };
+
+  // ── Lazy profit reveal ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (sellPhase === "profit") {
+      const delay = 3000 + Math.random() * 1000;
+      const t = setTimeout(() => setProfitRevealed(true), delay);
+      return () => clearTimeout(t);
+    }
+  }, [sellPhase]);
 
   // ── STEP 5: Collect profit ────────────────────────────────────────────────
   const handleProfitConfirm = () => {
@@ -454,15 +465,28 @@ export default function ReserveScreen() {
               <Image source={activeSellNFT.imageSource} style={styles.revealImage} contentFit="cover" />
               <View style={[styles.incomeBox, { borderWidth: 2, borderColor: "#2BD9A8" }]}>
                 <Text style={styles.incomeBoxLabel}>Profit Received</Text>
-                <Text style={[styles.incomeRange, { color: "#2BD9A8", fontSize: 28, marginTop: 4 }]}>
-                  +${activeSellNFT.profit.toFixed(4)}
-                </Text>
+                {profitRevealed ? (
+                  <Animated.Text entering={FadeIn.duration(700)} style={[styles.incomeRange, { color: "#2BD9A8", fontSize: 28, marginTop: 4 }]}>
+                    +${activeSellNFT.profit.toFixed(4)}
+                  </Animated.Text>
+                ) : (
+                  <View style={styles.profitLoadingRow}>
+                    <ActivityIndicator size="small" color="#2BD9A8" />
+                    <Text style={styles.profitLoadingText}>Calculating profit…</Text>
+                  </View>
+                )}
                 <Text style={[styles.incomeBoxLabel, { marginTop: 2 }]}>USDT credited to balance</Text>
               </View>
-              <Pressable onPress={handleProfitConfirm} style={styles.gradBtn}>
-                <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
-                <Text style={styles.gradBtnText}>Collect Profit</Text>
-              </Pressable>
+              {profitRevealed ? (
+                <Pressable onPress={handleProfitConfirm} style={styles.gradBtn}>
+                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+                  <Text style={styles.gradBtnText}>Collect Profit</Text>
+                </Pressable>
+              ) : (
+                <View style={[styles.gradBtn, { backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }]}>
+                  <Text style={[styles.gradBtnText, { color: "#9CA3AF" }]}>Please wait…</Text>
+                </View>
+              )}
             </Animated.View>
           )}
 
@@ -880,4 +904,12 @@ const styles = StyleSheet.create({
 
   tBadgeSm: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#00C853", alignItems: "center", justifyContent: "center" },
   tBadgeSmText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
+
+  profitLoadingRow: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    marginTop: 6, marginBottom: 2,
+  },
+  profitLoadingText: {
+    fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#2BD9A8",
+  },
 });

@@ -66,6 +66,7 @@ export default function ProfileScreen() {
 
   const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
   const [bannerImageUri, setBannerImageUri] = useState<string | null>(null);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
 
   const processingOrders = orders.filter((o) => o.status === "processing");
   const boughtOrders = orders.filter((o) => o.status === "bought");
@@ -403,7 +404,12 @@ export default function ProfileScreen() {
               <Pressable
                 key={link.label}
                 style={styles.linkItem}
-                onPress={link.label === "Deposit" ? () => router.push("/(tabs)/earn") : undefined}
+                onPress={
+                  link.label === "Deposit"  ? () => router.push("/(tabs)/earn") :
+                  link.label === "My Bid"   ? () => setComingSoonOpen(true) :
+                  link.label === "Details"  ? () => setComingSoonOpen(true) :
+                  undefined
+                }
               >
                 <View style={styles.linkIconBox}>
                   <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
@@ -426,7 +432,12 @@ export default function ProfileScreen() {
               <Pressable
                 key={fn.label}
                 style={styles.linkItem}
-                onPress={fn.label === "Settings" ? () => setSettingsOpen(true) : undefined}
+                onPress={
+                  fn.label === "Settings"   ? () => setSettingsOpen(true) :
+                  fn.label === "Tutorials"  ? () => setComingSoonOpen(true) :
+                  fn.label === "Collection" ? () => setComingSoonOpen(true) :
+                  undefined
+                }
               >
                 <View style={styles.linkIconBox}>
                   <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
@@ -439,6 +450,27 @@ export default function ProfileScreen() {
         </Animated.View>
 
       </ScrollView>
+
+      {/* ── Coming Soon Modal ── */}
+      <Modal visible={comingSoonOpen} transparent animationType="fade" statusBarTranslucent>
+        <Pressable style={csModal.overlay} onPress={() => setComingSoonOpen(false)}>
+          <Animated.View entering={FadeInDown.duration(320).springify()} style={csModal.card}>
+            <View style={csModal.iconWrap}>
+              <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={36} />
+              <Feather name="clock" size={30} color="#fff" />
+            </View>
+            <Text style={csModal.title}>Coming Soon</Text>
+            <Text style={csModal.sub}>This feature is currently under development.{"\n"}Stay tuned for updates!</Text>
+            <View style={csModal.tbaBadge}>
+              <Text style={csModal.tbaText}>TBA</Text>
+            </View>
+            <Pressable style={csModal.closeBtn} onPress={() => setComingSoonOpen(false)}>
+              <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+              <Text style={csModal.closeBtnText}>Got it</Text>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
 
       {/* ── Settings Modal ── */}
       <Modal visible={settingsOpen} animationType="slide" presentationStyle="fullScreen">
@@ -1100,5 +1132,57 @@ const styles = StyleSheet.create({
     fontSize: 12, fontFamily: "Inter_600SemiBold",
     color: Colors.textSecondary, textAlign: "center",
     lineHeight: 16,
+  },
+});
+
+const csModal = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 28,
+  },
+  card: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    alignItems: "center",
+    padding: 28,
+    gap: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  iconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    alignItems: "center", justifyContent: "center",
+    overflow: "hidden",
+  },
+  title: {
+    fontSize: 22, fontFamily: "Inter_700Bold",
+    color: "#111827", textAlign: "center",
+  },
+  sub: {
+    fontSize: 14, fontFamily: "Inter_400Regular",
+    color: "#6B7280", textAlign: "center", lineHeight: 22,
+  },
+  tbaBadge: {
+    backgroundColor: "#F3F4F6",
+    borderRadius: 20, paddingHorizontal: 18, paddingVertical: 6,
+  },
+  tbaText: {
+    fontSize: 13, fontFamily: "Inter_700Bold",
+    color: "#9CA3AF", letterSpacing: 2,
+  },
+  closeBtn: {
+    width: "100%", height: 50, borderRadius: 14,
+    alignItems: "center", justifyContent: "center",
+    overflow: "hidden", position: "relative", marginTop: 4,
+  },
+  closeBtnText: {
+    fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff",
   },
 });
