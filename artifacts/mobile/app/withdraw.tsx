@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -26,6 +26,15 @@ const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 const FEE_RATE = 0.05;
 const MIN_WITHDRAWAL = 10;
 
+const NETWORK_INFO: Record<string, { label: string; color: string; bg: string; letter: string }> = {
+  TRC20:   { label: "USDT (TRC-20)",          color: "#E84141", bg: "#FFF1F1", letter: "T" },
+  BEP20:   { label: "USDT (BEP-20)",          color: "#F0B90B", bg: "#FFFBEB", letter: "B" },
+  POLYGON: { label: "NFT Transfer (Polygon)", color: "#8247E5", bg: "#F5F0FF", letter: "P" },
+  SOL:     { label: "USDT (Solana)",          color: "#14F195", bg: "#EDFFF9", letter: "S" },
+};
+
+interface SavedAddress { network: string; address: string }
+
 export default function WithdrawScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -43,19 +52,52 @@ export default function WithdrawScreen() {
   const [submitting, setSubmitting]     = useState(false);
   const [success, setSuccess]           = useState(false);
 
+  // Saved withdrawal addresses
+  const [savedAddresses, setSavedAddresses]     = useState<SavedAddress[]>([]);
+  const [selectedNetwork, setSelectedNetwork]   = useState<string | null>(null);
+  const [disabledUntil, setDisabledUntil]       = useState<string | null>(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const numAmount = parseFloat(amount) || 0;
   const fee       = numAmount * FEE_RATE;
   const receive   = numAmount - fee;
 
-  const handleAllWithdraw = () => {
-    setAmount(balance.toFixed(2));
+  // Fetch saved addresses + cooldown status
+  const fetchAddresses = useCallback(async () => {
+    if (!token) return;
+    setLoadingAddresses(true);
+    try {
+      const data = await authApi.withdrawAddresses.get(token);
+      setSavedAddresses(data.addresses ?? []);
+      setDisabledUntil(data.withdrawal_disabled_until ?? null);
+    } catch {
+      // table may not exist yet — silent fallback
+    } finally {
+      setLoadingAddresses(false);
+    }
+  }, [token]);
+
+  useEffect(() => { fetchAddresses(); }, [fetchAddresses]);
+
+  const handleSelectNetwork = (network: string) => {
+    setSelectedNetwork(network);
+    const saved = savedAddresses.find((a) => a.network === network);
+    if (saved) setAddress(saved.address);
   };
 
+  const isWithdrawalDisabled =
+    !!disabledUntil && new Date(disabledUntil) > new Date();
+
+  const disabledRemainingHours = isWithdrawalDisabled
+    ? Math.ceil((new Date(disabledUntil!).getTime() - Date.now()) / (1000 * 60 * 60))
+    : 0;
+
+  const handleAllWithdraw = () => { setAmount(balance.toFixed(2)); };
+
   const handleGetCode = async () => {
-    if (!user?.email) return;
-    if (codeCooldown > 0) return;
+    if (!user?.email || codeCooldown > 0) return;
     setSendingCode(true);
     try {
       await authApi.sendCode(user.email, "verify");
@@ -78,8 +120,30 @@ export default function WithdrawScreen() {
   };
 
   const handleSubmit = async () => {
+    // Check if withdrawal is disabled (72h cooldown after address change)
+    if (isWithdrawalDisabled) {
+      Alert.alert(
+        "Withdrawals Disabled",
+        `Your withdrawals are temporarily disabled for account security. Available in approximately ${disabledRemainingHours} hour${disabledRemainingHours === 1 ? "" : "s"}.`
+      );
+      return;
+    }
+
+    // Require at least 2 saved withdrawal addresses
+    if (savedAddresses.length < 2) {
+      Alert.alert(
+        "Set Withdrawal Addresses",
+        "Please set at least 2 withdrawal network addresses before withdrawing. Tap the Settings button in the Assets tab.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Go to Settings", onPress: () => router.push("/withdrawal-links") },
+        ]
+      );
+      return;
+    }
+
     if (!address.trim()) {
-      Alert.alert("Missing field", "Please enter a withdrawal address.");
+      Alert.alert("Missing field", "Please enter or select a withdrawal address.");
       return;
     }
     if (numAmount < MIN_WITHDRAWAL) {
@@ -101,20 +165,15 @@ export default function WithdrawScreen() {
 
     setSubmitting(true);
     try {
-      // Step 1: verify email code
       await authApi.verifyCode(user!.email, emailCode.trim());
 
-      // Step 2: submit withdrawal to server — this deducts balance in DB
-      // and creates a pending record for admin review
       await authApi.withdraw.create(token!, {
         amount: numAmount,
         wallet_address: address.trim(),
-        network: "TRC20",
+        network: selectedNetwork ?? "TRC20",
       });
 
-      // Step 3: mirror balance deduction locally for instant UI feedback
       spendBalance(numAmount, `Withdrawal to ${address.slice(0, 8)}…`);
-
       setSuccess(true);
     } catch (e: any) {
       Alert.alert("Withdrawal Failed", e.message ?? "Something went wrong. Please try again.");
@@ -147,6 +206,10 @@ export default function WithdrawScreen() {
             has been submitted.{"\n"}Funds will be credited within 96 hours.
           </Text>
           <View style={sty.successInfoCard}>
+            <View style={sty.successRow}>
+              <Text style={sty.successRowLabel}>Network</Text>
+              <Text style={sty.successRowValue}>{selectedNetwork ?? "TRC20"}</Text>
+            </View>
             <View style={sty.successRow}>
               <Text style={sty.successRowLabel}>Amount</Text>
               <Text style={sty.successRowValue}>{numAmount.toFixed(2)} USDT</Text>
@@ -194,12 +257,71 @@ export default function WithdrawScreen() {
             </View>
           </Animated.View>
 
+          {/* Withdrawal cooldown warning */}
+          {isWithdrawalDisabled && (
+            <Animated.View entering={FadeInDown.duration(300)} style={sty.disabledBanner}>
+              <Feather name="lock" size={16} color="#FF5C5C" />
+              <Text style={sty.disabledBannerText}>
+                Withdrawals disabled for account security — available in{" "}
+                <Text style={{ fontFamily: "Inter_700Bold" }}>~{disabledRemainingHours}h</Text>
+              </Text>
+            </Animated.View>
+          )}
+
+          {/* Min-address warning */}
+          {!isWithdrawalDisabled && savedAddresses.length < 2 && !loadingAddresses && (
+            <Animated.View entering={FadeInDown.duration(300)} style={sty.warnBanner}>
+              <Feather name="alert-circle" size={15} color="#F0B90B" />
+              <Text style={sty.warnBannerText}>
+                Set at least 2 withdrawal network addresses to withdraw.{" "}
+              </Text>
+              <Pressable onPress={() => router.push("/withdrawal-links")}>
+                <Text style={sty.warnBannerLink}>Set now</Text>
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* Network selector (shows saved addresses as tappable cards) */}
+          {savedAddresses.length > 0 && (
+            <Animated.View entering={FadeInDown.duration(330).delay(20)} style={sty.section}>
+              <Text style={sty.sectionLabel}>Select Network</Text>
+              <View style={sty.networkGrid}>
+                {savedAddresses.map((addr) => {
+                  const info = NETWORK_INFO[addr.network] ?? { label: addr.network, color: "#9CA3AF", bg: "#F3F4F6", letter: addr.network[0] };
+                  const isSelected = selectedNetwork === addr.network;
+                  return (
+                    <Pressable
+                      key={addr.network}
+                      style={[
+                        sty.networkCard,
+                        { borderColor: isSelected ? info.color : Colors.border },
+                        isSelected && { backgroundColor: info.bg },
+                      ]}
+                      onPress={() => handleSelectNetwork(addr.network)}
+                    >
+                      <View style={[sty.networkDot, { backgroundColor: info.bg, borderWidth: 1.5, borderColor: info.color + "55" }]}>
+                        <Text style={[sty.networkDotLetter, { color: info.color }]}>{info.letter}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[sty.networkCardLabel, isSelected && { color: info.color }]} numberOfLines={1}>{info.label}</Text>
+                        <Text style={sty.networkCardSub} numberOfLines={1}>
+                          {addr.address.slice(0, 6)}…{addr.address.slice(-4)}
+                        </Text>
+                      </View>
+                      {isSelected && <Feather name="check-circle" size={16} color={info.color} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Animated.View>
+          )}
+
           {/* Withdraw Address */}
           <Animated.View entering={FadeInDown.duration(330).delay(40)} style={sty.section}>
             <Text style={sty.sectionLabel}>Withdraw Address</Text>
             <TextInput
               style={sty.addressInput}
-              placeholder="Please enter address"
+              placeholder="Please enter or select address above"
               placeholderTextColor="#9CA3AF"
               value={address}
               onChangeText={setAddress}
@@ -310,6 +432,9 @@ export default function WithdrawScreen() {
             <Text style={sty.rulesText}>
               A 5% service fee is deducted from the withdrawal amount.
             </Text>
+            <Text style={sty.rulesText}>
+              Withdrawals require at least 2 saved network addresses.
+            </Text>
           </Animated.View>
 
           {/* Buttons */}
@@ -317,7 +442,11 @@ export default function WithdrawScreen() {
             <Pressable style={sty.cancelBtn} onPress={() => router.back()}>
               <Text style={sty.cancelBtnText}>Cancel</Text>
             </Pressable>
-            <Pressable style={sty.submitBtn} onPress={handleSubmit} disabled={submitting}>
+            <Pressable
+              style={[sty.submitBtn, isWithdrawalDisabled && { opacity: 0.6 }]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
               <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
               {submitting
                 ? <ActivityIndicator size="small" color="#fff" />
@@ -353,8 +482,42 @@ const sty = StyleSheet.create({
   },
   chainBadgeText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
 
+  disabledBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#FFF1F1", borderRadius: 12,
+    borderWidth: 1, borderColor: "#FFCDD2",
+    paddingHorizontal: 14, paddingVertical: 11,
+  },
+  disabledBannerText: {
+    flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: "#C62828", lineHeight: 19,
+  },
+
+  warnBanner: {
+    flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6,
+    backgroundColor: "#FFFBEB", borderRadius: 12,
+    borderWidth: 1, borderColor: "#FDE68A",
+    paddingHorizontal: 14, paddingVertical: 11,
+  },
+  warnBannerText: { fontSize: 13, fontFamily: "Inter_400Regular", color: "#92400E", flex: 1 },
+  warnBannerLink: { fontSize: 13, fontFamily: "Inter_700Bold", color: "#5CBFFE" },
+
   section: { gap: 10 },
   sectionLabel: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+
+  networkGrid: { gap: 10 },
+  networkCard: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: "#fff", borderRadius: 14,
+    borderWidth: 1.5, borderColor: Colors.border,
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  networkDot: {
+    width: 42, height: 42, borderRadius: 21,
+    alignItems: "center", justifyContent: "center",
+  },
+  networkDotLetter: { fontSize: 17, fontFamily: "Inter_700Bold" },
+  networkCardLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  networkCardSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted, marginTop: 2 },
 
   addressInput: {
     backgroundColor: "#fff", borderRadius: 14,
@@ -370,9 +533,7 @@ const sty = StyleSheet.create({
     paddingHorizontal: 14, height: 52,
     gap: 10,
   },
-  amountInput: {
-    flex: 1, fontSize: 16, fontFamily: "Inter_500Medium", color: Colors.textPrimary,
-  },
+  amountInput: { flex: 1, fontSize: 16, fontFamily: "Inter_500Medium", color: Colors.textPrimary },
   amountDivider: { width: 1, height: 22, backgroundColor: Colors.border },
   amountUnit: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textSecondary },
   amountDivider2: { width: 1, height: 22, backgroundColor: "#5CBFFE", opacity: 0.4 },
@@ -411,9 +572,7 @@ const sty = StyleSheet.create({
   },
   getCodeBtnDisabled: { borderColor: Colors.border },
   getCodeText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#5CBFFE" },
-  codeSentHint: {
-    fontSize: 12, fontFamily: "Inter_400Regular", color: "#2BD9A8", marginTop: 2,
-  },
+  codeSentHint: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#2BD9A8", marginTop: 2 },
 
   rulesCard: {
     backgroundColor: "#F1F5F9", borderRadius: 14,

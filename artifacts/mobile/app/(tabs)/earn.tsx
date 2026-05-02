@@ -337,6 +337,7 @@ export default function AssetsScreen() {
                 onPress={
                   action.label === "Deposit"  ? () => { setDepositStep("select"); setDepositOpen(true); } :
                   action.label === "Withdraw" ? () => router.push("/withdraw") :
+                  action.label === "Settings" ? () => router.push("/withdrawal-links") :
                   undefined
                 }
               >

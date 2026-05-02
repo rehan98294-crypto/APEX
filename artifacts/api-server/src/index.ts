@@ -125,6 +125,24 @@ async function runMigration() {
         "ALTER TABLE admin_action_log ADD COLUMN IF NOT EXISTS target_type VARCHAR(50);",
       ].join("\n"),
     },
+    {
+      column: "withdrawal_disabled_until", table: "users",
+      fullSql: [
+        "-- Add withdrawal cooldown column to users:",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS withdrawal_disabled_until TIMESTAMPTZ;",
+        "",
+        "-- Create withdrawal_addresses table:",
+        "CREATE TABLE IF NOT EXISTS withdrawal_addresses (",
+        "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
+        "  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,",
+        "  network VARCHAR(20) NOT NULL,",
+        "  address TEXT NOT NULL,",
+        "  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),",
+        "  UNIQUE(user_id, network)",
+        ");",
+        "CREATE INDEX IF NOT EXISTS idx_withdrawal_addresses_user_id ON withdrawal_addresses(user_id);",
+      ].join("\n"),
+    },
   ];
 
   let anyMissing = false;

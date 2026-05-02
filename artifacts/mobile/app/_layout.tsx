@@ -85,6 +85,7 @@ function RootLayoutNav() {
       <Stack.Screen name="subscriptions" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="shop" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="withdraw" options={{ headerShown: false, animation: "slide_from_right" }} />
+      <Stack.Screen name="withdrawal-links" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen name="airdrop" options={{ headerShown: false, animation: "slide_from_bottom" }} />
       <Stack.Screen name="google-verification" options={{ headerShown: false, animation: "slide_from_right" }} />
       <Stack.Screen

@@ -184,6 +184,25 @@ export const authApi = {
       }>("/withdraw/history", token),
   },
 
+  // ── Withdrawal Addresses ──────────────────────────────────────────────────
+  withdrawAddresses: {
+    get: (token: string) =>
+      requestGet<{
+        addresses: Array<{ network: string; address: string; updated_at: string }>;
+        withdrawal_disabled_until: string | null;
+      }>("/withdraw/addresses", token),
+
+    set: (
+      token: string,
+      params: { network: string; address: string; password: string; email_code: string; twofa_code?: string }
+    ) =>
+      request<{ success: boolean; withdrawal_disabled_until: string }>(
+        "/withdraw/address",
+        params as unknown as Record<string, unknown>,
+        token
+      ),
+  },
+
   // ── Referral & Team tree ──────────────────────────────────────────────────
   tree: {
     getReferralInfo: (token: string) =>

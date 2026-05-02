@@ -12,6 +12,7 @@ import rewardsRouter from "./rewards";
 import withdrawRouter from "./withdraw";
 import adminRouter from "./admin";
 import userRouter from "./user";
+import withdrawalAddressesRouter from "./withdrawal-addresses";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(rewardsRouter);
 router.use(withdrawRouter);
 router.use(adminRouter);
 router.use(userRouter);
+router.use(withdrawalAddressesRouter);
 
 export default router;
