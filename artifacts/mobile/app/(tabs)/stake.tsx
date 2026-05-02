@@ -72,12 +72,12 @@ const FREE_ZONES: ZoneConfig[] = [
 ];
 
 const EXCLUSIVE_ZONES: ZoneConfig[] = [
-  { id: 1, title: "Exclusive Stake 1", levelRange: "LV2-LV3", image: require("@/assets/stake/ex1.png"), status: "Open", priceRange: "499 ~ 1,500",  priceMin: 499,  priceMax: 1500, income: "1.5%", apr: 1.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2, nftLevel: 2 },
-  { id: 2, title: "Exclusive Stake 2", levelRange: "LV2-LV3", image: require("@/assets/stake/ex2.png"), status: "Open", priceRange: "499 ~ 2,000",  priceMin: 499,  priceMax: 2000, income: "1.8%", apr: 1.8, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2, nftLevel: 2 },
-  { id: 3, title: "Exclusive Stake 3", levelRange: "LV3-LV4", image: require("@/assets/stake/ex3.png"), status: "Open", priceRange: "999 ~ 3,000",  priceMin: 999,  priceMax: 3000, income: "2.0%", apr: 2.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3, nftLevel: 3 },
-  { id: 4, title: "Exclusive Stake 4", levelRange: "LV3-LV4", image: require("@/assets/stake/ex4.png"), status: "Open", priceRange: "999 ~ 4,000",  priceMin: 999,  priceMax: 4000, income: "2.5%", apr: 2.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3, nftLevel: 4 },
-  { id: 5, title: "Exclusive Stake 5", levelRange: "LV4-LV5", image: require("@/assets/stake/ex5.png"), status: "Open", priceRange: "1,499 ~ 5,000", priceMin: 1499, priceMax: 5000, income: "3.0%", apr: 3.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 4, nftLevel: 5 },
-  { id: 6, title: "Exclusive Stake 6", levelRange: "LV5-LV6", image: require("@/assets/stake/ex6.png"), status: "Open", priceRange: "1,999 ~ 6,000", priceMin: 1999, priceMax: 6000, income: "3.5%", apr: 3.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 5, nftLevel: 6 },
+  { id: 1, title: "Exclusive Stake 1", levelRange: "LV2-LV3", image: require("@/assets/stake/ex1.png"), status: "Open", priceRange: "499 ~ 999",     priceMin: 499,   priceMax: 999,   income: "1.5%", apr: 1.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2, nftLevel: 2 },
+  { id: 2, title: "Exclusive Stake 2", levelRange: "LV2-LV3", image: require("@/assets/stake/ex2.png"), status: "Open", priceRange: "999 ~ 1,999",   priceMin: 999,   priceMax: 1999,  income: "1.8%", apr: 1.8, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 2, nftLevel: 3 },
+  { id: 3, title: "Exclusive Stake 3", levelRange: "LV3-LV4", image: require("@/assets/stake/ex3.png"), status: "Open", priceRange: "1,999 ~ 4,999", priceMin: 1999,  priceMax: 4999,  income: "2.0%", apr: 2.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3, nftLevel: 4 },
+  { id: 4, title: "Exclusive Stake 4", levelRange: "LV3-LV4", image: require("@/assets/stake/ex4.png"), status: "Open", priceRange: "4,999 ~ 7,999", priceMin: 4999,  priceMax: 7999,  income: "2.5%", apr: 2.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 3, nftLevel: 5 },
+  { id: 5, title: "Exclusive Stake 5", levelRange: "LV4-LV5", image: require("@/assets/stake/ex5.png"), status: "Open", priceRange: "7,999 ~ 12,999",priceMin: 7999,  priceMax: 12999, income: "3.0%", apr: 3.0, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 4, nftLevel: 6 },
+  { id: 6, title: "Exclusive Stake 6", levelRange: "LV5-LV6", image: require("@/assets/stake/ex6.png"), status: "Open", priceRange: "12,999 ~ 19,999",priceMin: 12999, priceMax: 19999, income: "3.5%", apr: 3.5, type: "exclusive", handlingFee: "1%", active: true, minSubLevel: 5, nftLevel: 6 },
 ];
 
 const CATEGORY_TABS = ["Stake", "Polygon NFT", "Art", "Collection", "Game"];
