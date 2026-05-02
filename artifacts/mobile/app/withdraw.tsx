@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -51,6 +52,17 @@ export default function WithdrawScreen() {
   const [codeCooldown, setCodeCooldown] = useState(0);
   const [submitting, setSubmitting]     = useState(false);
   const [success, setSuccess]           = useState(false);
+
+  type FieldErrors = {
+    address?: string;
+    amount?: string;
+    emailCode?: string;
+    twoFaCode?: string;
+    general?: string;
+  };
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const clearErr = (k: keyof FieldErrors) =>
+    setFieldErrors((prev) => { const n = { ...prev }; delete n[k]; return n; });
 
   // Saved withdrawal addresses
   const [savedAddresses, setSavedAddresses]     = useState<SavedAddress[]>([]);
@@ -120,117 +132,55 @@ export default function WithdrawScreen() {
   };
 
   const handleSubmit = async () => {
-    // Check if withdrawal is disabled (72h cooldown after address change)
+    const errs: FieldErrors = {};
+
     if (isWithdrawalDisabled) {
-      Alert.alert(
-        "Withdrawals Disabled",
-        `Your withdrawals are temporarily disabled for account security. Available in approximately ${disabledRemainingHours} hour${disabledRemainingHours === 1 ? "" : "s"}.`
-      );
+      errs.general = `Withdrawals disabled for security — available in ~${disabledRemainingHours}h.`;
+      setFieldErrors(errs);
       return;
     }
-
-    // Require at least 2 saved withdrawal addresses
     if (savedAddresses.length < 2) {
-      Alert.alert(
-        "Set Withdrawal Addresses",
-        "Please set at least 2 withdrawal network addresses before withdrawing. Tap the Settings button in the Assets tab.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Go to Settings", onPress: () => router.push("/withdrawal-links") },
-        ]
-      );
+      errs.general = "Please set at least 2 withdrawal network addresses first.";
+      setFieldErrors(errs);
       return;
     }
+    if (!address.trim())        errs.address   = "Please enter or select a withdrawal address.";
+    if (numAmount < MIN_WITHDRAWAL) errs.amount = `Minimum withdrawal is ${MIN_WITHDRAWAL} USDT.`;
+    else if (numAmount > balance)   errs.amount = "Amount exceeds your available balance.";
+    if (!emailCode.trim())      errs.emailCode = "Please enter the email verification code.";
+    if (!twoFaCode.trim())      errs.twoFaCode = "Please enter your Google Authenticator code.";
 
-    if (!address.trim()) {
-      Alert.alert("Missing field", "Please enter or select a withdrawal address.");
-      return;
-    }
-    if (numAmount < MIN_WITHDRAWAL) {
-      Alert.alert("Invalid amount", `Minimum withdrawal is ${MIN_WITHDRAWAL} USDT.`);
-      return;
-    }
-    if (numAmount > balance) {
-      Alert.alert("Insufficient balance", "Amount exceeds your available balance.");
-      return;
-    }
-    if (!emailCode.trim()) {
-      Alert.alert("Missing field", "Please enter the email verification code.");
-      return;
-    }
-    if (!twoFaCode.trim()) {
-      Alert.alert("Missing field", "Please enter your Google Authenticator code.");
-      return;
-    }
+    if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
 
+    setFieldErrors({});
     setSubmitting(true);
     try {
       await authApi.verifyCode(user!.email, emailCode.trim());
-
       await authApi.withdraw.create(token!, {
         amount: numAmount,
         wallet_address: address.trim(),
         network: selectedNetwork ?? "TRC20",
       });
-
       spendBalance(numAmount, `Withdrawal to ${address.slice(0, 8)}…`);
       setSuccess(true);
     } catch (e: any) {
-      Alert.alert("Withdrawal Failed", e.message ?? "Something went wrong. Please try again.");
+      const msg: string = e.message ?? "Something went wrong. Please try again.";
+      const low = msg.toLowerCase();
+      if (low.includes("email") || low.includes("otp") || low.includes("verif") || low.includes("code")) {
+        setFieldErrors({ emailCode: msg });
+      } else if (low.includes("2fa") || low.includes("totp") || low.includes("authenticat") || low.includes("google")) {
+        setFieldErrors({ twoFaCode: msg });
+      } else if (low.includes("address") || low.includes("wallet")) {
+        setFieldErrors({ address: msg });
+      } else if (low.includes("amount") || low.includes("balance") || low.includes("minimum")) {
+        setFieldErrors({ amount: msg });
+      } else {
+        setFieldErrors({ general: msg });
+      }
     } finally {
       setSubmitting(false);
     }
   };
-
-  if (success) {
-    return (
-      <View style={[sty.container, { paddingTop: insets.top }]}>
-        <View style={sty.topBar}>
-          <Pressable style={sty.backBtn} onPress={() => router.back()}>
-            <Feather name="arrow-left" size={22} color={Colors.textPrimary} />
-          </Pressable>
-          <Text style={sty.topTitle}>Withdraw</Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <Animated.View entering={FadeIn.duration(500)} style={sty.successWrap}>
-          <View style={sty.successCircle}>
-            <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={40} />
-            <Feather name="check" size={38} color="#fff" />
-          </View>
-          <Text style={sty.successTitle}>Withdrawal Submitted</Text>
-          <Text style={sty.successSub}>
-            Your request of{" "}
-            <Text style={{ fontFamily: "Inter_700Bold", color: "#2BD9A8" }}>
-              {receive.toFixed(2)} USDT
-            </Text>{" "}
-            has been submitted.{"\n"}Funds will be credited within 96 hours.
-          </Text>
-          <View style={sty.successInfoCard}>
-            <View style={sty.successRow}>
-              <Text style={sty.successRowLabel}>Network</Text>
-              <Text style={sty.successRowValue}>{selectedNetwork ?? "TRC20"}</Text>
-            </View>
-            <View style={sty.successRow}>
-              <Text style={sty.successRowLabel}>Amount</Text>
-              <Text style={sty.successRowValue}>{numAmount.toFixed(2)} USDT</Text>
-            </View>
-            <View style={sty.successRow}>
-              <Text style={sty.successRowLabel}>Service fee (5%)</Text>
-              <Text style={[sty.successRowValue, { color: "#F59E0B" }]}>-{fee.toFixed(2)} USDT</Text>
-            </View>
-            <View style={[sty.successRow, { borderBottomWidth: 0 }]}>
-              <Text style={sty.successRowLabel}>You receive</Text>
-              <Text style={[sty.successRowValue, { color: "#2BD9A8" }]}>{receive.toFixed(2)} USDT</Text>
-            </View>
-          </View>
-          <Pressable style={sty.doneBtn} onPress={() => router.back()}>
-            <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
-            <Text style={sty.doneBtnText}>Done</Text>
-          </Pressable>
-        </Animated.View>
-      </View>
-    );
-  }
 
   return (
     <View style={[sty.container, { paddingTop: insets.top }]}>
@@ -320,26 +270,27 @@ export default function WithdrawScreen() {
           <Animated.View entering={FadeInDown.duration(330).delay(40)} style={sty.section}>
             <Text style={sty.sectionLabel}>Withdraw Address</Text>
             <TextInput
-              style={sty.addressInput}
+              style={[sty.addressInput, fieldErrors.address && sty.inputError]}
               placeholder="Please enter or select address above"
               placeholderTextColor="#9CA3AF"
               value={address}
-              onChangeText={setAddress}
+              onChangeText={(v) => { setAddress(v); clearErr("address"); }}
               autoCapitalize="none"
               autoCorrect={false}
             />
+            {fieldErrors.address && <Text style={sty.errText}>{fieldErrors.address}</Text>}
           </Animated.View>
 
           {/* Amount */}
           <Animated.View entering={FadeInDown.duration(330).delay(80)} style={sty.section}>
             <Text style={sty.sectionLabel}>Amount</Text>
-            <View style={sty.amountRow}>
+            <View style={[sty.amountRow, fieldErrors.amount && sty.inputError]}>
               <TextInput
                 style={sty.amountInput}
                 placeholder="0.00"
                 placeholderTextColor="#9CA3AF"
                 value={amount}
-                onChangeText={setAmount}
+                onChangeText={(v) => { setAmount(v); clearErr("amount"); }}
                 keyboardType="decimal-pad"
               />
               <View style={sty.amountDivider} />
@@ -349,6 +300,7 @@ export default function WithdrawScreen() {
                 <Text style={sty.allWithdrawText}>All Withdraw</Text>
               </Pressable>
             </View>
+            {fieldErrors.amount && <Text style={sty.errText}>{fieldErrors.amount}</Text>}
           </Animated.View>
 
           {/* Info card */}
@@ -378,13 +330,13 @@ export default function WithdrawScreen() {
           {/* Email verification */}
           <Animated.View entering={FadeInDown.duration(330).delay(160)} style={sty.section}>
             <Text style={sty.sectionLabel}>Email Verification</Text>
-            <View style={sty.codeRow}>
+            <View style={[sty.codeRow]}>
               <TextInput
-                style={sty.codeInput}
+                style={[sty.codeInput, fieldErrors.emailCode && sty.inputError]}
                 placeholder="Email verification code"
                 placeholderTextColor="#9CA3AF"
                 value={emailCode}
-                onChangeText={setEmailCode}
+                onChangeText={(v) => { setEmailCode(v); clearErr("emailCode"); }}
                 keyboardType="number-pad"
                 maxLength={6}
               />
@@ -401,23 +353,25 @@ export default function WithdrawScreen() {
                 }
               </Pressable>
             </View>
-            {codeSent && (
-              <Text style={sty.codeSentHint}>Code sent to {user?.email}</Text>
-            )}
+            {fieldErrors.emailCode
+              ? <Text style={sty.errText}>{fieldErrors.emailCode}</Text>
+              : codeSent && <Text style={sty.codeSentHint}>Code sent to {user?.email}</Text>
+            }
           </Animated.View>
 
           {/* Google Verification */}
           <Animated.View entering={FadeInDown.duration(330).delay(200)} style={sty.section}>
             <Text style={sty.sectionLabel}>Google Verification</Text>
             <TextInput
-              style={sty.addressInput}
+              style={[sty.addressInput, fieldErrors.twoFaCode && sty.inputError]}
               placeholder="Enter Google Authenticator code"
               placeholderTextColor="#9CA3AF"
               value={twoFaCode}
-              onChangeText={setTwoFaCode}
+              onChangeText={(v) => { setTwoFaCode(v); clearErr("twoFaCode"); }}
               keyboardType="number-pad"
               maxLength={6}
             />
+            {fieldErrors.twoFaCode && <Text style={sty.errText}>{fieldErrors.twoFaCode}</Text>}
           </Animated.View>
 
           {/* Rules */}
@@ -436,6 +390,14 @@ export default function WithdrawScreen() {
               Withdrawals require at least 2 saved network addresses.
             </Text>
           </Animated.View>
+
+          {/* General error */}
+          {fieldErrors.general && (
+            <Animated.View entering={FadeIn.duration(250)} style={sty.generalErrBanner}>
+              <Feather name="alert-circle" size={15} color="#DC2626" />
+              <Text style={sty.generalErrText}>{fieldErrors.general}</Text>
+            </Animated.View>
+          )}
 
           {/* Buttons */}
           <Animated.View entering={FadeInDown.duration(330).delay(280)} style={sty.btnRow}>
@@ -456,6 +418,53 @@ export default function WithdrawScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Success Modal ── */}
+      <Modal visible={success} transparent animationType="none" statusBarTranslucent>
+        <Animated.View entering={FadeIn.duration(280)} style={sty.modalOverlay}>
+          <Animated.View entering={FadeInDown.duration(400).springify()} style={sty.successModal}>
+            {/* Icon */}
+            <View style={sty.successCircle}>
+              <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={44} />
+              <Feather name="check" size={38} color="#fff" />
+            </View>
+
+            <Text style={sty.successTitle}>Withdrawal Successfully Sent</Text>
+            <Text style={sty.successSub}>
+              Your request of{" "}
+              <Text style={{ fontFamily: "Inter_700Bold", color: "#2BD9A8" }}>
+                {receive.toFixed(2)} USDT
+              </Text>
+              {"\n"}has been submitted. Funds will be credited within 96 hours.
+            </Text>
+
+            {/* Summary */}
+            <View style={sty.successInfoCard}>
+              <View style={sty.successRow}>
+                <Text style={sty.successRowLabel}>Network</Text>
+                <Text style={sty.successRowValue}>{selectedNetwork ?? "TRC20"}</Text>
+              </View>
+              <View style={sty.successRow}>
+                <Text style={sty.successRowLabel}>Amount</Text>
+                <Text style={sty.successRowValue}>{numAmount.toFixed(2)} USDT</Text>
+              </View>
+              <View style={sty.successRow}>
+                <Text style={sty.successRowLabel}>Service fee (5%)</Text>
+                <Text style={[sty.successRowValue, { color: "#F59E0B" }]}>−{fee.toFixed(2)} USDT</Text>
+              </View>
+              <View style={[sty.successRow, { borderBottomWidth: 0 }]}>
+                <Text style={sty.successRowLabel}>You receive</Text>
+                <Text style={[sty.successRowValue, { color: "#2BD9A8" }]}>{receive.toFixed(2)} USDT</Text>
+              </View>
+            </View>
+
+            <Pressable style={sty.doneBtn} onPress={() => router.back()}>
+              <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+              <Text style={sty.doneBtnText}>Done</Text>
+            </Pressable>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
     </View>
   );
 }
@@ -574,6 +583,16 @@ const sty = StyleSheet.create({
   getCodeText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#5CBFFE" },
   codeSentHint: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#2BD9A8", marginTop: 2 },
 
+  inputError: { borderColor: "#EF4444", borderWidth: 1.5 },
+  errText: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#EF4444", marginTop: 4, marginLeft: 4 },
+  generalErrBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#FEF2F2", borderRadius: 12,
+    borderWidth: 1, borderColor: "#FECACA",
+    paddingHorizontal: 14, paddingVertical: 11,
+  },
+  generalErrText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: "#DC2626", lineHeight: 19 },
+
   rulesCard: {
     backgroundColor: "#F1F5F9", borderRadius: 14,
     padding: 16, gap: 6,
@@ -597,34 +616,42 @@ const sty = StyleSheet.create({
   },
   submitBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
 
-  successWrap: {
-    flex: 1, alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 32, gap: 20,
+  modalOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  successModal: {
+    width: "100%", backgroundColor: "#fff", borderRadius: 24,
+    alignItems: "center", paddingHorizontal: 24, paddingTop: 32, paddingBottom: 28, gap: 16,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 24,
+    elevation: 12,
   },
   successCircle: {
-    width: 80, height: 80, borderRadius: 40,
+    width: 88, height: 88, borderRadius: 44,
     alignItems: "center", justifyContent: "center",
     overflow: "hidden", position: "relative",
   },
-  successTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: Colors.textPrimary },
+  successTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: Colors.textPrimary, textAlign: "center" },
   successSub: {
     fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textSecondary,
     textAlign: "center", lineHeight: 22,
   },
   successInfoCard: {
-    width: "100%", backgroundColor: "#fff", borderRadius: 16,
-    borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 18,
+    width: "100%", backgroundColor: "#F8FAFC", borderRadius: 14,
+    borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 16,
   },
   successRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
-  successRowLabel: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
-  successRowValue: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
+  successRowLabel: { fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textSecondary },
+  successRowValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
   doneBtn: {
     width: "100%", height: 52, borderRadius: 14,
     alignItems: "center", justifyContent: "center",
     overflow: "hidden", position: "relative",
+    marginTop: 4,
   },
   doneBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
 });
