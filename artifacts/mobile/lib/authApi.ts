@@ -31,6 +31,19 @@ async function requestGet<T>(path: string, token?: string): Promise<T> {
   return json;
 }
 
+// ── NFT API ───────────────────────────────────────────────────────────────────
+export const nftApi = {
+  getRandom: (level: number): Promise<{ id: string; title: string; image_url: string; level: number; price: number }> => {
+    const url = `${API_BASE}/nfts/random?level=${level}`;
+    return fetch(url)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.error) throw new Error(json.error);
+        return json;
+      });
+  },
+};
+
 export const authApi = {
   sendCode: (email: string, action: "verify" | "reset" = "verify") =>
     request<{ success: boolean; emailDelivered: boolean; devOtp?: string }>("/auth/send-code", { email, action }),

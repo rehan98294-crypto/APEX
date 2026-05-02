@@ -312,13 +312,198 @@ router.post("/seed-nfts-from-storage", async (_req, res) => {
   }
 });
 
+// ─── 80K SEED STATE ───────────────────────────────────────────────────────────
+interface SeedState80K {
+  running: boolean;
+  inserted: number;
+  total: number;
+  startedAt: number | null;
+  finishedAt: number | null;
+  error: string | null;
+}
+const seed80kState: SeedState80K = {
+  running: false, inserted: 0, total: 80000,
+  startedAt: null, finishedAt: null, error: null,
+};
+
+// ─── 80K LEVEL CONFIG ─────────────────────────────────────────────────────────
+const LEVEL_POOLS = [
+  { level: 1, count: 20000, minPrice: 50,    maxPrice: 1000,   systemCut: 0.30 },
+  { level: 2, count: 15000, minPrice: 500,   maxPrice: 2000,   systemCut: 0.28 },
+  { level: 3, count: 15000, minPrice: 2000,  maxPrice: 5000,   systemCut: 0.28 },
+  { level: 4, count: 10000, minPrice: 5000,  maxPrice: 15000,  systemCut: 0.28 },
+  { level: 5, count: 10000, minPrice: 15000, maxPrice: 50000,  systemCut: 0.25 },
+  { level: 6, count: 10000, minPrice: 50000, maxPrice: 200000, systemCut: 0.20 },
+];
+
+const ADJ80 = [
+  "Cosmic","Mystic","Shadow","Golden","Neon","Quantum","Phantom",
+  "Crystal","Ancient","Cyber","Frozen","Blazing","Silent","Eternal",
+  "Radiant","Obsidian","Celestial","Vortex","Lunar","Solar",
+  "Infernal","Arcane","Divine","Primal","Astral","Jade","Crimson",
+  "Sapphire","Emerald","Onyx",
+];
+const NOUN80 = [
+  "Dragon","Phoenix","Ape","Wolf","Panther","Tiger","Lion",
+  "Eagle","Serpent","Samurai","Warrior","Oracle","Titan","Specter",
+  "Golem","Wraith","Daemon","Cipher","Nexus","Sentinel",
+  "Hydra","Griffin","Chimera","Wyvern","Basilisk","Sphinx","Kraken",
+  "Leviathan","Behemoth","Colossus",
+];
+
+function buildName80K(level: number, indexInLevel: number): string {
+  const adj  = ADJ80[indexInLevel % ADJ80.length];
+  const noun = NOUN80[Math.floor(indexInLevel / ADJ80.length) % NOUN80.length];
+  const seq  = String(indexInLevel + 1).padStart(5, "0");
+  return `L${level} ${adj} ${noun} #${seq}`;
+}
+
+function levelPrice(pool: typeof LEVEL_POOLS[0], index: number): number {
+  const spread = pool.maxPrice - pool.minPrice;
+  // Deterministic spread using large prime
+  const raw = pool.minPrice + (index * 7919) % spread;
+  // Round to nearest $0.50 for cleanliness
+  return Math.round(raw * 2) / 2;
+}
+
+// ─── Background 80K seed function ─────────────────────────────────────────────
+async function run80KSeed(files: StorageFile[]): Promise<void> {
+  const BATCH = 500;
+  const fileCount = files.length;
+
+  // Clear existing NFTs
+  console.log("[Seed80K] Clearing existing NFT records…");
+  await supabase.from("nfts").delete().gte("created_at", "2000-01-01");
+
+  let globalIndex = 0;
+
+  for (const pool of LEVEL_POOLS) {
+    console.log(`[Seed80K] Seeding level ${pool.level} (${pool.count} NFTs, $${pool.minPrice}–$${pool.maxPrice})`);
+
+    for (let b = 0; b < pool.count; b += BATCH) {
+      const batchSize = Math.min(BATCH, pool.count - b);
+      const records = [];
+
+      for (let i = 0; i < batchSize; i++) {
+        const levelIdx  = b + i;
+        const fileIdx   = globalIndex % fileCount;
+        const cycle     = Math.floor(globalIndex / fileCount);
+        const rawUrl    = files[fileIdx].publicUrl;
+        const imageUrl  = cycle === 0 ? rawUrl : `${rawUrl}?v=${cycle + 1}`;
+
+        records.push({
+          title:     buildName80K(pool.level, levelIdx),
+          image_url: imageUrl,
+          level:     pool.level,
+          min_price: levelPrice(pool, levelIdx),
+          max_price: pool.maxPrice,
+        });
+        globalIndex++;
+      }
+
+      const { error } = await supabase.from("nfts").insert(records);
+      if (error) {
+        console.error(`[Seed80K] Level ${pool.level} batch ${Math.floor(b / BATCH) + 1} error: ${error.message}`);
+        if (error.code === "42501") {
+          seed80kState.error = "RLS_BLOCKED: Run fix_nfts_unique.sql in Supabase SQL Editor.";
+          seed80kState.running = false;
+          seed80kState.finishedAt = Date.now();
+          return;
+        }
+        // Non-fatal, continue
+      } else {
+        seed80kState.inserted += batchSize;
+      }
+
+      if (seed80kState.inserted % 5000 === 0 || b + BATCH >= pool.count) {
+        console.log(`[Seed80K] Progress: ${seed80kState.inserted}/${seed80kState.total}`);
+      }
+    }
+  }
+
+  seed80kState.running = false;
+  seed80kState.finishedAt = Date.now();
+  console.log(`[Seed80K] ✓ Complete — inserted ${seed80kState.inserted} NFTs`);
+}
+
+// ─── POST /seed-nfts-80k ─────────────────────────────────────────────────────
+router.post("/seed-nfts-80k", async (_req, res) => {
+  if (seed80kState.running) {
+    return res.json({
+      started: false,
+      message: "Seeding already in progress",
+      progress: seed80kState,
+    });
+  }
+
+  // Probe bucket first
+  const probe = await probeStorageBucket();
+  probe.log.forEach((l) => console.log(l));
+
+  if (!probe.found || probe.files.length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: "No images found in Supabase storage bucket 'apex'. Add images first.",
+      fix: probe.error,
+      log: probe.log,
+    });
+  }
+
+  console.log(`[Seed80K] Starting background seed — ${probe.files.length} storage images available`);
+
+  // Reset state and fire off background job
+  seed80kState.running = true;
+  seed80kState.inserted = 0;
+  seed80kState.total = 80000;
+  seed80kState.startedAt = Date.now();
+  seed80kState.finishedAt = null;
+  seed80kState.error = null;
+
+  // Fire and forget
+  run80KSeed(probe.files).catch((err) => {
+    seed80kState.error = err.message;
+    seed80kState.running = false;
+    seed80kState.finishedAt = Date.now();
+    console.error("[Seed80K] Fatal:", err.message);
+  });
+
+  return res.json({
+    started: true,
+    message: `Seeding 80,000 NFTs using ${probe.files.length} storage images. Poll /api/seed-nfts/status-80k for progress.`,
+    storageImages: probe.files.length,
+    totalNFTs: 80000,
+  });
+});
+
+// ─── GET /seed-nfts/status-80k ───────────────────────────────────────────────
+router.get("/seed-nfts/status-80k", (_req, res) => {
+  const elapsed = seed80kState.startedAt
+    ? Math.round((Date.now() - seed80kState.startedAt) / 1000)
+    : null;
+  return res.json({
+    ...seed80kState,
+    elapsedSeconds: elapsed,
+    percentComplete: Math.round((seed80kState.inserted / seed80kState.total) * 100),
+  });
+});
+
 // ─── GET /seed-nfts/status ────────────────────────────────────────────────────
 router.get("/seed-nfts/status", async (_req, res) => {
   const { count, error } = await supabase
     .from("nfts")
     .select("*", { count: "exact", head: true });
   if (error) return res.status(500).json({ error: error.message });
-  return res.json({ count });
+
+  const byLevel: Record<string, number> = {};
+  for (const pool of LEVEL_POOLS) {
+    const { count: lc } = await supabase
+      .from("nfts")
+      .select("*", { count: "exact", head: true })
+      .eq("level", pool.level);
+    byLevel[`level${pool.level}`] = lc ?? 0;
+  }
+
+  return res.json({ count, byLevel, seed80k: seed80kState });
 });
 
 // ─── POST /seed-nfts (generates 300 records — only if storage bucket is empty) ─
