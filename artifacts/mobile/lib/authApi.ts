@@ -135,6 +135,17 @@ export const authApi = {
       }>(`/deposit/status/${payment_id}`, token),
   },
 
+  // ── Rewards ───────────────────────────────────────────────────────────────
+  rewards: {
+    recordProfit: (token: string, profit: number) =>
+      request<{ success: boolean; rewardsDistributed: number }>("/rewards/reserve-profit", { profit }, token),
+
+    getTeamReward: (token: string) =>
+      requestGet<{ totalReward: number; todayReward: number; byLine: { A: number; B: number; C: number } }>(
+        "/rewards/team", token
+      ),
+  },
+
   // ── Referral & Team tree ──────────────────────────────────────────────────
   tree: {
     getReferralInfo: (token: string) =>

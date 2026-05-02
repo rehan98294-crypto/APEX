@@ -8,6 +8,7 @@ import plansRouter from "./plans";
 import shopRouter from "./shop";
 import treeRouter from "./tree";
 import depositRouter from "./deposit";
+import rewardsRouter from "./rewards";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(plansRouter);
 router.use(shopRouter);
 router.use(treeRouter);
 router.use(depositRouter);
+router.use(rewardsRouter);
 
 export default router;

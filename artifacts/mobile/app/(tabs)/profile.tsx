@@ -26,18 +26,14 @@ import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { useOrders } from "@/context/OrderContext";
 import { useTick } from "@/context/TickContext";
+import { useReferral } from "@/hooks/useReferral";
 import { authApi } from "@/lib/authApi";
 
 const { width } = Dimensions.get("window");
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 const USD_ICON = require("../../assets/images/icon-usd.png");
 
-const TEAM_STATS = [
-  { label: "Community\nrewards", value: "0.1" },
-  { label: "Valid\nMembers", value: "0" },
-  { label: "A enthusiast", value: "0" },
-  { label: "B+C\nenthusiasts", value: "0" },
-];
+// TEAM_STATS is now dynamic — built inside the component using live referral data
 
 const TEAM_LINKS = [
   { icon: "users",    label: "Community\nenthusiasts",  route: "/my-team", params: { section: "enthusiasts" } },
@@ -54,12 +50,17 @@ const COMMON_FUNCS = [
 ];
 
 export default function ProfileScreen() {
-  const { balance, earnedTotal } = useBalance();
+  const { balance, earnedTotal, reserveProfit, todayReserveProfit, stakeEarned, todayStakeEarned } = useBalance();
   const { orders } = useOrders();
   const { user, token, signOut } = useAuth();
   const { activeBadgeTick, activeCircleTick } = useTick();
+  const { stats: teamStats } = useReferral();
   const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
+
+  const [teamRewardTotal, setTeamRewardTotal] = useState(0);
+  const [teamRewardToday, setTeamRewardToday] = useState(0);
+  const [teamRewardByLine, setTeamRewardByLine] = useState({ A: 0, B: 0, C: 0 });
 
   const processingOrders = orders.filter((o) => o.status === "processing");
   const boughtOrders = orders.filter((o) => o.status === "bought");
@@ -95,6 +96,13 @@ export default function ProfileScreen() {
     if (token) {
       authApi.twofa.getStatus(token)
         .then((s) => setHas2FA(s.enabled))
+        .catch(() => {});
+      authApi.rewards.getTeamReward(token)
+        .then((r) => {
+          setTeamRewardTotal(r.totalReward);
+          setTeamRewardToday(r.todayReward);
+          setTeamRewardByLine(r.byLine);
+        })
         .catch(() => {});
     }
   }, [token]);
@@ -148,13 +156,23 @@ export default function ProfileScreen() {
     }
   };
 
+  const comprehensiveTotal = reserveProfit + stakeEarned + teamRewardTotal;
+  const comprehensiveToday = todayReserveProfit + todayStakeEarned + teamRewardToday;
+
   const INCOME_ROWS = [
-    { label: "Comprehensive", daily: "0.0", total: earnedTotal.toFixed(2), star: false },
-    { label: "Reserve",       daily: "0.0", total: "0.0", star: false },
-    { label: "Team",          daily: "0.0", total: "0.1", star: false },
-    { label: "Activity",      daily: "0.0", total: "0.0", star: false },
-    { label: "Missions",      daily: "0.0", total: "0.0", star: false },
-    { label: "Stake",         daily: "0.0", total: "0.0", star: true },
+    { label: "Comprehensive", daily: comprehensiveToday.toFixed(2), total: comprehensiveTotal.toFixed(2), star: false },
+    { label: "Reserve",       daily: todayReserveProfit.toFixed(2), total: reserveProfit.toFixed(2),      star: false },
+    { label: "Team",          daily: teamRewardToday.toFixed(2),    total: teamRewardTotal.toFixed(2),    star: false },
+    { label: "Activity",      daily: "0.00",                        total: "0.00",                        star: false },
+    { label: "Missions",      daily: "0.00",                        total: "0.00",                        star: false },
+    { label: "Stake",         daily: todayStakeEarned.toFixed(2),   total: stakeEarned.toFixed(2),        star: true  },
+  ];
+
+  const TEAM_STATS = [
+    { label: "Community\nrewards", value: teamRewardTotal.toFixed(2) },
+    { label: "Valid\nMembers",     value: String(teamStats.validMembers) },
+    { label: "A enthusiast",       value: String(teamStats.A.total) },
+    { label: "B+C\nenthusiasts",   value: String(teamStats.B.total + teamStats.C.total) },
   ];
 
   return (

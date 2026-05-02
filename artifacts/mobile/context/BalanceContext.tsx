@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 export interface Transaction {
   id: string;
-  type: "earn" | "stake" | "unstake" | "reward" | "reserve";
+  type: "earn" | "stake" | "unstake" | "reward" | "reserve" | "reserve_profit" | "stake_reward" | "team_reward";
   amount: number;
   description: string;
   timestamp: number;
@@ -34,12 +34,18 @@ interface BalanceContextType {
   balance: number;
   stakedTotal: number;
   earnedTotal: number;
+  reserveProfit: number;
+  todayReserveProfit: number;
+  stakeEarned: number;
+  todayStakeEarned: number;
   transactions: Transaction[];
   stakes: StakePosition[];
   reservations: Reservation[];
   stakeTokens: (amount: number, lockDays: number, apy: number) => boolean;
   unstakeTokens: (stakeId: string) => boolean;
   earnReward: (amount: number, description: string) => void;
+  earnReserveProfit: (profit: number, price: number, description: string) => void;
+  earnStakeReward: (amount: number, description: string) => void;
   spendBalance: (amount: number, description: string) => boolean;
   creditBalance: (amount: number, description: string) => void;
   addReservation: (r: Omit<Reservation, "id" | "reserveDate">) => boolean;
@@ -50,22 +56,34 @@ const BalanceContext = createContext<BalanceContextType>({
   balance: 2000,
   stakedTotal: 0,
   earnedTotal: 0,
+  reserveProfit: 0,
+  todayReserveProfit: 0,
+  stakeEarned: 0,
+  todayStakeEarned: 0,
   transactions: [],
   stakes: [],
   reservations: [],
   stakeTokens: () => false,
   unstakeTokens: () => false,
   earnReward: () => {},
+  earnReserveProfit: () => {},
+  earnStakeReward: () => {},
   spendBalance: () => false,
   creditBalance: () => {},
   addReservation: () => false,
   cancelReservation: () => {},
 });
 
-const STORAGE_KEY = "treasurefun_balance_v3";
+const STORAGE_KEY = "treasurefun_balance_v4";
 
 function genId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 6);
+}
+
+function todayTimestamp(): number {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
 }
 
 export function BalanceProvider({ children }: { children: React.ReactNode }) {
@@ -112,6 +130,24 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     .filter((s) => s.status === "active")
     .reduce((sum, s) => sum + s.amount, 0);
 
+  const todayTs = todayTimestamp();
+
+  const reserveProfit = transactions
+    .filter((t) => t.type === "reserve_profit")
+    .reduce((s, t) => s + t.amount, 0);
+
+  const todayReserveProfit = transactions
+    .filter((t) => t.type === "reserve_profit" && t.timestamp >= todayTs)
+    .reduce((s, t) => s + t.amount, 0);
+
+  const stakeEarned = transactions
+    .filter((t) => t.type === "stake_reward")
+    .reduce((s, t) => s + t.amount, 0);
+
+  const todayStakeEarned = transactions
+    .filter((t) => t.type === "stake_reward" && t.timestamp >= todayTs)
+    .reduce((s, t) => s + t.amount, 0);
+
   const stakeTokens = (amount: number, lockDays: number, apy: number): boolean => {
     if (amount > balance || amount <= 0) return false;
     const newStake: StakePosition = {
@@ -129,13 +165,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       description: `Staked ${amount} TFT for ${lockDays} days at ${apy}% APY`,
       timestamp: Date.now(),
     };
-    persist(
-      balance - amount,
-      earnedTotal,
-      [tx, ...transactions].slice(0, 50),
-      [newStake, ...stakes],
-      reservations
-    );
+    persist(balance - amount, earnedTotal, [tx, ...transactions].slice(0, 100), [newStake, ...stakes], reservations);
     return true;
   };
 
@@ -157,78 +187,42 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       description: `Unstaked ${stake.amount} TFT + ${rewardEarned} reward`,
       timestamp: Date.now(),
     };
-    persist(
-      balance + totalReturn,
-      earnedTotal + rewardEarned,
-      [tx, ...transactions].slice(0, 50),
-      updatedStakes,
-      reservations
-    );
+    persist(balance + totalReturn, earnedTotal + rewardEarned, [tx, ...transactions].slice(0, 100), updatedStakes, reservations);
     return true;
   };
 
   const earnReward = (amount: number, description: string) => {
-    const tx: Transaction = {
-      id: genId(),
-      type: "earn",
-      amount,
-      description,
-      timestamp: Date.now(),
-    };
-    persist(
-      balance + amount,
-      earnedTotal + amount,
-      [tx, ...transactions].slice(0, 50),
-      stakes,
-      reservations
-    );
+    const tx: Transaction = { id: genId(), type: "earn", amount, description, timestamp: Date.now() };
+    persist(balance + amount, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
+  };
+
+  const earnReserveProfit = (profit: number, price: number, description: string) => {
+    const tx: Transaction = { id: genId(), type: "reserve_profit", amount: profit, description, timestamp: Date.now() };
+    persist(balance + price + profit, earnedTotal + profit, [tx, ...transactions].slice(0, 100), stakes, reservations);
+  };
+
+  const earnStakeReward = (amount: number, description: string) => {
+    const tx: Transaction = { id: genId(), type: "stake_reward", amount, description, timestamp: Date.now() };
+    persist(balance + amount, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const spendBalance = (amount: number, description: string): boolean => {
     if (amount > balance || amount <= 0) return false;
-    const tx: Transaction = {
-      id: genId(),
-      type: "reserve",
-      amount,
-      description,
-      timestamp: Date.now(),
-    };
-    persist(balance - amount, earnedTotal, [tx, ...transactions].slice(0, 50), stakes, reservations);
+    const tx: Transaction = { id: genId(), type: "reserve", amount, description, timestamp: Date.now() };
+    persist(balance - amount, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
     return true;
   };
 
   const creditBalance = (amount: number, description: string): void => {
-    const tx: Transaction = {
-      id: genId(),
-      type: "earn",
-      amount,
-      description,
-      timestamp: Date.now(),
-    };
-    persist(balance + amount, earnedTotal, [tx, ...transactions].slice(0, 50), stakes, reservations);
+    const tx: Transaction = { id: genId(), type: "earn", amount, description, timestamp: Date.now() };
+    persist(balance + amount, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const addReservation = (r: Omit<Reservation, "id" | "reserveDate">): boolean => {
     if (r.reservePrice > balance) return false;
-    const reservation: Reservation = {
-      ...r,
-      id: genId(),
-      reserveDate: Date.now(),
-    };
-    const tx: Transaction = {
-      id: genId(),
-      type: "reserve",
-      amount: r.reservePrice,
-      description: `Reserved ${r.nftName}`,
-      timestamp: Date.now(),
-    };
-    persist(
-      balance - r.reservePrice,
-      earnedTotal,
-      [tx, ...transactions].slice(0, 50),
-      stakes,
-      [reservation, ...reservations]
-    );
+    const reservation: Reservation = { ...r, id: genId(), reserveDate: Date.now() };
+    const tx: Transaction = { id: genId(), type: "reserve", amount: r.reservePrice, description: `Reserved ${r.nftName}`, timestamp: Date.now() };
+    persist(balance - r.reservePrice, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, [reservation, ...reservations]);
     return true;
   };
 
@@ -238,13 +232,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     const updatedReservations = reservations.map((r) =>
       r.id === id ? { ...r, status: "expired" as const } : r
     );
-    persist(
-      balance + reservation.reservePrice,
-      earnedTotal,
-      transactions,
-      stakes,
-      updatedReservations
-    );
+    persist(balance + reservation.reservePrice, earnedTotal, transactions, stakes, updatedReservations);
   };
 
   return (
@@ -253,12 +241,18 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
         balance,
         stakedTotal,
         earnedTotal,
+        reserveProfit,
+        todayReserveProfit,
+        stakeEarned,
+        todayStakeEarned,
         transactions,
         stakes,
         reservations,
         stakeTokens,
         unstakeTokens,
         earnReward,
+        earnReserveProfit,
+        earnStakeReward,
         spendBalance,
         creditBalance,
         addReservation,

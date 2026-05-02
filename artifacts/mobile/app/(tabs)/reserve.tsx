@@ -27,9 +27,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { useOrders } from "@/context/OrderContext";
-import { nftApi } from "@/lib/authApi";
+import { authApi, nftApi } from "@/lib/authApi";
 
 const { width, height } = Dimensions.get("window");
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
@@ -123,7 +124,8 @@ function EmptyState({ icon, title, sub }: { icon: any; title: string; sub: strin
 
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function ReserveScreen() {
-  const { balance, spendBalance, creditBalance } = useBalance();
+  const { balance, spendBalance, earnReserveProfit, todayReserveProfit, reserveProfit } = useBalance();
+  const { token } = useAuth();
   const { createOrder, updateOrder } = useOrders();
   const currentOrderIdRef = useRef<string>("");
   const bottomPad = Platform.OS === "web" ? 34 : 0;
@@ -133,8 +135,6 @@ export default function ReserveScreen() {
   const [selectedAmount, setSelectedAmount] = useState(AMOUNTS[1]);
   const [levelOpen,    setLevelOpen]    = useState(false);
   const [amountOpen,   setAmountOpen]   = useState(false);
-  const [todayIncome,  setTodayIncome]  = useState(0);
-  const [totalIncome,  setTotalIncome]  = useState(0);
   const [teamBenefits] = useState(0.1);
 
   // Reserve flow
@@ -153,8 +153,8 @@ export default function ReserveScreen() {
 
   // ── 6 stat boxes ─────────────────────────────────────────────────────────────
   const STAT_BOXES = [
-    { label: "Today\nEarnings",         value: todayIncome.toFixed(2),  borderColor: "#5CBFFE"  },
-    { label: "Cumulative\nIncome",      value: totalIncome.toFixed(2),  borderColor: "#00AC4F"  },
+    { label: "Today\nEarnings",         value: todayReserveProfit.toFixed(2), borderColor: "#5CBFFE"  },
+    { label: "Cumulative\nIncome",      value: reserveProfit.toFixed(2),      borderColor: "#00AC4F"  },
     { label: "Team Benefits",           value: teamBenefits.toFixed(1), borderColor: "#BBBBBB"  },
     { label: "Reservation\nrange",      value: "1~2000",                borderColor: "#FF8C00"  },
     { label: "Wallet\nBalance",         value: balance.toFixed(1),      borderColor: "#5CBFFE"  },
@@ -271,13 +271,15 @@ export default function ReserveScreen() {
     if (!activeSellNFT) return;
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    creditBalance(activeSellNFT.price + activeSellNFT.profit, `NFT Sale: ${activeSellNFT.name}`);
-    setTodayIncome((p) => parseFloat((p + activeSellNFT.profit).toFixed(4)));
-    setTotalIncome((p) => parseFloat((p + activeSellNFT.profit).toFixed(4)));
+    earnReserveProfit(activeSellNFT.profit, activeSellNFT.price, `NFT Sale: ${activeSellNFT.name}`);
     setCollectedNFTs((prev) =>
       prev.map((n) => n.id === activeSellNFT.id ? { ...n, sold: true } : n)
     );
     updateOrder(activeSellNFT.order_id, { status: "sold" });
+
+    if (token && activeSellNFT.profit > 0) {
+      authApi.rewards.recordProfit(token, activeSellNFT.profit).catch(() => {});
+    }
 
     setSellPhase("idle");
     setActiveSellNFT(null);

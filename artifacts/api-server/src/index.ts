@@ -81,6 +81,15 @@ async function runMigration() {
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(18,2) NOT NULL DEFAULT 0;",
       ].join("\n"),
     },
+    {
+      column: "id", table: "reserve_profits",
+      fullSql: [
+        "CREATE TABLE IF NOT EXISTS reserve_profits (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id), profit DECIMAL(18,4) NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());",
+        "CREATE INDEX IF NOT EXISTS idx_reserve_profits_user_id ON reserve_profits(user_id);",
+        "CREATE TABLE IF NOT EXISTS team_rewards (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id), from_user_id UUID NOT NULL REFERENCES users(id), profit DECIMAL(18,4) NOT NULL, line CHAR(1) NOT NULL, reward DECIMAL(18,4) NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());",
+        "CREATE INDEX IF NOT EXISTS idx_team_rewards_user_id ON team_rewards(user_id);",
+      ].join("\n"),
+    },
   ];
 
   let anyMissing = false;

@@ -48,7 +48,7 @@ function genId() {
 }
 
 export function StakeProvider({ children }: { children: React.ReactNode }) {
-  const { spendBalance, creditBalance, earnReward } = useBalance();
+  const { spendBalance, creditBalance, earnReward, earnStakeReward } = useBalance();
   const [ownedNFTs, setOwnedNFTs] = useState<OwnedNFT[]>([]);
   const [stakedNFTs, setStakedNFTs] = useState<StakedNFT[]>([]);
 
@@ -94,7 +94,7 @@ export function StakeProvider({ children }: { children: React.ReactNode }) {
     const income = parseFloat(
       ((stake.price * stake.apr) / 100 * (stake.durationMinutes / 30)).toFixed(4)
     );
-    earnReward(income, `Stake Reward: ${stake.name}`);
+    earnStakeReward(income, `Stake Reward: ${stake.name}`);
     setStakedNFTs((prev) => prev.filter((s) => s.stakeId !== stakeId));
     const returned: OwnedNFT = {
       id: genId(),
