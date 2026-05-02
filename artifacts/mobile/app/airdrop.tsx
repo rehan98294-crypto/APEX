@@ -310,6 +310,7 @@ export default function AirdropScreen() {
   const [openBox,    setOpenBox]    = useState<BoxDef | null>(null);
   const [reward,     setReward]     = useState(0);
   const [phase,      setPhase]      = useState<"opening" | "reveal">("opening");
+  const [showTBA,    setShowTBA]    = useState(false);
 
   const planLevel    = plan ? (PLAN_LEVEL[plan.id] ?? 1) : 1;
   const isUnlocked   = useCallback((b: BoxDef) => b.level === 1 || b.level <= planLevel, [planLevel]);
@@ -347,7 +348,7 @@ export default function AirdropScreen() {
         <Text style={styles.planText}>
           {plan ? `${plan.name}  ·  LV1–LV${planLevel} unlocked` : "No plan  ·  LV1 only"}
         </Text>
-        <Pressable onPress={() => router.push("/subscriptions")} style={styles.upgradeBtn}>
+        <Pressable onPress={() => setShowTBA(true)} style={styles.upgradeBtn}>
           <Text style={styles.upgradeText}>Upgrade ›</Text>
         </Pressable>
       </View>
@@ -385,6 +386,42 @@ export default function AirdropScreen() {
 
       <Modal visible={!!openBox} transparent animationType="fade" onRequestClose={() => setOpenBox(null)}>
         {openBox && <OpenModal box={openBox} reward={reward} phase={phase} onConfirm={handleClaim} onClose={() => setOpenBox(null)} />}
+      </Modal>
+
+      {/* ── TBA Modal ── */}
+      <Modal visible={showTBA} transparent animationType="fade" onRequestClose={() => setShowTBA(false)}>
+        <View style={styles.tbaOverlay}>
+          <View style={styles.tbaSheet}>
+            <View style={styles.tbaIconRing}>
+              <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={36} />
+              <View style={styles.tbaIconInner}>
+                <Feather name="clock" size={28} color="#5CBFFE" />
+              </View>
+            </View>
+            <View style={styles.tbaBadge}>
+              <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={20} />
+              <Feather name="zap" size={11} color="#fff" />
+              <Text style={styles.tbaBadgeText}>TBA</Text>
+            </View>
+            <Text style={styles.tbaTitle}>Coming Soon</Text>
+            <Text style={styles.tbaSub}>
+              Subscription plans are currently in development. Exciting membership tiers with exclusive perks are on their way!
+            </Text>
+            <View style={styles.tbaChips}>
+              {[{ icon: "unlock", label: "Level Unlocks" }, { icon: "trending-up", label: "Earn Boosts" }, { icon: "star", label: "VIP Perks" }, { icon: "users", label: "Team Rewards" }].map((c) => (
+                <View key={c.label} style={styles.tbaChip}>
+                  <Feather name={c.icon as any} size={12} color="#5CBFFE" />
+                  <Text style={styles.tbaChipText}>{c.label}</Text>
+                </View>
+              ))}
+            </View>
+            <Pressable style={styles.tbaBtn} onPress={() => setShowTBA(false)}>
+              <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
+              <Feather name="check" size={16} color="#fff" />
+              <Text style={styles.tbaBtnText}>Got it, I'll wait!</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -461,4 +498,19 @@ const styles = StyleSheet.create({
 
   claimBtn: { height: 54, borderRadius: 16, overflow: "hidden", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, width: "100%" },
   claimText: { fontSize: 17, fontFamily: "Inter_700Bold", color: "#fff" },
+
+  // TBA modal
+  tbaOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.52)", alignItems: "center", justifyContent: "center", padding: 24 },
+  tbaSheet: { width: "100%", backgroundColor: "#fff", borderRadius: 28, padding: 28, alignItems: "center", gap: 16, shadowColor: "#5CBFFE", shadowOpacity: 0.14, shadowRadius: 24, elevation: 8 },
+  tbaIconRing: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 3 },
+  tbaIconInner: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  tbaBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, overflow: "hidden" },
+  tbaBadgeText: { fontSize: 12, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: 1.5 },
+  tbaTitle: { fontSize: 24, fontFamily: "Inter_700Bold", color: "#111", textAlign: "center" },
+  tbaSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: "#666", textAlign: "center", lineHeight: 20 },
+  tbaChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
+  tbaChip: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#EFF8FF", paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: "rgba(92,191,254,0.25)" },
+  tbaChipText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#3a8fd4" },
+  tbaBtn: { width: "100%", height: 50, borderRadius: 14, overflow: "hidden", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  tbaBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
 });
