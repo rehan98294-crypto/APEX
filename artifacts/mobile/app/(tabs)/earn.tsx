@@ -27,6 +27,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { authApi } from "@/lib/authApi";
+import { AssetsSkeleton } from "@/components/Skeleton";
 
 const USD_ICON = require("../../assets/images/icon-usd.png");
 
@@ -92,7 +93,7 @@ async function markCredited(payment_id: string) {
 export default function AssetsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { balance, earnedTotal, transactions, creditBalance } = useBalance();
+  const { balance, earnedTotal, transactions, creditBalance, dataLoaded } = useBalance();
   const { token } = useAuth();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
@@ -208,6 +209,14 @@ export default function AssetsScreen() {
   const qrUrl = payment?.pay_address
     ? `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(payment.pay_address)}&size=180x180&margin=10`
     : null;
+
+  if (!dataLoaded) {
+    return (
+      <View style={[styles.container, { paddingBottom: bottomPad }]}>
+        <AssetsSkeleton />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPad }]}>

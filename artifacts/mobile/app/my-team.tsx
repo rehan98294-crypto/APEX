@@ -5,7 +5,6 @@ import { useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -19,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLocalSearchParams } from "expo-router";
 import { useReferral, type DateFilter } from "@/hooks/useReferral";
+import { MyTeamReferralSkeleton, MyTeamStatsSkeleton } from "@/components/Skeleton";
 
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 const BLUE = "#5CBFFE";
@@ -124,27 +124,23 @@ export default function MyTeamScreen() {
               </Pressable>
             </View>
 
-            {/* QR code */}
-            <View style={s.qrWrapper}>
-              {loadingInfo ? (
-                <ActivityIndicator color={BLUE} size="large" style={{ height: 220 }} />
-              ) : (
-                <View style={s.qrBox}>
-                  <QRCode
-                    value={displayLink !== "—" ? displayLink : "https://app.apexmeta.io"}
-                    size={200}
-                    color="#2B64DE"
-                    backgroundColor="#ffffff"
-                  />
-                </View>
-              )}
-            </View>
-
-            {/* ── Referral code display ── */}
             {loadingInfo ? (
-              <ActivityIndicator color={BLUE} style={{ marginVertical: 16 }} />
+              <MyTeamReferralSkeleton />
             ) : (
               <>
+                {/* QR code */}
+                <View style={s.qrWrapper}>
+                  <View style={s.qrBox}>
+                    <QRCode
+                      value={displayLink !== "—" ? displayLink : "https://app.apexmeta.io"}
+                      size={200}
+                      color="#2B64DE"
+                      backgroundColor="#ffffff"
+                    />
+                  </View>
+                </View>
+
+                {/* ── Referral code display ── */}
                 <Pressable style={s.codeRow} onPress={() => copy(displayCode, "code")}>
                   <Text style={s.codeText}>{displayCode}</Text>
                   <View style={s.copyIcon}>
@@ -225,37 +221,35 @@ export default function MyTeamScreen() {
             </View>
 
             {/* Stats grid */}
-            <View style={s.statsCard}>
-              {loadingStat ? (
-                <ActivityIndicator color={BLUE} size="large" style={{ padding: 48 }} />
-              ) : (
-                <>
-                  <View style={s.statsRow}>
-                    <StatCell value={stats.totalMembers} label={"Total Registered\nMember"} accent />
-                    <View style={s.statsDividerV} />
-                    <StatCell value={stats.validMembers} label={"Total Valid\nMember"} />
-                  </View>
-                  <View style={s.statsDividerH} />
-                  <View style={s.statsRow}>
-                    <StatCell value={stats.A.total} label="Member A" />
-                    <View style={s.statsDividerV} />
-                    <StatCell value={stats.A.valid} label="Valid A" />
-                  </View>
-                  <View style={s.statsDividerH} />
-                  <View style={s.statsRow}>
-                    <StatCell value={stats.B.total} label="Member B" />
-                    <View style={s.statsDividerV} />
-                    <StatCell value={stats.B.valid} label="Valid B" />
-                  </View>
-                  <View style={s.statsDividerH} />
-                  <View style={s.statsRow}>
-                    <StatCell value={stats.C.total} label="Member C" />
-                    <View style={s.statsDividerV} />
-                    <StatCell value={stats.C.valid} label="Valid C" />
-                  </View>
-                </>
-              )}
-            </View>
+            {loadingStat ? (
+              <MyTeamStatsSkeleton />
+            ) : (
+              <View style={s.statsCard}>
+                <View style={s.statsRow}>
+                  <StatCell value={stats.totalMembers} label={"Total Registered\nMember"} accent />
+                  <View style={s.statsDividerV} />
+                  <StatCell value={stats.validMembers} label={"Total Valid\nMember"} />
+                </View>
+                <View style={s.statsDividerH} />
+                <View style={s.statsRow}>
+                  <StatCell value={stats.A.total} label="Member A" />
+                  <View style={s.statsDividerV} />
+                  <StatCell value={stats.A.valid} label="Valid A" />
+                </View>
+                <View style={s.statsDividerH} />
+                <View style={s.statsRow}>
+                  <StatCell value={stats.B.total} label="Member B" />
+                  <View style={s.statsDividerV} />
+                  <StatCell value={stats.B.valid} label="Valid B" />
+                </View>
+                <View style={s.statsDividerH} />
+                <View style={s.statsRow}>
+                  <StatCell value={stats.C.total} label="Member C" />
+                  <View style={s.statsDividerV} />
+                  <StatCell value={stats.C.valid} label="Valid C" />
+                </View>
+              </View>
+            )}
 
             <View style={s.noteCard}>
               <Feather name="info" size={14} color={BLUE} style={{ flexShrink: 0, marginTop: 1 }} />
@@ -272,17 +266,21 @@ export default function MyTeamScreen() {
             <Text style={s.sectionTitle}>Community Contribution</Text>
             <Text style={s.sectionSub}>Earnings and rewards generated from your team's activity.</Text>
 
-            <View style={s.contributionCard}>
-              <ContribRow icon="users" label="Total Team Members" value={String(stats.totalMembers)} />
-              <View style={s.statsDividerH} />
-              <ContribRow icon="check-circle" label="Valid (Deposited) Members" value={String(stats.validMembers)} />
-              <View style={s.statsDividerH} />
-              <ContribRow icon="trending-up" label="A-Line Members" value={`${stats.A.valid} / ${stats.A.total}`} />
-              <View style={s.statsDividerH} />
-              <ContribRow icon="bar-chart-2" label="B-Line Members" value={`${stats.B.valid} / ${stats.B.total}`} />
-              <View style={s.statsDividerH} />
-              <ContribRow icon="activity" label="C-Line Members" value={`${stats.C.valid} / ${stats.C.total}`} />
-            </View>
+            {loadingStat ? (
+              <MyTeamStatsSkeleton />
+            ) : (
+              <View style={s.contributionCard}>
+                <ContribRow icon="users" label="Total Team Members" value={String(stats.totalMembers)} />
+                <View style={s.statsDividerH} />
+                <ContribRow icon="check-circle" label="Valid (Deposited) Members" value={String(stats.validMembers)} />
+                <View style={s.statsDividerH} />
+                <ContribRow icon="trending-up" label="A-Line Members" value={`${stats.A.valid} / ${stats.A.total}`} />
+                <View style={s.statsDividerH} />
+                <ContribRow icon="bar-chart-2" label="B-Line Members" value={`${stats.B.valid} / ${stats.B.total}`} />
+                <View style={s.statsDividerH} />
+                <ContribRow icon="activity" label="C-Line Members" value={`${stats.C.valid} / ${stats.C.total}`} />
+              </View>
+            )}
 
             <View style={s.noteCard}>
               <Feather name="info" size={14} color={BLUE} style={{ flexShrink: 0, marginTop: 1 }} />

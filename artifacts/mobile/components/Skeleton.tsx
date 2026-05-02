@@ -516,6 +516,203 @@ export function FadeInView({ children, duration = 380, delay = 0 }: FadeInViewPr
   return <Animated.View style={{ flex: 1, opacity }}>{children}</Animated.View>;
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// WITHDRAWAL LINKS SKELETON
+// ══════════════════════════════════════════════════════════════════════════════
+export function WithdrawalLinksSkeleton() {
+  return (
+    <View style={{ padding: 16, gap: 14 }}>
+      <ShimmerBox height={44} width="100%" borderRadius={12} />
+      {[0, 1, 2, 3].map((i) => (
+        <View key={i} style={sk2.wlCard}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <ShimmerCircle size={44} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <ShimmerBox height={14} width="55%" borderRadius={5} />
+              <ShimmerBox height={11} width="38%" borderRadius={4} />
+            </View>
+            <ShimmerBox height={30} width={30} borderRadius={8} />
+          </View>
+          <ShimmerBox height={11} width={70} borderRadius={4} style={{ marginBottom: 6 }} />
+          <ShimmerBox height={50} width="100%" borderRadius={12} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ASSETS TAB SKELETON
+// ══════════════════════════════════════════════════════════════════════════════
+export function AssetsSkeleton() {
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 150 }}
+      scrollEnabled={false}
+    >
+      <View style={sk2.assetHeader}>
+        <ShimmerBox height={24} width={90} borderRadius={8} />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <ShimmerCircle size={32} />
+          <ShimmerCircle size={32} />
+        </View>
+      </View>
+      <View style={{ height: 16 }} />
+
+      <View style={sk2.assetCard}>
+        <ShimmerBox height={13} width={100} borderRadius={5} style={{ marginBottom: 14 }} />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <ShimmerCircle size={36} />
+          <ShimmerBox height={36} width={140} borderRadius={10} />
+        </View>
+        <View style={{ flexDirection: "row" }}>
+          {[0, 1, 2].map((i) => (
+            <View
+              key={i}
+              style={{
+                flex: 1,
+                alignItems: "center",
+                gap: 6,
+                borderRightWidth: i < 2 ? 1 : 0,
+                borderRightColor: "#F0F2F7",
+              }}
+            >
+              <ShimmerBox height={15} width="75%" borderRadius={5} />
+              <ShimmerBox height={11} width="65%" borderRadius={4} />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={sk2.assetSection}>
+        <ShimmerBox height={48} width="100%" borderRadius={14} />
+      </View>
+
+      <View style={sk2.assetSection}>
+        <ShimmerBox height={16} width={120} borderRadius={6} style={{ marginBottom: 12 }} />
+        <View style={sk2.assetGrid}>
+          {[0, 1, 2, 3].map((i) => (
+            <ShimmerBox key={i} height={62} width="48%" borderRadius={14} />
+          ))}
+        </View>
+      </View>
+
+      <View style={[sk2.assetSection, { flexDirection: "row", justifyContent: "space-around" }]}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ alignItems: "center", gap: 8 }}>
+            <ShimmerCircle size={52} />
+            <ShimmerBox height={11} width={48} borderRadius={4} />
+          </View>
+        ))}
+      </View>
+
+      <View style={sk2.assetSection}>
+        <ShimmerBox height={52} width="100%" borderRadius={28} />
+      </View>
+
+      <View style={sk2.assetSection}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 14 }}>
+          <ShimmerBox height={16} width={70} borderRadius={6} />
+          <ShimmerBox height={14} width={36} borderRadius={6} />
+        </View>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={sk2.historyRow}>
+            <ShimmerCircle size={38} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <ShimmerBox height={13} width="60%" borderRadius={5} />
+              <ShimmerBox height={11} width="40%" borderRadius={4} />
+            </View>
+            <View style={{ alignItems: "flex-end", gap: 6 }}>
+              <ShimmerBox height={14} width={68} borderRadius={5} />
+              <ShimmerBox height={19} width={42} borderRadius={6} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PROFILE — MY TEAM SKELETON
+// ══════════════════════════════════════════════════════════════════════════════
+export function ProfileTeamSkeleton() {
+  return (
+    <View style={sk2.profileTeamCard}>
+      <ShimmerBox height={16} width={80} borderRadius={6} style={{ marginBottom: 16 }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={{ alignItems: "center", gap: 7, flex: 1 }}>
+            <ShimmerBox height={18} width="70%" borderRadius={6} />
+            <ShimmerBox height={10} width="85%" borderRadius={4} />
+            <ShimmerBox height={10} width="65%" borderRadius={4} />
+          </View>
+        ))}
+      </View>
+      <View style={{ height: 1, backgroundColor: "#F0F2F7", marginVertical: 16 }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={{ alignItems: "center", gap: 8 }}>
+            <ShimmerCircle size={52} />
+            <ShimmerBox height={10} width={48} borderRadius={4} />
+            <ShimmerBox height={10} width={36} borderRadius={4} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ── Profile Common Functions skeleton ─────────────────────────────────────────
+export function ProfileCommonSkeleton() {
+  return (
+    <View style={sk2.profileTeamCard}>
+      <ShimmerBox height={16} width={140} borderRadius={6} style={{ marginBottom: 16 }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={{ alignItems: "center", gap: 8 }}>
+            <ShimmerCircle size={52} />
+            <ShimmerBox height={10} width={52} borderRadius={4} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MY TEAM PAGE SKELETONS
+// ══════════════════════════════════════════════════════════════════════════════
+export function MyTeamReferralSkeleton() {
+  return (
+    <View style={{ gap: 16, paddingVertical: 8 }}>
+      <View style={sk2.qrBox}>
+        <ShimmerBox height={200} width={200} borderRadius={14} style={{ alignSelf: "center" }} />
+      </View>
+      <ShimmerBox height={56} width="100%" borderRadius={14} />
+      <ShimmerBox height={56} width="100%" borderRadius={14} />
+      <ShimmerBox height={52} width="100%" borderRadius={14} />
+    </View>
+  );
+}
+
+export function MyTeamStatsSkeleton() {
+  return (
+    <View style={sk2.statsSkCard}>
+      {[0, 1, 2, 3].map((i) => (
+        <View key={i}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 18 }}>
+            <ShimmerBox height={13} width="40%" borderRadius={5} />
+            <ShimmerBox height={13} width="22%" borderRadius={5} />
+          </View>
+          {i < 3 && <View style={{ height: 1, backgroundColor: "#F0F2F7" }} />}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // STYLES
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -639,6 +836,89 @@ const sk = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     gap: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+});
+
+// ─── Styles for new skeletons (sk2) ──────────────────────────────────────────
+const sk2 = StyleSheet.create({
+  wlCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  assetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#F8F9FB",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F2F7",
+  },
+  assetCard: {
+    marginHorizontal: 16,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  assetSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  assetGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  historyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F5F6FA",
+  },
+  profileTeamCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  qrBox: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statsSkCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 8,

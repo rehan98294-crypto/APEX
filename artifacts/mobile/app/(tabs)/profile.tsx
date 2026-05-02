@@ -23,6 +23,7 @@ import {
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 
 import StickyGlassHeader from "@/components/StickyGlassHeader";
+import { ProfileTeamSkeleton, ProfileCommonSkeleton } from "@/components/Skeleton";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
@@ -56,7 +57,7 @@ export default function ProfileScreen() {
   const { orders } = useOrders();
   const { user, token, signOut } = useAuth();
   const { activeBadgeTick, activeCircleTick } = useTick();
-  const { stats: teamStats } = useReferral();
+  const { stats: teamStats, loadingInfo, loadingStat } = useReferral();
   const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
@@ -338,36 +339,40 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ── My Team ── */}
-        <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.card}>
-          <Text style={styles.cardTitle}>My Team</Text>
+        {(loadingInfo || loadingStat) ? (
+          <ProfileTeamSkeleton />
+        ) : (
+          <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.card}>
+            <Text style={styles.cardTitle}>My Team</Text>
 
-          <View style={styles.teamStatsRow}>
-            {TEAM_STATS.map((s) => (
-              <View key={s.label} style={styles.teamStatItem}>
-                <Text style={styles.teamStatValue}>{s.value}</Text>
-                <Text style={styles.teamStatLabel}>{s.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.linkGrid}>
-            {TEAM_LINKS.map((link) => (
-              <Pressable
-                key={link.label}
-                style={styles.linkItem}
-                onPress={() => link.route && router.push({ pathname: link.route as any, params: link.params })}
-              >
-                <View style={styles.linkIconBox}>
-                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
-                  <Feather name={link.icon as any} size={22} color="#fff" />
+            <View style={styles.teamStatsRow}>
+              {TEAM_STATS.map((s) => (
+                <View key={s.label} style={styles.teamStatItem}>
+                  <Text style={styles.teamStatValue}>{s.value}</Text>
+                  <Text style={styles.teamStatLabel}>{s.label}</Text>
                 </View>
-                <Text style={styles.linkLabel}>{link.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Animated.View>
+              ))}
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.linkGrid}>
+              {TEAM_LINKS.map((link) => (
+                <Pressable
+                  key={link.label}
+                  style={styles.linkItem}
+                  onPress={() => link.route && router.push({ pathname: link.route as any, params: link.params })}
+                >
+                  <View style={styles.linkIconBox}>
+                    <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
+                    <Feather name={link.icon as any} size={22} color="#fff" />
+                  </View>
+                  <Text style={styles.linkLabel}>{link.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </Animated.View>
+        )}
 
         {/* ── My Orders ── */}
         <Animated.View entering={FadeInDown.duration(400).delay(140)} style={styles.card}>
@@ -427,29 +432,33 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ── Common Functions ── */}
-        <Animated.View entering={FadeInDown.duration(400).delay(180)} style={styles.card}>
-          <Text style={styles.cardTitle}>Common Functions</Text>
-          <View style={styles.linkGrid}>
-            {COMMON_FUNCS.map((fn) => (
-              <Pressable
-                key={fn.label}
-                style={styles.linkItem}
-                onPress={
-                  fn.label === "Settings"   ? () => setSettingsOpen(true) :
-                  fn.label === "Tutorials"  ? () => setComingSoonOpen(true) :
-                  fn.label === "Collection" ? () => setComingSoonOpen(true) :
-                  undefined
-                }
-              >
-                <View style={styles.linkIconBox}>
-                  <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
-                  <Feather name={fn.icon as any} size={22} color="#fff" />
-                </View>
-                <Text style={styles.linkLabel}>{fn.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Animated.View>
+        {loadingInfo ? (
+          <ProfileCommonSkeleton />
+        ) : (
+          <Animated.View entering={FadeInDown.duration(400).delay(180)} style={styles.card}>
+            <Text style={styles.cardTitle}>Common Functions</Text>
+            <View style={styles.linkGrid}>
+              {COMMON_FUNCS.map((fn) => (
+                <Pressable
+                  key={fn.label}
+                  style={styles.linkItem}
+                  onPress={
+                    fn.label === "Settings"   ? () => setSettingsOpen(true) :
+                    fn.label === "Tutorials"  ? () => setComingSoonOpen(true) :
+                    fn.label === "Collection" ? () => setComingSoonOpen(true) :
+                    undefined
+                  }
+                >
+                  <View style={styles.linkIconBox}>
+                    <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={26} />
+                    <Feather name={fn.icon as any} size={22} color="#fff" />
+                  </View>
+                  <Text style={styles.linkLabel}>{fn.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </Animated.View>
+        )}
 
       </ScrollView>
 

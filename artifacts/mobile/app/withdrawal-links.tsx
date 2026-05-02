@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { authApi } from "@/lib/authApi";
+import { WithdrawalLinksSkeleton } from "@/components/Skeleton";
 
 const GRAD: [string, string, string] = ["#5CBFFE", "#2BD9A8", "#FFB08A"];
 
@@ -174,9 +175,7 @@ export default function WithdrawalLinksScreen() {
       </View>
 
       {loading ? (
-        <View style={sty.loadingWrap}>
-          <ActivityIndicator size="large" color="#5CBFFE" />
-        </View>
+        <WithdrawalLinksSkeleton />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
