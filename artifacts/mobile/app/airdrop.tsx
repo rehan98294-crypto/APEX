@@ -153,32 +153,30 @@ function ChestImage({ chestIdx, displayW, locked }: { chestIdx: number; displayW
 }
 
 // ── Slide (no card background — chest floats directly) ────────────────────────
-function BoxSlide({ box, isUnlocked, onOpen }: { box: BoxDef; isUnlocked: boolean; onOpen: (b: BoxDef) => void }) {
+function BoxSlide({ box, isUnlocked, onOpen, onComingSoon }: { box: BoxDef; isUnlocked: boolean; onOpen: (b: BoxDef) => void; onComingSoon: () => void }) {
   return (
     <Animated.View entering={FadeIn.duration(300)} style={[styles.slide]}>
 
       {/* LV badge */}
-      <View style={[styles.lvBadge, { backgroundColor: isUnlocked ? box.accentColor : "#9CA3AF" }]}>
+      <View style={[styles.lvBadge, { backgroundColor: box.accentColor }]}>
         <Text style={styles.lvText}>LV {box.level}</Text>
       </View>
 
       {/* ─── Chest image — no background box ─── */}
       <View style={styles.chestArea}>
-        {isUnlocked && (
-          <View style={[styles.chestGlow, { backgroundColor: box.accentColor + "35" }]} />
-        )}
-        <ChestImage chestIdx={box.chestIdx} displayW={220} locked={!isUnlocked} />
+        <View style={[styles.chestGlow, { backgroundColor: box.accentColor + "35" }]} />
+        <ChestImage chestIdx={box.chestIdx} displayW={220} locked={false} />
       </View>
 
       {/* Name + subtitle */}
       <Text style={styles.chestName}>{box.name}</Text>
-      <Text style={[styles.chestSub, { color: isUnlocked ? box.accentColor : Colors.textMuted }]}>
+      <Text style={[styles.chestSub, { color: box.accentColor }]}>
         {box.subtitle}
       </Text>
 
       {/* Reward range */}
-      <View style={[styles.rangePill, { borderColor: isUnlocked ? box.accentColor : "#E5E8EE", backgroundColor: isUnlocked ? box.accentColor + "14" : "#F9FAFB" }]}>
-        <Text style={[styles.rangeText, { color: isUnlocked ? box.grad[1] : Colors.textMuted }]}>
+      <View style={[styles.rangePill, { borderColor: box.accentColor, backgroundColor: box.accentColor + "14" }]}>
+        <Text style={[styles.rangeText, { color: box.grad[1] }]}>
           🎁  {box.tiers[0].reward} – {box.tiers[box.tiers.length - 1].reward} TFT
         </Text>
       </View>
@@ -188,28 +186,19 @@ function BoxSlide({ box, isUnlocked, onOpen }: { box: BoxDef; isUnlocked: boolea
         {box.tiers.map((t) => (
           <View key={t.reward} style={styles.oddsPill}>
             <Text style={styles.oddsAmt}>{t.reward} TFT</Text>
-            <Text style={[styles.oddsChance, { color: isUnlocked ? box.accentColor : "#9CA3AF" }]}>{t.weight}%</Text>
+            <Text style={[styles.oddsChance, { color: box.accentColor }]}>{t.weight}%</Text>
           </View>
         ))}
       </View>
 
-      {/* Open button */}
+      {/* Open button — free box opens normally, subscription boxes show Coming Soon */}
       <Pressable
-        style={[styles.openBtn, !isUnlocked && styles.openBtnDisabled]}
-        onPress={() => isUnlocked && onOpen(box)}
-        disabled={!isUnlocked}
+        style={styles.openBtn}
+        onPress={() => isUnlocked ? onOpen(box) : onComingSoon()}
       >
-        {isUnlocked && (
-          <LinearGradient colors={box.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[StyleSheet.absoluteFill, { borderRadius: 16 }]} />
-        )}
-        <Feather name={isUnlocked ? "gift" : "lock"} size={17} color={isUnlocked ? "#fff" : "#9CA3AF"} />
-        <Text style={[styles.openBtnText, !isUnlocked && styles.openBtnTextDisabled]}>
-          {isUnlocked
-            ? "Open Box"
-            : box.requiredPlan
-            ? `Requires ${box.requiredPlan.charAt(0).toUpperCase() + box.requiredPlan.slice(1)} Plan`
-            : "Locked"}
-        </Text>
+        <LinearGradient colors={box.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[StyleSheet.absoluteFill, { borderRadius: 16 }]} />
+        <Feather name="gift" size={17} color="#fff" />
+        <Text style={styles.openBtnText}>Open Box</Text>
       </Pressable>
     </Animated.View>
   );
@@ -345,11 +334,9 @@ export default function AirdropScreen() {
       {/* Plan strip */}
       <View style={styles.planRow}>
         <Feather name="shield" size={13} color="#5CBFFE" />
-        <Text style={styles.planText}>
-          {plan ? `${plan.name}  ·  LV1–LV${planLevel} unlocked` : "No plan  ·  LV1 only"}
-        </Text>
+        <Text style={styles.planText}>LV1 free  ·  LV2–LV6 subscription required</Text>
         <Pressable onPress={() => setShowTBA(true)} style={styles.upgradeBtn}>
-          <Text style={styles.upgradeText}>Upgrade ›</Text>
+          <Text style={styles.upgradeText}>Coming Soon ›</Text>
         </Pressable>
       </View>
 
@@ -368,7 +355,7 @@ export default function AirdropScreen() {
         scrollEventThrottle={16}
       >
         {BOXES.map((box) => (
-          <BoxSlide key={box.level} box={box} isUnlocked={isUnlocked(box)} onOpen={handleOpen} />
+          <BoxSlide key={box.level} box={box} isUnlocked={isUnlocked(box)} onOpen={handleOpen} onComingSoon={() => setShowTBA(true)} />
         ))}
       </ScrollView>
 
