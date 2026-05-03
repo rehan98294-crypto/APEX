@@ -170,6 +170,9 @@ router.post("/auth/2fa/verify", async (req, res) => {
     let payload: { id: string; email: string; purpose: string };
     const jwt = await import("jsonwebtoken");
     const JWT_SECRET = process.env["JWT_SECRET"] ?? "treasurefun_jwt_secret_2024";
+    if (!process.env["JWT_SECRET"]) {
+      console.warn("[Auth/2FA] WARNING: JWT_SECRET is not set — using insecure default.");
+    }
     try {
       payload = jwt.default.verify(tempToken, JWT_SECRET) as typeof payload;
     } catch {
@@ -260,6 +263,12 @@ router.delete("/auth/delete-account", requireAuth, async (req, res) => {
     const userId = (req as any).userId as string;
 
     // Delete related data first (foreign key order)
+    await supabase.from("reserve_profits").delete().eq("user_id", userId);
+    await supabase.from("team_rewards").delete().eq("user_id", userId);
+    await supabase.from("team_rewards").delete().eq("from_user_id", userId);
+    await supabase.from("orders").delete().eq("user_id", userId);
+    await supabase.from("withdrawals").delete().eq("user_id", userId);
+    await supabase.from("withdrawal_addresses").delete().eq("user_id", userId);
     await supabase.from("deposits").delete().eq("user_id", userId);
     await supabase.from("stakes").delete().eq("user_id", userId);
 

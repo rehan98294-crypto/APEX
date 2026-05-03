@@ -3,7 +3,11 @@ import supabase from "../lib/supabase.js";
 
 const router = Router();
 
-const ADMIN_SECRET = process.env["ADMIN_SECRET"] ?? "apex-admin-2025";
+const ADMIN_SECRET_ENV = process.env["ADMIN_SECRET"];
+if (!ADMIN_SECRET_ENV) {
+  console.warn("[Admin] WARNING: ADMIN_SECRET is not set — using insecure default 'apex-admin-2025'. Set ADMIN_SECRET env var.");
+}
+const ADMIN_SECRET = ADMIN_SECRET_ENV ?? "apex-admin-2025";
 
 function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   const auth = req.headers.authorization;
@@ -192,7 +196,7 @@ router.get("/admin/stats", requireAdmin, async (req, res) => {
       supabase.from("withdrawals").select("id, amount").eq("status", "approved"),
       supabase.from("withdrawals").select("id, amount").eq("status", "rejected"),
       supabase.from("users").select("id, balance, has_deposited, created_at"),
-      supabase.from("deposits").select("amount").eq("status", "success"),
+      supabase.from("deposits").select("amount").in("status", ["success", "confirmed"]),
     ]);
 
     const sum = (arr: any[]) => arr?.reduce((s: number, r: any) => s + parseFloat(String(r.amount)), 0) ?? 0;

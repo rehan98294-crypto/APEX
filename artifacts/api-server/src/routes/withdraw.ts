@@ -83,7 +83,7 @@ router.post("/withdraw/create", requireAuth, async (req, res) => {
       .from("deposits")
       .select("id")
       .eq("user_id", userId)
-      .eq("status", "success")
+      .in("status", ["success", "confirmed"])
       .limit(1);
 
     if (!deposits || deposits.length === 0) {
@@ -99,13 +99,21 @@ router.post("/withdraw/create", requireAuth, async (req, res) => {
 
     const fee = parseFloat((amount * FEE_RATE).toFixed(2));
 
-    // Deduct from real balance only
-    const { error: balErr } = await supabase
+    // Atomically deduct from real balance — the extra .gte() guard ensures we
+    // never overdraft if a concurrent request modified the balance between our
+    // read above and this write.
+    const { error: balErr, count: balCount } = await supabase
       .from("users")
       .update({ balance: parseFloat((realBalance - amount).toFixed(2)) })
-      .eq("id", userId);
+      .eq("id", userId)
+      .gte("balance", amount)
+      .select("id", { count: "exact", head: true });
 
     if (balErr) throw balErr;
+
+    if (balCount === 0) {
+      return res.status(400).json({ error: "Insufficient balance. Please refresh and try again." });
+    }
 
     // Create withdrawal record — try with fee column first, fall back without it
     let withdrawal: any = null;

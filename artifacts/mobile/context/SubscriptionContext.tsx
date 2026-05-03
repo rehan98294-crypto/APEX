@@ -191,9 +191,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const plan = activePlan ? PLANS.find((p) => p.id === activePlan) ?? null : null;
-  const userLevel = 6;
-  const stakeBoost = 0;
-  const incomeBoost = 0;
+  const userLevel = plan?.unlocksLevel ?? 1;
+  const stakeBoost = plan?.stakeBoost ?? 0;
+  const incomeBoost = plan?.incomeBoost ?? 0;
 
   const subscribeToPlan = (planId: PlanId): boolean => {
     setActivePlan(planId);

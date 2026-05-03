@@ -33,6 +33,21 @@ router.post("/rewards/reserve-profit", requireAuth, async (req, res) => {
   }
 
   try {
+    // Idempotency guard: reject duplicate submissions within a 5-minute window
+    // to prevent double-credit on network retries.
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: recent } = await supabase
+      .from("reserve_profits")
+      .select("id")
+      .eq("user_id", userId)
+      .gte("created_at", fiveMinutesAgo)
+      .limit(1);
+
+    if (recent && recent.length > 0) {
+      console.warn(`[Rewards] Duplicate reserve-profit rejected for user=${userId} profit=${profit}`);
+      return res.status(409).json({ error: "Profit already recorded. Please wait before submitting again." });
+    }
+
     // 1. Record the user's own profit
     await supabase.from("reserve_profits").insert({ user_id: userId, profit });
 

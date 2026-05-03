@@ -8,7 +8,14 @@ import {
   resolveIncomingReferral,
 } from "./referral.service.js";
 
-const JWT_SECRET = process.env["JWT_SECRET"] ?? "treasurefun_jwt_secret_2024";
+const JWT_SECRET_ENV = process.env["JWT_SECRET"];
+if (!JWT_SECRET_ENV) {
+  if (process.env["NODE_ENV"] === "production") {
+    throw new Error("FATAL: JWT_SECRET environment variable must be set in production.");
+  }
+  console.warn("[Auth] WARNING: JWT_SECRET is not set — using insecure default. Set JWT_SECRET in production.");
+}
+const JWT_SECRET = JWT_SECRET_ENV ?? "treasurefun_jwt_secret_2024";
 const OTP_TTL_SECONDS = 600;
 
 function generateOtp(): string {
