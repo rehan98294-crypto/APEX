@@ -403,11 +403,10 @@ export default function ExploreScreen() {
 
 // ─── Home Footer ─────────────────────────────────────────────────────────────
 const SOCIALS = [
-  { icon: "email-outline", lib: "mci", color: "#3B82F6", bg: "#EFF6FF" },
-  { icon: "tiktok", lib: "mci", color: "#000", bg: "#F3F4F6" },
-  { icon: "send", lib: "feather", color: "#29B6F6", bg: "#E1F5FE" },
-  { icon: "facebook", lib: "mci", color: "#1877F2", bg: "#E7F3FF" },
-  { icon: "instagram", lib: "feather", color: "#E1306C", bg: "#FFF0F5" },
+  { icon: "tiktok",    lib: "mci",    color: "#010101", bg: "#F3F4F6" },
+  { icon: "facebook",  lib: "mci",    color: "#1877F2", bg: "#E7F3FF" },
+  { icon: "instagram", lib: "mci",    color: "#E1306C", bg: "#FFF0F5" },
+  { icon: "youtube",   lib: "mci",    color: "#FF0000", bg: "#FFF0F0" },
 ] as const;
 
 const RESOURCE_LINKS = ["Docs", "Invite friends", "How to buy", "Tutorials", "Artist Application Form"];
@@ -432,10 +431,7 @@ function HomeFooter() {
       <View style={ft.socialRow}>
         {SOCIALS.map((s, i) => (
           <Pressable key={i} style={[ft.socialBtn, { backgroundColor: s.bg }]}>
-            {s.lib === "feather"
-              ? <Feather name={s.icon as any} size={20} color={s.color} />
-              : <MaterialCommunityIcons name={s.icon as any} size={20} color={s.color} />
-            }
+            <MaterialCommunityIcons name={s.icon as any} size={22} color={s.color} />
           </Pressable>
         ))}
       </View>

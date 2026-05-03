@@ -28,6 +28,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { useOrders } from "@/context/OrderContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { useTick } from "@/context/TickContext";
 import { useReferral } from "@/hooks/useReferral";
 import { authApi } from "@/lib/authApi";
@@ -57,6 +58,7 @@ export default function ProfileScreen() {
   const { orders } = useOrders();
   const { user, token, signOut } = useAuth();
   const { activeBadgeTick, activeCircleTick } = useTick();
+  const { userLevel } = useSubscription();
   const { stats: teamStats, loadingInfo, loadingStat } = useReferral();
   const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
@@ -288,7 +290,7 @@ export default function ProfileScreen() {
           <View style={styles.pillsRow}>
             <Pressable style={styles.pill}>
               <Feather name="user" size={12} color={Colors.textSecondary} />
-              <Text style={styles.pillText}>Level 2</Text>
+              <Text style={styles.pillText}>Level {userLevel}</Text>
               <Feather name="chevron-right" size={12} color={Colors.textMuted} />
             </Pressable>
             <Pressable style={styles.pill}>
