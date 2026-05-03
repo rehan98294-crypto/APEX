@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -95,7 +96,7 @@ const AMOUNTS = [
 const ROYALTY = 0.002;
 
 // ─── Countdown helpers (12-hour UTC windows) ──────────────────────────────────
-/** Seconds until the next 12-hour boundary (noon or midnight UTC). */
+/** Seconds until midnight UTC (daily reset). */
 function secsToNext12HrUTC(): number {
   const now = new Date();
   const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
@@ -107,6 +108,12 @@ function fmtCountdown(s: number): string {
   const sec = s % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 }
+/** UTC date string "YYYY-MM-DD" for today. */
+function todayUTC(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+/** AsyncStorage key scoped to user + today's UTC date (auto-expires next day). */
+const reservedCacheKey = (userId: string) => `apex_reserved_${userId}_${todayUTC()}`;
 
 // ─── Profit calc ───────────────────────────────────────────────────────────────
 function calcProfit(price: number, lvl: typeof LEVELS[0]): number {
@@ -185,7 +192,7 @@ function fmtAmt(n: number): string {
 export default function ReserveScreen() {
   const { width: W } = useWindowDimensions();
   const { availableBalance: balance, totalDeposited, spendBalance, earnReserveProfit, todayReserveProfit, reserveProfit } = useBalance();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { createOrder, updateOrder, orders } = useOrders();
   const { stats: teamStats } = useReferral();
   const currentOrderIdRef = useRef<string>("");
@@ -226,13 +233,27 @@ export default function ReserveScreen() {
   const [checkingDaily,    setCheckingDaily]    = useState(true);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch daily status on mount
+  // Fetch daily status on mount — local cache first, then API confirms
   useEffect(() => {
     if (!token) { setCheckingDaily(false); return; }
+    // 1. Read local cache instantly (survives app restarts even if DB is missing column)
+    if (user?.id) {
+      AsyncStorage.getItem(reservedCacheKey(user.id)).then((cached) => {
+        if (cached === "1") {
+          setReservedToday(true);
+          setSecondsLeft(secsToNext12HrUTC());
+          setCheckingDaily(false);
+        }
+      });
+    }
+    // 2. Also verify with server — only trust a positive result
     authApi.reserve.checkToday(token)
       .then((d) => {
-        setReservedToday(d.reserved_today);
-        if (d.reserved_today) setSecondsLeft(secsToNext12HrUTC());
+        if (d.reserved_today) {
+          setReservedToday(true);
+          setSecondsLeft(secsToNext12HrUTC());
+          if (user?.id) AsyncStorage.setItem(reservedCacheKey(user.id), "1");
+        }
       })
       .catch(() => {})
       .finally(() => setCheckingDaily(false));
@@ -333,14 +354,17 @@ export default function ReserveScreen() {
       try {
         await authApi.reserve.recordToday(token);
         setReservedToday(true);
+        // Persist locally so the countdown survives app restarts
+        if (user?.id) AsyncStorage.setItem(reservedCacheKey(user.id), "1");
       } catch (e: any) {
         if (e.message?.includes("already")) {
           setReservedToday(true);
           setSecondsLeft(secsToNext12HrUTC());
+          if (user?.id) AsyncStorage.setItem(reservedCacheKey(user.id), "1");
           setFetchError(`You've already reserved this window. Next round opens in ${fmtCountdown(secsToNext12HrUTC())}.`);
           return;
         }
-        // non-fatal if column doesn't exist yet
+        // non-fatal if server column doesn't exist — local cache still works
       }
     }
 
