@@ -331,4 +331,55 @@ router.post("/admin/users/:id/adjust-balance", requireAdmin, async (req, res) =>
   }
 });
 
+// POST /api/admin/test-withdrawal — insert a fake pending withdrawal for UI testing
+router.post("/admin/test-withdrawal", requireAdmin, async (req, res) => {
+  const ip = getIp(req);
+  const NETWORKS = ["TRC20", "BEP20", "ERC20", "SOL"];
+
+  try {
+    // Resolve user_id: use body value or fall back to any existing user
+    let userId: string | null = req.body?.user_id ?? null;
+
+    if (!userId) {
+      const { data: users } = await supabase
+        .from("users")
+        .select("id")
+        .limit(1)
+        .single();
+      userId = (users as any)?.id ?? null;
+    }
+
+    if (!userId) {
+      return res.status(400).json({ error: "No user found in the database. Create a user first or pass user_id in the body." });
+    }
+
+    const amount   = parseFloat((Math.random() * 190 + 10).toFixed(2)); // 10–200
+    const network  = NETWORKS[Math.floor(Math.random() * NETWORKS.length)];
+    const address  = `TTestAddress${Math.floor(Math.random() * 900000 + 100000)}`;
+
+    const { data: row, error } = await supabase
+      .from("withdrawals")
+      .insert({
+        user_id:        userId,
+        amount,
+        network,
+        wallet_address: address,
+        status:         "pending",
+        created_at:     new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (error) throw error;
+
+    await logAction("test_withdrawal", userId, `Test withdrawal inserted: ${amount} USDT via ${network}`, ip);
+
+    console.log(`[Admin] Test withdrawal created — user=${userId} amount=${amount} network=${network}`);
+    return res.json({ success: true, withdrawal_id: (row as any).id, amount, network, wallet_address: address, user_id: userId });
+  } catch (err: any) {
+    console.error("[Admin] test-withdrawal error:", err);
+    return res.status(500).json({ error: "Failed to insert test withdrawal.", detail: err?.message });
+  }
+});
+
 export default router;
