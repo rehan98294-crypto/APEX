@@ -182,18 +182,18 @@ export async function registerUser(params: {
   }
 
   // ── Registration gifts ───────────────────────────────────────────────────────
-  // 5 USDT welcome gift + 150 USDT 3-day reservation trial
+  // 5 USDT real balance + 150 USDT 3-day trial balance (separate, expires in 3 days)
   const trialExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
   try {
     await supabase
       .from("users")
       .update({
-        balance:           155,   // 5 gift + 150 trial
-        trial_balance:     150,
-        trial_expires_at:  trialExpiresAt,
+        balance:          5,     // real welcome gift — never removed
+        trial_balance:    150,   // trial-only money — removed on expiry
+        trial_expires_at: trialExpiresAt,
       })
       .eq("id", newUser.id);
-    console.log(`[Auth] Registration gifts credited to user ${newUser.id}`);
+    console.log(`[Auth] Registration gifts credited to user ${newUser.id} — balance=5, trial=150`);
   } catch {
     // non-fatal — columns may not exist yet in older DBs
   }

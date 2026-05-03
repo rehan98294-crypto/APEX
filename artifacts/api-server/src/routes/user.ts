@@ -51,17 +51,16 @@ router.get("/user/profile", requireAuth, async (req, res) => {
     } catch { /* columns don't exist yet */ }
 
     // ── Trial expiry check ─────────────────────────────────────────────────────
+    // Only zero out trial_balance — real balance is NEVER touched
     if (trialBalance > 0 && trialExpires && new Date(trialExpires) <= new Date()) {
-      const deduction  = Math.min(trialBalance, currentBalance);
-      currentBalance   = parseFloat(Math.max(0, currentBalance - deduction).toFixed(2));
-      trialBalance     = 0;
+      trialBalance = 0;
       try {
         await supabase
           .from("users")
-          .update({ balance: currentBalance, trial_balance: 0 })
+          .update({ trial_balance: 0 })
           .eq("id", userId);
       } catch { /* non-fatal */ }
-      console.log(`[UserProfile] Trial expired for user ${userId}, deducted ${deduction} USDT`);
+      console.log(`[UserProfile] Trial expired for user ${userId} — trial_balance zeroed, balance untouched`);
     }
 
     const { data: deposits } = await supabase

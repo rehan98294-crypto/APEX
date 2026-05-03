@@ -19,22 +19,21 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
   }
 }
 
-/** Returns true when both timestamps fall in the same 12-hour UTC window.
- *  Window 1: 00:00–11:59 UTC   Window 2: 12:00–23:59 UTC */
-function isSame12HrWindow(a: Date, b: Date): boolean {
-  const sameDay =
-    a.getUTCFullYear() === b.getUTCFullYear() &&
-    a.getUTCMonth()    === b.getUTCMonth()    &&
-    a.getUTCDate()     === b.getUTCDate();
-  if (!sameDay) return false;
-  return (a.getUTCHours() < 12) === (b.getUTCHours() < 12);
+/** Returns the UTC date string "YYYY-MM-DD" for a given Date (or now). */
+function utcDateStr(d: Date = new Date()): string {
+  return d.toISOString().slice(0, 10);
 }
 
-// GET /api/reserve/today — check if user has already reserved today (UTC day)
+/** True if the timestamp falls on today's UTC calendar date. */
+function isToday(ts: string | null): boolean {
+  if (!ts) return false;
+  return utcDateStr(new Date(ts)) === utcDateStr();
+}
+
+// GET /api/reserve/today — check if user has already reserved today (UTC calendar day)
 router.get("/reserve/today", requireAuth, async (req, res) => {
   const userId = (req as any).userId as string;
   try {
-    // last_reserved_at column may not exist yet — return false gracefully
     const { data: user, error } = await (supabase as any)
       .from("users")
       .select("last_reserved_at")
@@ -42,20 +41,19 @@ router.get("/reserve/today", requireAuth, async (req, res) => {
       .single();
 
     if (error) {
-      // Column missing or user not found — default to not reserved
       return res.json({ reserved_today: false, last_reserved_at: null });
     }
 
-    const lastAt    = user?.last_reserved_at ?? null;
-    const reserved  = lastAt ? isSame12HrWindow(new Date(lastAt), new Date()) : false;
+    const lastAt       = user?.last_reserved_at ?? null;
+    const reservedToday = isToday(lastAt);
 
-    return res.json({ reserved_today: reserved, last_reserved_at: lastAt });
+    return res.json({ reserved_today: reservedToday, last_reserved_at: lastAt });
   } catch {
     return res.json({ reserved_today: false, last_reserved_at: null });
   }
 });
 
-// POST /api/reserve/record — mark today's reservation as done
+// POST /api/reserve/record — mark today's reservation as done (once per UTC calendar day)
 router.post("/reserve/record", requireAuth, async (req, res) => {
   const userId = (req as any).userId as string;
   try {
@@ -65,22 +63,21 @@ router.post("/reserve/record", requireAuth, async (req, res) => {
       .eq("id", userId)
       .single();
 
-    if (!fetchErr && user?.last_reserved_at && isSame12HrWindow(new Date(user.last_reserved_at), new Date())) {
+    if (!fetchErr && isToday(user?.last_reserved_at ?? null)) {
       return res.status(400).json({
-        error: "You have already reserved in this 12-hour window. Next window opens at 12:00 AM or 12:00 PM UTC.",
+        error: "You can reserve once per day. Come back tomorrow.",
         reserved_today: true,
       });
     }
 
     const now = new Date().toISOString();
-    // update may fail silently if column doesn't exist yet
     try {
       await supabase.from("users").update({ last_reserved_at: now } as any).eq("id", userId);
-    } catch { /* non-fatal */ }
+    } catch { /* non-fatal — column may not exist yet */ }
 
+    console.log(`[Reserve] user=${userId} reserved at ${now} (UTC date: ${utcDateStr()})`);
     return res.json({ success: true, last_reserved_at: now });
   } catch {
-    // Non-fatal — reservation proceeds even if tracking fails
     return res.json({ success: true, last_reserved_at: new Date().toISOString() });
   }
 });
