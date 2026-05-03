@@ -85,18 +85,26 @@ export function useShopItems() {
 }
 
 // ─── useUserItems ─────────────────────────────────────────────────────────────
-// Manages owned/active items for a user, backed by DB
-export function useUserItems(userId: string | null | undefined) {
+// Manages owned/active items for the authenticated user — token is required
+export function useUserItems(token: string | null | undefined) {
   const [userItems, setUserItems] = useState<DBUserItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const authHeaders = (extra?: Record<string, string>) => ({
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  });
+
   const fetchUserItems = useCallback(async () => {
-    if (!userId) return;
+    if (!token) { setUserItems([]); return; }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/user-items?userId=${encodeURIComponent(userId)}`);
+      const res = await fetch(`${API_BASE}/user-items`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const json = await res.json() as { userItems?: DBUserItem[]; error?: string };
       if (!res.ok || json.error) throw new Error(json.error ?? "Fetch failed");
       setUserItems(json.userItems ?? []);
@@ -106,7 +114,7 @@ export function useUserItems(userId: string | null | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [token]);
 
   useEffect(() => { fetchUserItems(); }, [fetchUserItems]);
 
@@ -123,18 +131,17 @@ export function useUserItems(userId: string | null | undefined) {
 
   // ── API actions ───────────────────────────────────────────────────────────
   const buyItem = useCallback(async (itemId: string): Promise<DBUserItem | null> => {
-    if (!userId) return null;
+    if (!token) return null;
     try {
       const res = await fetch(`${API_BASE}/user-items`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, item_id: itemId }),
+        headers: authHeaders(),
+        body: JSON.stringify({ item_id: itemId }),
       });
       const json = await res.json() as { userItem?: DBUserItem; error?: string };
       if (!res.ok || json.error) throw new Error(json.error ?? "Buy failed");
       if (json.userItem) {
         setUserItems((prev) => {
-          // Update same-type active items to inactive, then add new
           const zone = json.userItem!.item?.zone;
           return [
             json.userItem!,
@@ -151,15 +158,15 @@ export function useUserItems(userId: string | null | undefined) {
       console.warn("[useUserItems] buyItem error:", err.message);
     }
     return null;
-  }, [userId]);
+  }, [token]);
 
   const activateItem = useCallback(async (itemId: string): Promise<DBUserItem | null> => {
-    if (!userId) return null;
+    if (!token) return null;
     try {
       const res = await fetch(`${API_BASE}/user-items/activate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, item_id: itemId }),
+        headers: authHeaders(),
+        body: JSON.stringify({ item_id: itemId }),
       });
       const json = await res.json() as { userItem?: DBUserItem; error?: string };
       if (!res.ok || json.error) throw new Error(json.error ?? "Activate failed");
@@ -176,15 +183,15 @@ export function useUserItems(userId: string | null | undefined) {
       console.warn("[useUserItems] activateItem error:", err.message);
     }
     return null;
-  }, [userId]);
+  }, [token]);
 
   const deactivateType = useCallback(async (type: "badge" | "circle"): Promise<void> => {
-    if (!userId) return;
+    if (!token) return;
     try {
       await fetch(`${API_BASE}/user-items/deactivate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, type }),
+        headers: authHeaders(),
+        body: JSON.stringify({ type }),
       });
       setUserItems((prev) => prev.map((u) =>
         u.item?.zone === type && u.is_active ? { ...u, is_active: false } : u
@@ -192,7 +199,7 @@ export function useUserItems(userId: string | null | undefined) {
     } catch (err: any) {
       console.warn("[useUserItems] deactivateType error:", err.message);
     }
-  }, [userId]);
+  }, [token]);
 
   return {
     userItems,

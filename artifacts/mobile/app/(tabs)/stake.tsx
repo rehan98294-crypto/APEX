@@ -117,11 +117,11 @@ function calcIncome(stake: StakedNFT, now: number): number {
 export default function StakeScreen() {
   const { width: W } = useWindowDimensions();
   const { ownedNFTs, stakedNFTs, buyNFT, sellNFT, stakeNFT, redeemStake } = useStake();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { userLevel, stakeBoost, activePlan } = useSubscription();
   const { totalDeposited } = useBalance();
   const { stats: teamStats } = useReferral();
-  const stakeApi = useStakeApi(user?.id);
+  const stakeApi = useStakeApi(token);
   const router = useRouter();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 

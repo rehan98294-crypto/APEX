@@ -1,22 +1,32 @@
-import { Router, type IRouter } from "express";
-import supabase from "../lib/supabase";
+import { Router, Request, Response, NextFunction } from "express";
+import { verifyToken } from "../services/auth.service.js";
+import supabase from "../lib/supabase.js";
 
-const router: IRouter = Router();
+const router = Router();
+
+function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Unauthorized." });
+    return;
+  }
+  try {
+    const payload = verifyToken(auth.slice(7));
+    (req as any).userId = payload.id;
+    next();
+  } catch {
+    res.status(401).json({ error: "Invalid token." });
+  }
+}
 
 // ─── POST /api/stake/start ────────────────────────────────────────────────────
-// Body: { user_id, amount }
-// Inserts a new stake row with status="active" and profit=0
-router.post("/stake/start", async (req, res) => {
+// User ID is taken from JWT token — client must NOT supply user_id
+router.post("/stake/start", requireAuth, async (req, res) => {
+  const userId = (req as any).userId as string;
   try {
     const body = req.body ?? {};
-
-    // Accept both snake_case and camelCase from the client
-    const user_id: string = String(body.user_id ?? body.userId ?? "").trim();
     const amount: number = parseFloat(String(body.amount ?? 0));
 
-    if (!user_id) {
-      return res.status(400).json({ error: "user_id is required." });
-    }
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: "amount must be a positive number." });
     }
@@ -25,15 +35,7 @@ router.post("/stake/start", async (req, res) => {
 
     const { data, error } = await supabase
       .from("stakes")
-      .insert([
-        {
-          user_id,
-          amount,
-          status: "active",
-          start_time,
-          profit: 0,
-        },
-      ])
+      .insert([{ user_id: userId, amount, status: "active", start_time, profit: 0 }])
       .select("id, user_id, amount, status, start_time, profit")
       .single();
 
@@ -42,7 +44,7 @@ router.post("/stake/start", async (req, res) => {
       return res.status(500).json({ error: error?.message ?? "Failed to create stake." });
     }
 
-    console.log(`[Stake] Created stake ${data.id} for user=${user_id} amount=${amount}`);
+    console.log(`[Stake] Created stake ${data.id} for user=${userId} amount=${amount}`);
     return res.json({ success: true, stake: data });
   } catch (err: any) {
     console.error("[Stake] POST /stake/start error:", err.message);
@@ -50,20 +52,15 @@ router.post("/stake/start", async (req, res) => {
   }
 });
 
-// ─── GET /api/stake/user?userId=xxx ──────────────────────────────────────────
-// Returns all stakes for a user, sorted newest first
-// Adds computed field: currentProfit (grows over time for active stakes)
-router.get("/stake/user", async (req, res) => {
+// ─── GET /api/stake/user ──────────────────────────────────────────────────────
+// User ID is taken from JWT token — no query param needed
+router.get("/stake/user", requireAuth, async (req, res) => {
+  const userId = (req as any).userId as string;
   try {
-    const user_id = String(req.query.userId ?? req.query.user_id ?? "").trim();
-    if (!user_id) {
-      return res.status(400).json({ error: "userId is required." });
-    }
-
     const { data, error } = await supabase
       .from("stakes")
       .select("id, user_id, amount, status, start_time, profit")
-      .eq("user_id", user_id)
+      .eq("user_id", userId)
       .order("start_time", { ascending: false });
 
     if (error) {
@@ -83,7 +80,7 @@ router.get("/stake/user", async (req, res) => {
     const active = stakes.filter((s) => s.status === "active");
     const completed = stakes.filter((s) => s.status === "completed");
 
-    console.log(`[Stake] GET user=${user_id} — active=${active.length} completed=${completed.length}`);
+    console.log(`[Stake] GET user=${userId} — active=${active.length} completed=${completed.length}`);
 
     return res.json({
       stakes,

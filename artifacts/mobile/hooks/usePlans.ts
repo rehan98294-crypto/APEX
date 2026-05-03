@@ -99,17 +99,25 @@ export function usePlans() {
 }
 
 // ─── useUserPlans ─────────────────────────────────────────────────────────────
-export function useUserPlans(userId: string | null | undefined) {
+// User ID comes from JWT token — pass token directly
+export function useUserPlans(token: string | null | undefined) {
   const [userPlans, setUserPlans] = useState<DBUserPlan[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const authHeaders = () => ({
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  });
+
   const fetchUserPlans = useCallback(async () => {
-    if (!userId) return;
+    if (!token) { setUserPlans([]); return; }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/user-plans?userId=${encodeURIComponent(userId)}`);
+      const res = await fetch(`${API_BASE}/user-plans`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const json = await res.json() as { userPlans?: DBUserPlan[]; error?: string };
       if (!res.ok || json.error) throw new Error(json.error ?? "Fetch failed");
       setUserPlans(json.userPlans ?? []);
@@ -119,22 +127,21 @@ export function useUserPlans(userId: string | null | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [token]);
 
   useEffect(() => { fetchUserPlans(); }, [fetchUserPlans]);
 
   const activatePlanInDB = useCallback(async (params: {
-    userId: string;
     planId: string;   // DB UUID
     planSlug: string;
     investedAmount: number;
   }): Promise<DBUserPlan | null> => {
+    if (!token) return null;
     try {
       const res = await fetch(`${API_BASE}/user-plans`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify({
-          user_id: params.userId,
           plan_id: params.planId,
           invested_amount: params.investedAmount,
         }),
@@ -152,7 +159,7 @@ export function useUserPlans(userId: string | null | undefined) {
       console.warn("[useUserPlans] activatePlanInDB error:", err.message);
     }
     return null;
-  }, []);
+  }, [token]);
 
   const activeUserPlan = userPlans.find((p) => p.status === "active") ?? null;
 

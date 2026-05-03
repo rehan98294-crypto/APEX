@@ -113,14 +113,16 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     setOrders(newOrders);
     save(newOrders);
 
-    // Persist changes to Supabase (fire-and-forget)
-    updateOrderInDB(order_id, {
-      ...(updates.status && { status: updates.status as "processing" | "bought" | "sold" }),
-      ...(updates.nft_name !== undefined && { nft_id: updates.nft_name }),
-      ...(updates.profit !== undefined && { profit: updates.profit }),
-      ...(updates.price !== undefined && { price: updates.price }),
-      ...(updates.level !== undefined && { level: updates.level }),
-    });
+    // Persist changes to Supabase (fire-and-forget) — scoped to this user
+    if (user?.id) {
+      updateOrderInDB(order_id, {
+        ...(updates.status && { status: updates.status as "processing" | "bought" | "sold" }),
+        ...(updates.nft_name !== undefined && { nft_id: updates.nft_name }),
+        ...(updates.profit !== undefined && { profit: updates.profit }),
+        ...(updates.price !== undefined && { price: updates.price }),
+        ...(updates.level !== undefined && { level: updates.level }),
+      }, user.id);
+    }
   };
 
   return (

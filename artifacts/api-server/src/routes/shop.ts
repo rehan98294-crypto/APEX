@@ -1,7 +1,23 @@
-import { Router, type IRouter } from "express";
+import { Router, Request, Response, NextFunction, type IRouter } from "express";
+import { verifyToken } from "../services/auth.service.js";
 import supabase from "../lib/supabase";
 
 const router: IRouter = Router();
+
+function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Unauthorized." });
+    return;
+  }
+  try {
+    const payload = verifyToken(auth.slice(7));
+    (req as any).userId = payload.id;
+    next();
+  } catch {
+    res.status(401).json({ error: "Invalid token." });
+  }
+}
 
 // ─── DB columns ───────────────────────────────────────────────────────────────
 // shop_items : id, type, name, price, created_at
@@ -107,12 +123,11 @@ router.post("/shop-items/seed", async (_req, res) => {
   }
 });
 
-// ─── GET /api/user-items?userId=xxx ──────────────────────────────────────────
-// Returns all items owned by a user, enriched with shop_item details
-router.get("/user-items", async (req, res) => {
+// ─── GET /api/user-items ─────────────────────────────────────────────────────
+// Returns all items owned by the authenticated user
+router.get("/user-items", requireAuth, async (req, res) => {
   try {
-    const user_id = String(req.query.userId ?? req.query.user_id ?? "").trim();
-    if (!user_id) return res.status(400).json({ error: "userId is required." });
+    const user_id = (req as any).userId as string;
 
     const { data, error } = await supabase
       .from("user_items")
@@ -149,18 +164,17 @@ router.get("/user-items", async (req, res) => {
 });
 
 // ─── POST /api/user-items ─────────────────────────────────────────────────────
-// Body: { user_id, item_id }
-// Inserts a new user_item with is_active=true
-// Deactivates existing active items of the same type for this user
-router.post("/user-items", async (req, res) => {
+// Body: { item_id }  — user_id comes from JWT token
+router.post("/user-items", requireAuth, async (req, res) => {
   try {
+    const user_id = (req as any).userId as string;
     const body = req.body ?? {};
-    const user_id = String(body.user_id ?? body.userId ?? "").trim();
     const item_id = String(body.item_id ?? body.itemId ?? "").trim();
 
-    if (!user_id || !item_id) {
-      return res.status(400).json({ error: "user_id and item_id are required." });
+    if (!item_id) {
+      return res.status(400).json({ error: "item_id is required." });
     }
+    console.log(`[Shop] POST /user-items user=${user_id} item=${item_id}`);
 
     // Check already owned
     const { data: existing } = await supabase
@@ -238,17 +252,17 @@ router.post("/user-items", async (req, res) => {
 });
 
 // ─── POST /api/user-items/activate ────────────────────────────────────────────
-// Body: { user_id, item_id }
-// Activates item, deactivates all other user_items of the same type for this user
-router.post("/user-items/activate", async (req, res) => {
+// Body: { item_id }  — user_id comes from JWT token
+router.post("/user-items/activate", requireAuth, async (req, res) => {
   try {
+    const user_id = (req as any).userId as string;
     const body = req.body ?? {};
-    const user_id = String(body.user_id ?? body.userId ?? "").trim();
     const item_id = String(body.item_id ?? body.itemId ?? "").trim();
 
-    if (!user_id || !item_id) {
-      return res.status(400).json({ error: "user_id and item_id are required." });
+    if (!item_id) {
+      return res.status(400).json({ error: "item_id is required." });
     }
+    console.log(`[Shop] POST /user-items/activate user=${user_id} item=${item_id}`);
 
     const { data: ui } = await supabase
       .from("user_items")
@@ -266,16 +280,17 @@ router.post("/user-items/activate", async (req, res) => {
 });
 
 // ─── POST /api/user-items/deactivate ─────────────────────────────────────────
-// Body: { user_id, type }  (type = 'badge' | 'circle')
-router.post("/user-items/deactivate", async (req, res) => {
+// Body: { type }  (type = 'badge' | 'circle') — user_id comes from JWT token
+router.post("/user-items/deactivate", requireAuth, async (req, res) => {
   try {
+    const user_id = (req as any).userId as string;
     const body = req.body ?? {};
-    const user_id = String(body.user_id ?? body.userId ?? "").trim();
     const type    = String(body.type ?? "").trim() as "badge" | "circle";
 
-    if (!user_id || !type) {
-      return res.status(400).json({ error: "user_id and type are required." });
+    if (!type) {
+      return res.status(400).json({ error: "type is required." });
     }
+    console.log(`[Shop] POST /user-items/deactivate user=${user_id} type=${type}`);
 
     // Get all shop_items of this type
     const { data: shopItems } = await supabase

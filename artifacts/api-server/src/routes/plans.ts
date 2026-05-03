@@ -1,7 +1,23 @@
-import { Router, type IRouter } from "express";
+import { Router, Request, Response, NextFunction, type IRouter } from "express";
+import { verifyToken } from "../services/auth.service.js";
 import supabase from "../lib/supabase";
 
 const router: IRouter = Router();
+
+function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Unauthorized." });
+    return;
+  }
+  try {
+    const payload = verifyToken(auth.slice(7));
+    (req as any).userId = payload.id;
+    next();
+  } catch {
+    res.status(401).json({ error: "Invalid token." });
+  }
+}
 
 // ─── Existing DB columns for plans ────────────────────────────────────────────
 // plans: id, name, price, daily_rate, duration_days, total_return, created_at
@@ -125,13 +141,12 @@ router.post("/plans/seed", async (_req, res) => {
   }
 });
 
-// ─── GET /api/user-plans?userId=xxx ──────────────────────────────────────────
-router.get("/user-plans", async (req, res) => {
+// ─── GET /api/user-plans ─────────────────────────────────────────────────────
+// User ID comes from JWT token — no query param needed
+router.get("/user-plans", requireAuth, async (req, res) => {
   try {
-    const user_id = String(req.query.userId ?? req.query.user_id ?? "").trim();
-    if (!user_id) {
-      return res.status(400).json({ error: "userId is required." });
-    }
+    const user_id = (req as any).userId as string;
+    console.log(`[Plans] GET /user-plans user=${user_id}`);
 
     const { data, error } = await supabase
       .from("user_plans")
@@ -171,17 +186,18 @@ router.get("/user-plans", async (req, res) => {
 });
 
 // ─── POST /api/user-plans ─────────────────────────────────────────────────────
-// Body: { user_id, plan_id, invested_amount }
-router.post("/user-plans", async (req, res) => {
+// Body: { plan_id, invested_amount }  — user_id comes from JWT token
+router.post("/user-plans", requireAuth, async (req, res) => {
   try {
+    const user_id = (req as any).userId as string;
     const body = req.body ?? {};
-    const user_id   = String(body.user_id ?? body.userId ?? "").trim();
     const plan_id   = String(body.plan_id ?? "").trim();
     const invested  = parseFloat(String(body.invested_amount ?? body.investedAmount ?? 0));
 
-    if (!user_id || !plan_id) {
-      return res.status(400).json({ error: "user_id and plan_id are required." });
+    if (!plan_id) {
+      return res.status(400).json({ error: "plan_id is required." });
     }
+    console.log(`[Plans] POST /user-plans user=${user_id} plan=${plan_id}`);
 
     // Fetch plan for daily_rate & duration
     const { data: plan, error: planErr } = await supabase

@@ -59,13 +59,15 @@ export async function insertOrderToDB(order: DBOrder): Promise<void> {
 
 export async function updateOrderInDB(
   order_id: string,
-  updates: Partial<Pick<DBOrder, "status" | "nft_id" | "profit" | "price" | "level">>
+  updates: Partial<Pick<DBOrder, "status" | "nft_id" | "profit" | "price" | "level">>,
+  userId: string
 ): Promise<void> {
   try {
     const { error } = await supabase
       .from("orders")
       .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("order_id", order_id);
+      .eq("order_id", order_id)
+      .eq("user_id", userId);
     if (error) {
       console.error("[Supabase] updateOrder error:", error.message);
     } else {

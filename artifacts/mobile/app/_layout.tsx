@@ -31,18 +31,20 @@ const queryClient = new QueryClient();
 
 // Syncs the TickContext from DB on app startup so Profile always shows correct ticks
 function TickStartupSync() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { syncFromDB } = useTick();
   const { badgeTicks, circleTicks } = useShopItems();
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !token) return;
     const allTicks = [...badgeTicks, ...circleTicks];
     if (allTicks.length === 0) return;
 
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/user-items?userId=${encodeURIComponent(user.id)}`);
+        const res = await fetch(`${API_BASE}/user-items`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) return;
         const data = await res.json();
         const items: any[] = data.userItems ?? [];
@@ -55,7 +57,7 @@ function TickStartupSync() {
         // non-critical, silent fail
       }
     })();
-  }, [user?.id, badgeTicks.length, circleTicks.length]);
+  }, [user?.id, token, badgeTicks.length, circleTicks.length]);
 
   return null;
 }

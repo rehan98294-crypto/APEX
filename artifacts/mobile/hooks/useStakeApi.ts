@@ -23,10 +23,7 @@ export interface UseStakeApi {
   loading: boolean;
   error: string | null;
   refresh: () => void;
-  startStake: (params: {
-    user_id: string;
-    amount: number;
-  }) => Promise<{ success: boolean; error?: string }>;
+  startStake: (params: { amount: number }) => Promise<{ success: boolean; error?: string }>;
 }
 
 const EMPTY: StakeSummary = {
@@ -37,22 +34,26 @@ const EMPTY: StakeSummary = {
   totalProfit: 0,
 };
 
-export function useStakeApi(userId: string | null | undefined): UseStakeApi {
+export function useStakeApi(token: string | null | undefined): UseStakeApi {
   const [summary, setSummary] = useState<StakeSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
 
+  const authHeaders = token
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+    : { "Content-Type": "application/json" };
+
   const refresh = useCallback(async () => {
-    if (!userId) {
+    if (!token) {
       setSummary(EMPTY);
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch(
-        `${API_BASE}/stake/user?userId=${encodeURIComponent(userId)}`
-      );
+      const res = await fetch(`${API_BASE}/stake/user`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json: StakeSummary = await res.json();
       if (mounted.current) {
@@ -66,7 +67,7 @@ export function useStakeApi(userId: string | null | undefined): UseStakeApi {
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, [userId]);
+  }, [token]);
 
   useEffect(() => {
     mounted.current = true;
@@ -74,24 +75,21 @@ export function useStakeApi(userId: string | null | undefined): UseStakeApi {
     return () => {
       mounted.current = false;
     };
-  }, [userId]);
+  }, [token]);
 
   const startStake = useCallback(
-    async (params: {
-      user_id: string;
-      amount: number;
-    }): Promise<{ success: boolean; error?: string }> => {
+    async (params: { amount: number }): Promise<{ success: boolean; error?: string }> => {
+      if (!token) return { success: false, error: "Not authenticated." };
       try {
         const res = await fetch(`${API_BASE}/stake/start`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders,
           body: JSON.stringify(params),
         });
         const json = await res.json();
         if (!res.ok) {
           return { success: false, error: json.error ?? "Stake failed" };
         }
-        // Refresh after a short delay to pick up the new record
         setTimeout(() => refresh(), 600);
         return { success: true };
       } catch (err) {
@@ -101,7 +99,7 @@ export function useStakeApi(userId: string | null | undefined): UseStakeApi {
         };
       }
     },
-    [refresh]
+    [token, refresh]
   );
 
   return { summary, loading, error, refresh, startStake };
