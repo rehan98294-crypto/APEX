@@ -1,5 +1,8 @@
 import app from "./app";
 import supabase from "./lib/supabase.js";
+import pg from "pg";
+
+const { Pool } = pg;
 
 const rawPort = process.env["PORT"];
 
@@ -25,7 +28,7 @@ console.log(`  User : ${smtpUser ? `${smtpUser.slice(0, 4)}****` : "NOT SET ⚠�
 console.log(`  Pass : ${smtpPass ? "SET (hidden)" : "NOT SET ⚠️"}`);
 console.log("────────────────────────────────────────────────");
 
-// ── DB Migration check ────────────────────────────────────────────────────────
+// ── DB Migration ──────────────────────────────────────────────────────────────
 interface MigrationCheck {
   column: string;
   table: string;
@@ -37,7 +40,40 @@ async function columnExists(table: string, column: string): Promise<boolean> {
   return !error;
 }
 
+/** Try to execute SQL directly via pg Pool (requires DATABASE_URL). */
+async function tryExecuteSql(sql: string, label: string): Promise<boolean> {
+  const dbUrl = process.env["DATABASE_URL"];
+  if (!dbUrl) return false;
+
+  const pool = new Pool({ connectionString: dbUrl, connectionTimeoutMillis: 10_000 });
+  try {
+    // Split on statement boundaries so each DDL runs independently
+    const statements = sql
+      .split(/;\s*\n/)
+      .map((s) => s.replace(/^--[^\n]*\n?/gm, "").trim())
+      .filter((s) => s.length > 0);
+
+    for (const stmt of statements) {
+      await pool.query(stmt);
+    }
+    console.log(`[Migration] ✅ Auto-executed migration: ${label}`);
+    return true;
+  } catch (err: any) {
+    console.error(`[Migration] ✗ Auto-execution failed for ${label}:`, err.message);
+    return false;
+  } finally {
+    await pool.end();
+  }
+}
+
 async function runMigration() {
+  const hasDbUrl = !!process.env["DATABASE_URL"];
+  if (hasDbUrl) {
+    console.log("[Migration] DATABASE_URL found — will auto-execute missing migrations.");
+  } else {
+    console.log("[Migration] No DATABASE_URL — missing migrations will be printed for manual execution.");
+  }
+
   const checks: MigrationCheck[] = [
     {
       column: "twofa_enabled", table: "users",
@@ -53,11 +89,8 @@ async function runMigration() {
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES users(id);",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS position CHAR(1);",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS has_deposited BOOLEAN NOT NULL DEFAULT false;",
-        "-- Update existing users with a referral code:",
         "UPDATE users SET referral_code = 'APX' || UPPER(SUBSTRING(MD5(id::TEXT), 1, 5)) WHERE referral_code IS NULL;",
-        "-- Deposits table:",
         "CREATE TABLE IF NOT EXISTS deposits (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id), amount DECIMAL(18,2) NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT now());",
-        "-- Indexes:",
         "CREATE INDEX IF NOT EXISTS idx_users_referred_by ON users(referred_by);",
         "CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code);",
         "CREATE INDEX IF NOT EXISTS idx_deposits_user_id ON deposits(user_id);",
@@ -66,7 +99,6 @@ async function runMigration() {
     {
       column: "payment_id", table: "deposits",
       fullSql: [
-        "-- NOWPayments deposit columns:",
         "ALTER TABLE deposits ADD COLUMN IF NOT EXISTS payment_id VARCHAR(100);",
         "ALTER TABLE deposits ADD COLUMN IF NOT EXISTS pay_address TEXT;",
         "ALTER TABLE deposits ADD COLUMN IF NOT EXISTS network VARCHAR(20);",
@@ -77,9 +109,7 @@ async function runMigration() {
     },
     {
       column: "balance", table: "users",
-      fullSql: [
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(18,2) NOT NULL DEFAULT 0;",
-      ].join("\n"),
+      fullSql: "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(18,2) NOT NULL DEFAULT 0;",
     },
     {
       column: "id", table: "reserve_profits",
@@ -93,28 +123,10 @@ async function runMigration() {
     {
       column: "wallet_address", table: "withdrawals",
       fullSql: [
-        "CREATE TABLE IF NOT EXISTS withdrawals (",
-        "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
-        "  user_id UUID NOT NULL REFERENCES users(id),",
-        "  amount DECIMAL(18,2) NOT NULL,",
-        "  fee DECIMAL(18,2) NOT NULL DEFAULT 0,",
-        "  wallet_address TEXT NOT NULL,",
-        "  network VARCHAR(20) NOT NULL DEFAULT 'TRC20',",
-        "  status VARCHAR(20) NOT NULL DEFAULT 'pending',",
-        "  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),",
-        "  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
-        ");",
+        "CREATE TABLE IF NOT EXISTS withdrawals (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id), amount DECIMAL(18,2) NOT NULL, fee DECIMAL(18,2) NOT NULL DEFAULT 0, wallet_address TEXT NOT NULL, network VARCHAR(20) NOT NULL DEFAULT 'TRC20', status VARCHAR(20) NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());",
         "CREATE INDEX IF NOT EXISTS idx_withdrawals_user_id ON withdrawals(user_id);",
         "CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawals(status);",
-        "CREATE TABLE IF NOT EXISTS admin_action_log (",
-        "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
-        "  action VARCHAR(50) NOT NULL,",
-        "  target_id UUID,",
-        "  target_type VARCHAR(50),",
-        "  note TEXT,",
-        "  ip_address TEXT,",
-        "  created_at TIMESTAMPTZ NOT NULL DEFAULT now()",
-        ");",
+        "CREATE TABLE IF NOT EXISTS admin_action_log (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), action VARCHAR(50) NOT NULL, target_id UUID, target_type VARCHAR(50), note TEXT, ip_address TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now());",
       ].join("\n"),
     },
     {
@@ -127,11 +139,12 @@ async function runMigration() {
     },
     {
       column: "withdrawal_disabled_until", table: "users",
+      fullSql: "ALTER TABLE users ADD COLUMN IF NOT EXISTS withdrawal_disabled_until TIMESTAMPTZ;",
+    },
+    // ── Dedicated check for withdrawal_addresses table ────────────────────────
+    {
+      column: "id", table: "withdrawal_addresses",
       fullSql: [
-        "-- Add withdrawal cooldown column to users:",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS withdrawal_disabled_until TIMESTAMPTZ;",
-        "",
-        "-- Create withdrawal_addresses table:",
         "CREATE TABLE IF NOT EXISTS withdrawal_addresses (",
         "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
         "  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,",
@@ -146,10 +159,8 @@ async function runMigration() {
     {
       column: "trial_balance", table: "users",
       fullSql: [
-        "-- Registration gift + trial columns:",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_balance DECIMAL(18,2) NOT NULL DEFAULT 0;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_expires_at TIMESTAMPTZ;",
-        "-- Daily reservation tracking:",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_reserved_at TIMESTAMPTZ;",
       ].join("\n"),
     },
@@ -161,18 +172,22 @@ async function runMigration() {
     const ok = await columnExists(chk.table, chk.column);
     if (ok) {
       console.log(`[Migration] ✓ ${chk.table}.${chk.column} present.`);
-    } else {
-      anyMissing = true;
-      console.log("─── DB Migration Required ───────────────────────");
-      console.log(`[Migration] ⚠️  Column "${chk.column}" missing from "${chk.table}".`);
-      console.log("[Migration] Run this SQL in your Supabase SQL Editor:\n");
+      continue;
+    }
+
+    anyMissing = true;
+    console.log(`[Migration] ⚠️  Missing: ${chk.table}.${chk.column}`);
+
+    const executed = await tryExecuteSql(chk.fullSql, `${chk.table}.${chk.column}`);
+    if (!executed) {
+      console.log("─── Run this SQL in your Supabase SQL Editor ────");
       console.log(chk.fullSql);
-      console.log("\n────────────────────────────────────────────────");
+      console.log("────────────────────────────────────────────────");
     }
   }
 
   if (!anyMissing) {
-    console.log("[Migration] ✓ All DB columns up to date.");
+    console.log("[Migration] ✓ All DB tables and columns up to date.");
   }
 }
 
