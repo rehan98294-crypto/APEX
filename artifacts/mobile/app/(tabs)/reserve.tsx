@@ -694,7 +694,7 @@ export default function ReserveScreen() {
         {/* ── 6 Stat Boxes ─────────────────────────────────────────────── */}
         <View style={styles.boxGrid}>
           {STAT_BOXES.map((box, i) => (
-            <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor, width: (W - 38) / 2 }]}>
+            <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor, width: (W - 48) / 3 }]}>
               <Text style={styles.boxLabel} numberOfLines={2}>{box.label}</Text>
               <Text style={styles.boxValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{box.value}</Text>
             </View>
