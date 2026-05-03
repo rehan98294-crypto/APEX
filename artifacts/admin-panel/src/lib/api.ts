@@ -47,6 +47,8 @@ export const useWithdrawals = (status: string) => {
   return useQuery({
     queryKey: ["withdrawals", status],
     queryFn: () => adminFetch(`/withdrawals?status=${status}`),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
   });
 };
 
