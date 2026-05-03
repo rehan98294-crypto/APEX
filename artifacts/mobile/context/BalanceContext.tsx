@@ -34,6 +34,8 @@ export interface Reservation {
 
 interface BalanceContextType {
   balance: number;
+  trialBalance: number;
+  availableBalance: number;
   totalDeposited: number;
   stakedTotal: number;
   earnedTotal: number;
@@ -58,6 +60,8 @@ interface BalanceContextType {
 
 const BalanceContext = createContext<BalanceContextType>({
   balance: 0,
+  trialBalance: 0,
+  availableBalance: 0,
   totalDeposited: 0,
   stakedTotal: 0,
   earnedTotal: 0,
@@ -96,6 +100,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
   const { token, loading: authLoading } = useAuth();
 
   const [balance, setBalance] = useState(0);
+  const [trialBalance, setTrialBalance] = useState(0);
   const [totalDeposited, setTotalDeposited] = useState(0);
   const [earnedTotal, setEarnedTotal] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -104,20 +109,23 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
   const [dataLoaded, setDataLoaded] = useState(false);
 
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSyncedRef = useRef<number | null>(null);
+  const lastSyncedRef = useRef<string | null>(null);
 
-  // Debounced DB balance sync — 800 ms delay
+  const syncKey = (b: number, tb: number) => `${b.toFixed(2)}:${tb.toFixed(2)}`;
+
+  // Debounced DB balance sync — sends both real balance and trial_balance
   const syncToAPI = useCallback(
-    (newBalance: number) => {
+    (newBalance: number, newTrialBalance: number) => {
       if (!token) return;
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       syncTimerRef.current = setTimeout(() => {
-        if (lastSyncedRef.current === newBalance) return;
+        const key = syncKey(newBalance, newTrialBalance);
+        if (lastSyncedRef.current === key) return;
         authApi.user
-          .syncBalance(token, newBalance)
+          .syncBalance(token, newBalance, newTrialBalance)
           .then(() => {
-            lastSyncedRef.current = newBalance;
-            console.log("[Balance] DB sync ✓", newBalance);
+            lastSyncedRef.current = key;
+            console.log("[Balance] DB sync ✓ balance=", newBalance, "trial=", newTrialBalance);
           })
           .catch((e) => console.warn("[Balance] DB sync failed:", e));
       }, 800);
@@ -130,8 +138,8 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     if (authLoading) return;
 
     if (!token) {
-      // Logged out — reset to empty defaults
       setBalance(0);
+      setTrialBalance(0);
       setTotalDeposited(0);
       setEarnedTotal(0);
       setTransactions([]);
@@ -149,6 +157,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.getItem(STORAGE_KEY).catch(() => null),
     ]).then(([profile, savedData]) => {
       let finalBalance = 0;
+      let finalTrialBalance = 0;
       let finalDeposited = 0;
       let finalEarned = 0;
       let finalTx: Transaction[] = [];
@@ -167,12 +176,12 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (profile) {
-        // DB is the source of truth for balance + totalDeposited
         finalDeposited = profile.totalDeposited;
+        finalTrialBalance = profile.trial_balance ?? 0;
 
         if (profile.balance > 0) {
           finalBalance = profile.balance;
-          console.log("[Balance] Loaded from DB:", finalBalance);
+          console.log("[Balance] Loaded from DB: balance=", finalBalance, "trial=", finalTrialBalance);
         } else {
           // DB balance is 0 — check AsyncStorage for a one-time migration
           try {
@@ -180,8 +189,8 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
             if (p && p.balance > 0) {
               finalBalance = p.balance;
               console.log("[Balance] Migrating local storage to DB:", finalBalance);
-              authApi.user.syncBalance(token, finalBalance).catch(() => {});
-              lastSyncedRef.current = finalBalance;
+              authApi.user.syncBalance(token, finalBalance, finalTrialBalance).catch(() => {});
+              lastSyncedRef.current = syncKey(finalBalance, finalTrialBalance);
             }
           } catch {}
         }
@@ -196,6 +205,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       }
 
       setBalance(finalBalance);
+      setTrialBalance(finalTrialBalance);
       setTotalDeposited(finalDeposited);
       setEarnedTotal(finalEarned);
       setTransactions(finalTx);
@@ -203,13 +213,14 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       setReservations(finalReservations);
       setDataLoaded(true);
       if (lastSyncedRef.current === null) {
-        lastSyncedRef.current = finalBalance;
+        lastSyncedRef.current = syncKey(finalBalance, finalTrialBalance);
       }
     });
   }, [token, authLoading]);
 
   const persist = (
     b: number,
+    tb: number,
     td: number,
     et: number,
     tx: Transaction[],
@@ -217,6 +228,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     rv: Reservation[]
   ) => {
     setBalance(b);
+    setTrialBalance(tb);
     setTotalDeposited(td);
     setEarnedTotal(et);
     setTransactions(tx);
@@ -224,10 +236,17 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     setReservations(rv);
     AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ balance: b, totalDeposited: td, earnedTotal: et, transactions: tx, stakes: sk, reservations: rv })
+      JSON.stringify({ balance: b, trialBalance: tb, totalDeposited: td, earnedTotal: et, transactions: tx, stakes: sk, reservations: rv })
     );
-    syncToAPI(b);
+    syncToAPI(b, tb);
   };
+
+  // Helper: deduct amount from trial first, then real balance
+  function deductFromAvailable(amount: number, curBalance: number, curTrial: number): { newBalance: number; newTrial: number } {
+    const trialSpent = Math.min(curTrial, amount);
+    const realSpent = amount - trialSpent;
+    return { newBalance: curBalance - realSpent, newTrial: curTrial - trialSpent };
+  }
 
   const stakedTotal = stakes
     .filter((s) => s.status === "active")
@@ -251,8 +270,11 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     .filter((t) => t.type === "stake_reward" && t.timestamp >= todayTs)
     .reduce((s, t) => s + t.amount, 0);
 
+  const availableBalance = balance + trialBalance;
+
   const stakeTokens = (amount: number, lockDays: number, apy: number): boolean => {
-    if (amount > balance || amount <= 0) return false;
+    if (amount > availableBalance || amount <= 0) return false;
+    const { newBalance, newTrial } = deductFromAvailable(amount, balance, trialBalance);
     const newStake: StakePosition = {
       id: genId(),
       amount,
@@ -268,7 +290,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       description: `Staked ${amount} TFT for ${lockDays} days at ${apy}% APY`,
       timestamp: Date.now(),
     };
-    persist(balance - amount, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), [newStake, ...stakes], reservations);
+    persist(newBalance, newTrial, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), [newStake, ...stakes], reservations);
     return true;
   };
 
@@ -290,43 +312,46 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
       description: `Unstaked ${stake.amount} TFT + ${rewardEarned} reward`,
       timestamp: Date.now(),
     };
-    persist(balance + totalReturn, totalDeposited, earnedTotal + rewardEarned, [tx, ...transactions].slice(0, 100), updatedStakes, reservations);
+    // Unstake returns to real balance
+    persist(balance + totalReturn, trialBalance, totalDeposited, earnedTotal + rewardEarned, [tx, ...transactions].slice(0, 100), updatedStakes, reservations);
     return true;
   };
 
   const earnReward = (amount: number, description: string) => {
     const tx: Transaction = { id: genId(), type: "earn", amount, description, timestamp: Date.now() };
-    persist(balance + amount, totalDeposited, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(balance + amount, trialBalance, totalDeposited, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const earnReserveProfit = (profit: number, price: number, description: string) => {
     const tx: Transaction = { id: genId(), type: "reserve_profit", amount: profit, description, timestamp: Date.now() };
-    persist(balance + price + profit, totalDeposited, earnedTotal + profit, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(balance + price + profit, trialBalance, totalDeposited, earnedTotal + profit, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const earnStakeReward = (amount: number, description: string) => {
     const tx: Transaction = { id: genId(), type: "stake_reward", amount, description, timestamp: Date.now() };
-    persist(balance + amount, totalDeposited, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(balance + amount, trialBalance, totalDeposited, earnedTotal + amount, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const spendBalance = (amount: number, description: string): boolean => {
-    if (amount > balance || amount <= 0) return false;
+    if (amount > availableBalance || amount <= 0) return false;
+    const { newBalance, newTrial } = deductFromAvailable(amount, balance, trialBalance);
     const tx: Transaction = { id: genId(), type: "reserve", amount, description, timestamp: Date.now() };
-    persist(balance - amount, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(newBalance, newTrial, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
     return true;
   };
 
   // creditBalance counts as a real deposit — increments totalDeposited
   const creditBalance = (amount: number, description: string): void => {
     const tx: Transaction = { id: genId(), type: "earn", amount, description, timestamp: Date.now() };
-    persist(balance + amount, totalDeposited + amount, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    persist(balance + amount, trialBalance, totalDeposited + amount, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
   };
 
   const addReservation = (r: Omit<Reservation, "id" | "reserveDate">): boolean => {
-    if (r.reservePrice > balance) return false;
+    if (r.reservePrice > availableBalance) return false;
+    const { newBalance, newTrial } = deductFromAvailable(r.reservePrice, balance, trialBalance);
     const reservation: Reservation = { ...r, id: genId(), reserveDate: Date.now() };
     const tx: Transaction = { id: genId(), type: "reserve", amount: r.reservePrice, description: `Reserved ${r.nftName}`, timestamp: Date.now() };
-    persist(balance - r.reservePrice, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, [reservation, ...reservations]);
+    persist(newBalance, newTrial, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, [reservation, ...reservations]);
     return true;
   };
 
@@ -336,13 +361,16 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     const updatedReservations = reservations.map((r) =>
       r.id === id ? { ...r, status: "expired" as const } : r
     );
-    persist(balance + reservation.reservePrice, totalDeposited, earnedTotal, transactions, stakes, updatedReservations);
+    // Return funds to real balance
+    persist(balance + reservation.reservePrice, trialBalance, totalDeposited, earnedTotal, transactions, stakes, updatedReservations);
   };
 
   return (
     <BalanceContext.Provider
       value={{
         balance,
+        trialBalance,
+        availableBalance,
         totalDeposited,
         stakedTotal,
         earnedTotal,

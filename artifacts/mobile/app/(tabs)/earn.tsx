@@ -93,7 +93,7 @@ async function markCredited(payment_id: string) {
 export default function AssetsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { balance, earnedTotal, transactions, creditBalance, dataLoaded } = useBalance();
+  const { availableBalance: balance, earnedTotal, transactions, creditBalance, dataLoaded } = useBalance();
   const { token } = useAuth();
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 

@@ -40,7 +40,7 @@ export default function WithdrawScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { balance, spendBalance } = useBalance();
+  const { availableBalance: balance, spendBalance } = useBalance();
 
   const [address, setAddress]     = useState("");
   const [amount, setAmount]       = useState("");

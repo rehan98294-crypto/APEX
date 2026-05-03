@@ -187,8 +187,8 @@ export const authApi = {
         trial_expires_at: string | null;
       }>("/user/profile", token),
 
-    syncBalance: (token: string, balance: number) =>
-      request<{ success: boolean; balance: number }>("/user/balance-sync", { balance }, token),
+    syncBalance: (token: string, balance: number, trial_balance?: number) =>
+      request<{ success: boolean; balance: number }>("/user/balance-sync", { balance, ...(trial_balance !== undefined ? { trial_balance } : {}) }, token),
   },
 
   // ── Withdrawals ───────────────────────────────────────────────────────────

@@ -53,7 +53,7 @@ const COMMON_FUNCS = [
 ];
 
 export default function ProfileScreen() {
-  const { balance, earnedTotal, reserveProfit, todayReserveProfit, stakeEarned, todayStakeEarned } = useBalance();
+  const { availableBalance: balance, earnedTotal, reserveProfit, todayReserveProfit, stakeEarned, todayStakeEarned } = useBalance();
   const { orders } = useOrders();
   const { user, token, signOut } = useAuth();
   const { activeBadgeTick, activeCircleTick } = useTick();

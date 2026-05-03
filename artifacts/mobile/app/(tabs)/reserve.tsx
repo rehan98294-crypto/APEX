@@ -187,7 +187,7 @@ function fmtAmt(n: number): string {
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function ReserveScreen() {
   const { width: W } = useWindowDimensions();
-  const { balance, totalDeposited, spendBalance, earnReserveProfit, todayReserveProfit, reserveProfit } = useBalance();
+  const { availableBalance: balance, totalDeposited, spendBalance, earnReserveProfit, todayReserveProfit, reserveProfit } = useBalance();
   const { token } = useAuth();
   const { createOrder, updateOrder, orders } = useOrders();
   const { stats: teamStats } = useReferral();

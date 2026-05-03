@@ -26,7 +26,7 @@ const { width } = Dimensions.get("window");
 export default function NFTDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const { balance, addReservation } = useBalance();
+  const { availableBalance: balance, addReservation } = useBalance();
   const { isWatched, addToWatchlist, removeFromWatchlist } = useWatchlist();
   const [showBuyModal, setShowBuyModal] = useState(false);
 

@@ -86,23 +86,28 @@ router.get("/user/profile", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/user/balance-sync — sync local balance to DB
+// POST /api/user/balance-sync — sync local balance (and optionally trial_balance) to DB
 router.post("/user/balance-sync", requireAuth, async (req, res) => {
   const userId = (req as any).userId as string;
-  const { balance } = req.body as { balance?: number };
+  const { balance, trial_balance } = req.body as { balance?: number; trial_balance?: number };
 
   if (typeof balance !== "number" || isNaN(balance) || balance < 0) {
     return res.status(400).json({ error: "Invalid balance value." });
   }
 
+  const updatePayload: Record<string, number> = { balance: parseFloat(balance.toFixed(2)) };
+  if (typeof trial_balance === "number" && !isNaN(trial_balance) && trial_balance >= 0) {
+    updatePayload.trial_balance = parseFloat(trial_balance.toFixed(2));
+  }
+
   try {
     const { error } = await supabase
       .from("users")
-      .update({ balance: parseFloat(balance.toFixed(2)) })
+      .update(updatePayload)
       .eq("id", userId);
 
     if (error) throw error;
-    console.log(`[UserBalance] Synced user=${userId} balance=${balance}`);
+    console.log(`[UserBalance] Synced user=${userId} balance=${balance}${trial_balance !== undefined ? ` trial=${trial_balance}` : ""}`);
     return res.json({ success: true, balance: parseFloat(balance.toFixed(2)) });
   } catch (err) {
     console.error("[UserBalance] sync error:", err);
