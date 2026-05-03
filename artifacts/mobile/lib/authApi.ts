@@ -5,6 +5,16 @@ export const API_BASE = DOMAIN
 
 console.log("[AuthAPI] Base URL:", API_BASE);
 
+const FETCH_TIMEOUT_MS = 30_000;
+
+function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
+
 async function request<T>(
   path: string,
   body: Record<string, unknown>,
@@ -13,7 +23,13 @@ async function request<T>(
   const url = `${API_BASE}${path}`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(url, { method: "POST", headers, body: JSON.stringify(body) });
+  } catch (err: any) {
+    if (err?.name === "AbortError") throw new Error("Request timed out. Please check your connection and try again.");
+    throw new Error(err?.message ?? "Network error. Please try again.");
+  }
   const json = (await res.json()) as { error?: string } & T;
   if (!res.ok) {
     throw new Error((json as { error?: string }).error ?? "Request failed");
@@ -25,7 +41,13 @@ async function requestGet<T>(path: string, token?: string): Promise<T> {
   const url = `${API_BASE}${path}`;
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(url, { headers });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(url, { headers });
+  } catch (err: any) {
+    if (err?.name === "AbortError") throw new Error("Request timed out. Please check your connection and try again.");
+    throw new Error(err?.message ?? "Network error. Please try again.");
+  }
   const json = (await res.json()) as { error?: string } & T;
   if (!res.ok) throw new Error((json as { error?: string }).error ?? "Request failed");
   return json;

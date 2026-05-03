@@ -9,7 +9,7 @@ import {
 } from "./referral.service.js";
 
 const JWT_SECRET = process.env["JWT_SECRET"] ?? "treasurefun_jwt_secret_2024";
-const OTP_TTL_SECONDS = 120;
+const OTP_TTL_SECONDS = 600;
 
 function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
