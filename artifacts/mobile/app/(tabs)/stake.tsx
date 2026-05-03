@@ -15,6 +15,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -114,6 +115,7 @@ function calcIncome(stake: StakedNFT, now: number): number {
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function StakeScreen() {
+  const { width: W } = useWindowDimensions();
   const { ownedNFTs, stakedNFTs, buyNFT, sellNFT, stakeNFT, redeemStake } = useStake();
   const { user } = useAuth();
   const { userLevel, stakeBoost, activePlan } = useSubscription();
@@ -450,7 +452,7 @@ export default function StakeScreen() {
               <>
                 <View style={styles.nftGrid}>
                   {zoneNFTs.map((nft, idx) => (
-                    <Animated.View key={`${nft.name}-${idx}`} entering={FadeInDown.duration(300).delay((idx % 10) * 30)} style={styles.nftCard}>
+                    <Animated.View key={`${nft.name}-${idx}`} entering={FadeInDown.duration(300).delay((idx % 10) * 30)} style={[styles.nftCard, { width: (W - 40) / 2 }]}>
                       <Image source={{ uri: nft.image_url }} style={styles.nftImage} contentFit="cover" />
                       <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
                       <View style={styles.nftPriceRow}>
@@ -491,7 +493,7 @@ export default function StakeScreen() {
             ) : (
               <View style={styles.collectionGrid}>
                 {ownedNFTs.map((nft) => (
-                  <Animated.View key={nft.id} entering={FadeIn.duration(300)} style={styles.collectionCard}>
+                  <Animated.View key={nft.id} entering={FadeIn.duration(300)} style={[styles.collectionCard, { width: (W - 40) / 2 }]}>
                     <Image source={nft.imageSource} style={styles.collectionImg} contentFit="cover" />
                     <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
                     <View style={styles.nftPriceRow}>
@@ -960,7 +962,7 @@ const styles = StyleSheet.create({
   loadingWrap: { alignItems: "center", paddingTop: 60, gap: 12 },
   loadingText: { fontSize: 14, fontFamily: "Inter_500Medium", color: Colors.textSecondary },
   nftGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  nftCard: { width: (width - 28 - 12) / 2, backgroundColor: "#fff", borderRadius: 16, overflow: "hidden", padding: 10, gap: 8, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  nftCard: { backgroundColor: "#fff", borderRadius: 16, overflow: "hidden", padding: 10, gap: 8, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
   nftImage: { width: "100%", aspectRatio: 1, borderRadius: 10 },
   nftName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: Colors.textPrimary },
   nftPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -970,7 +972,7 @@ const styles = StyleSheet.create({
 
   // Collection
   collectionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  collectionCard: { width: (width - 28 - 12) / 2, backgroundColor: "#fff", borderRadius: 16, overflow: "hidden", padding: 10, gap: 8, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  collectionCard: { backgroundColor: "#fff", borderRadius: 16, overflow: "hidden", padding: 10, gap: 8, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
   collectionImg: { width: "100%", aspectRatio: 1, borderRadius: 10 },
   collectionZone: { fontSize: 11, fontFamily: "Inter_400Regular", color: Colors.textMuted },
   collectionBtns: { flexDirection: "row", gap: 8 },

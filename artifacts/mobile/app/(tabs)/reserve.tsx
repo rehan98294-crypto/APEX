@@ -12,6 +12,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -185,6 +186,7 @@ function fmtAmt(n: number): string {
 
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function ReserveScreen() {
+  const { width: W } = useWindowDimensions();
   const { balance, totalDeposited, spendBalance, earnReserveProfit, todayReserveProfit, reserveProfit } = useBalance();
   const { token } = useAuth();
   const { createOrder, updateOrder, orders } = useOrders();
@@ -692,7 +694,7 @@ export default function ReserveScreen() {
         {/* ── 6 Stat Boxes ─────────────────────────────────────────────── */}
         <View style={styles.boxGrid}>
           {STAT_BOXES.map((box, i) => (
-            <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor }]}>
+            <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor, width: (W - 38) / 2 }]}>
               <Text style={styles.boxLabel} numberOfLines={2}>{box.label}</Text>
               <Text style={styles.boxValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{box.value}</Text>
             </View>
@@ -856,7 +858,7 @@ export default function ReserveScreen() {
               ) : (
                 <View style={styles.collectedGrid}>
                   {collectedNFTs.map((nft) => (
-                    <Animated.View key={nft.id} entering={FadeInDown.duration(400).springify()} style={styles.collectedCard}>
+                    <Animated.View key={nft.id} entering={FadeInDown.duration(400).springify()} style={[styles.collectedCard, { width: (W - 44) / 2 }]}>
                       <Image source={nft.imageSource} style={styles.collectedImage} contentFit="cover" />
                       <Text style={styles.collectedName} numberOfLines={1}>{nft.name}</Text>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
@@ -994,7 +996,6 @@ const styles = StyleSheet.create({
   // ── 6 Stat boxes ──────────────────────────────────────────────────────────
   boxGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 14, gap: 10, marginBottom: 16 },
   statBox: {
-    width: (width - 48) / 3,
     minHeight: 74,
     backgroundColor: Colors.white,
     borderRadius: 12,
@@ -1106,7 +1107,6 @@ const styles = StyleSheet.create({
   // ── Collected grid ─────────────────────────────────────────────────────────
   collectedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   collectedCard: {
-    width: (width - 56) / 2,
     backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 12,
