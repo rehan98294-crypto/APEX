@@ -16,7 +16,7 @@ export default function ShopScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+        <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/")}>
           <Feather name="arrow-left" size={22} color={Colors.textPrimary} />
         </Pressable>
         <Text style={styles.topTitle}>Shop</Text>

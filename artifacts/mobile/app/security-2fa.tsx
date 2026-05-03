@@ -182,7 +182,7 @@ export default function Security2FAScreen() {
                 setVerifyCode(["", "", "", "", "", ""]);
                 setDisableCode(["", "", "", "", "", ""]);
               } else {
-                router.back();
+                router.canGoBack() ? router.back() : router.replace("/(tabs)/");
               }
             }}>
               <Feather name="chevron-left" size={24} color="#1A1A2E" />

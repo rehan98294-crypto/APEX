@@ -102,7 +102,7 @@ export default function SubscriptionsScreen() {
     <SafeAreaView style={styles.root}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+        <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/")}>
           <Feather name="arrow-left" size={20} color={Colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Subscriptions</Text>

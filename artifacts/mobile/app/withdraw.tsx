@@ -192,7 +192,7 @@ export default function WithdrawScreen() {
     <View style={[sty.container, { paddingTop: insets.top }]}>
       {/* Top bar */}
       <View style={sty.topBar}>
-        <Pressable style={sty.backBtn} onPress={() => router.back()}>
+        <Pressable style={sty.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/")}>
           <Feather name="arrow-left" size={22} color={Colors.textPrimary} />
         </Pressable>
         <Text style={sty.topTitle}>Withdraw</Text>

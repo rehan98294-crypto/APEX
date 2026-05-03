@@ -320,7 +320,7 @@ export default function AirdropScreen() {
     <View style={[styles.root, { paddingTop: topPad }]}>
       {/* Header */}
       <LinearGradient colors={["#7B61FF", "#5CBFFE", "#2BD9A8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+        <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/")}>
           <Feather name="arrow-left" size={20} color="#fff" />
         </Pressable>
         <View style={{ flex: 1, alignItems: "center" }}>

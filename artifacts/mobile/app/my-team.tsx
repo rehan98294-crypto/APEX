@@ -72,7 +72,7 @@ export default function MyTeamScreen() {
     <View style={s.root}>
       {/* Header */}
       <View style={[s.header, { paddingTop: topPad + 8 }]}>
-        <Pressable onPress={() => router.back()} style={s.iconBtn} hitSlop={12}>
+        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/")} style={s.iconBtn} hitSlop={12}>
           <Feather name="chevron-left" size={22} color="#1A1A2E" />
         </Pressable>
         <Text style={s.headerTitle}>My Team</Text>

@@ -167,7 +167,7 @@ export default function WithdrawalLinksScreen() {
     <View style={[sty.container, { paddingTop: insets.top }]}>
       {/* Top bar */}
       <View style={sty.topBar}>
-        <Pressable style={sty.backBtn} onPress={() => router.back()}>
+        <Pressable style={sty.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")}>
           <Feather name="arrow-left" size={22} color={Colors.textPrimary} />
         </Pressable>
         <Text style={sty.topTitle}>Settings</Text>
@@ -234,7 +234,7 @@ export default function WithdrawalLinksScreen() {
       )}
 
       {/* ── "Are you sure?" confirmation modal ── */}
-      <Modal visible={step === "sure_popup"} transparent animationType="fade" statusBarTranslucent>
+      <Modal visible={step === "sure_popup"} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setStep("list")}>
         <View style={sty.overlay}>
           <Animated.View entering={FadeIn.duration(200)} style={sty.popupCard}>
             <View style={sty.warningIconWrap}>
@@ -260,7 +260,7 @@ export default function WithdrawalLinksScreen() {
       </Modal>
 
       {/* ── Change Address form (bottom sheet style) ── */}
-      <Modal visible={step === "change_form"} transparent animationType="slide" statusBarTranslucent>
+      <Modal visible={step === "change_form"} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setStep("list")}>
         <View style={sty.sheetOverlay}>
           <KeyboardAvoidingView
             style={{ flex: 1, justifyContent: "flex-end" }}
@@ -388,7 +388,7 @@ export default function WithdrawalLinksScreen() {
       </Modal>
 
       {/* ── Success modal ── */}
-      <Modal visible={step === "success"} transparent animationType="fade" statusBarTranslucent>
+      <Modal visible={step === "success"} transparent animationType="fade" statusBarTranslucent onRequestClose={handleDone}>
         <View style={sty.overlay}>
           <Animated.View entering={FadeIn.duration(300)} style={sty.popupCard}>
             <View style={sty.successCircle}>
