@@ -100,10 +100,15 @@ function nftZonePrice(name: string, zone: ZoneConfig): number {
 
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "Done";
-  const secs = Math.floor(ms / 1000);
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  const totalSecs = Math.floor(ms / 1000);
+  const d = Math.floor(totalSecs / 86400);
+  const h = Math.floor((totalSecs % 86400) / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  if (d > 0) {
+    return `${d}d ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function calcIncome(stake: StakedNFT, now: number): number {
@@ -253,7 +258,7 @@ export default function StakeScreen() {
     );
     if (!real) return;
     // 1. Update local context (instant UI feedback)
-    stakeNFT(real.id, stakeDays * 30);
+    stakeNFT(real.id, stakeDays * 24 * 60);
     setStakeModalNFT(null);
     setStakeSuccess(true);
     // 2. Persist to backend (non-blocking)
@@ -636,7 +641,7 @@ export default function StakeScreen() {
                         <Text style={styles.myStakeName} numberOfLines={1}>{stake.name}</Text>
                         <View style={styles.myStakeRow}><Text style={styles.myStakeLabel}>Stake Value</Text><Text style={styles.myStakeValueGreen}>{stake.price.toLocaleString()} TFT</Text></View>
                         <View style={styles.myStakeRow}><Text style={styles.myStakeLabel}>APR</Text><Text style={styles.myStakeBold}>{stake.apr}%</Text></View>
-                        <View style={styles.myStakeRow}><Text style={styles.myStakeLabel}>Duration</Text><Text style={styles.myStakeBold}>{Math.round(stake.durationMinutes / 30)} days</Text></View>
+                        <View style={styles.myStakeRow}><Text style={styles.myStakeLabel}>Duration</Text><Text style={styles.myStakeBold}>{Math.round(stake.durationMinutes / 1440)} days</Text></View>
                       </View>
                     </View>
                     <View style={styles.myStakeRow}>

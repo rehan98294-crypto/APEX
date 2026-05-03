@@ -59,15 +59,26 @@ export function StakeProvider({ children }: { children: React.ReactNode }) {
   const [ownedNFTs, setOwnedNFTs] = useState<OwnedNFT[]>([]);
   const [stakedNFTs, setStakedNFTs] = useState<StakedNFT[]>([]);
   const [stakeDataLoaded, setStakeDataLoaded] = useState(false);
+  // Track which user ID we've already loaded for so a transient null user
+  // during auth initialisation never wipes the in-memory state.
+  const loadedForUser = React.useRef<string | null>(null);
 
   // Load from AsyncStorage when user changes (login / logout / switch)
   useEffect(() => {
     if (!user?.id) {
-      setOwnedNFTs([]);
-      setStakedNFTs([]);
+      // Only clear if we had previously loaded a different user (real logout),
+      // not during the brief moment before AuthContext has finished reading storage.
+      if (loadedForUser.current !== null) {
+        setOwnedNFTs([]);
+        setStakedNFTs([]);
+        loadedForUser.current = null;
+      }
       setStakeDataLoaded(true);
       return;
     }
+    // Already loaded for this user — nothing to do.
+    if (loadedForUser.current === user.id) return;
+    loadedForUser.current = user.id;
     setStakeDataLoaded(false);
     AsyncStorage.getItem(stakeKey(user.id)).then((data) => {
       if (data) {
