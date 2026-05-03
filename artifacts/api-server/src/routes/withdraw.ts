@@ -57,7 +57,7 @@ router.post("/withdraw/create", requireAuth, async (req, res) => {
     // Check user balance + withdrawal cooldown in DB
     const { data: user, error: userErr } = await supabase
       .from("users")
-      .select("balance, withdrawal_disabled_until")
+      .select("balance, trial_balance, withdrawal_disabled_until")
       .eq("id", userId)
       .single();
 
@@ -75,17 +75,34 @@ router.post("/withdraw/create", requireAuth, async (req, res) => {
       });
     }
 
-    const currentBalance = parseFloat(String(user.balance ?? 0));
-    if (currentBalance < amount) {
-      return res.status(400).json({ error: `Insufficient balance. Available: ${currentBalance.toFixed(2)} USDT.` });
+    // Trial balance cannot be withdrawn — only real balance is eligible
+    const realBalance = parseFloat(String(user.balance ?? 0));
+
+    // Require at least one successful real deposit before any withdrawal
+    const { data: deposits } = await supabase
+      .from("deposits")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("status", "success")
+      .limit(1);
+
+    if (!deposits || deposits.length === 0) {
+      return res.status(403).json({
+        error: "You must make your first deposit before you can withdraw funds.",
+        requires_deposit: true,
+      });
+    }
+
+    if (realBalance < amount) {
+      return res.status(400).json({ error: `Insufficient balance. Available: ${realBalance.toFixed(2)} USDT. Note: trial balance cannot be withdrawn.` });
     }
 
     const fee = parseFloat((amount * FEE_RATE).toFixed(2));
 
-    // Deduct balance immediately
+    // Deduct from real balance only
     const { error: balErr } = await supabase
       .from("users")
-      .update({ balance: parseFloat((currentBalance - amount).toFixed(2)) })
+      .update({ balance: parseFloat((realBalance - amount).toFixed(2)) })
       .eq("id", userId);
 
     if (balErr) throw balErr;
@@ -110,10 +127,10 @@ router.post("/withdraw/create", requireAuth, async (req, res) => {
     }
 
     if (wErr) {
-      // Rollback balance
+      // Rollback real balance
       await supabase
         .from("users")
-        .update({ balance: currentBalance })
+        .update({ balance: realBalance })
         .eq("id", userId);
       throw wErr;
     }

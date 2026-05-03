@@ -53,6 +53,7 @@ interface BalanceContextType {
   earnReserveProfit: (profit: number, price: number, description: string) => void;
   earnStakeReward: (amount: number, description: string) => void;
   spendBalance: (amount: number, description: string) => boolean;
+  spendRealBalance: (amount: number, description: string) => boolean;
   creditBalance: (amount: number, description: string) => void;
   addReservation: (r: Omit<Reservation, "id" | "reserveDate">) => boolean;
   cancelReservation: (id: string) => void;
@@ -79,6 +80,7 @@ const BalanceContext = createContext<BalanceContextType>({
   earnReserveProfit: () => {},
   earnStakeReward: () => {},
   spendBalance: () => false,
+  spendRealBalance: () => false,
   creditBalance: () => {},
   addReservation: () => false,
   cancelReservation: () => {},
@@ -340,6 +342,14 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  // Deducts only from real balance — used for withdrawals (trial balance is never withdrawable)
+  const spendRealBalance = (amount: number, description: string): boolean => {
+    if (amount > balance || amount <= 0) return false;
+    const tx: Transaction = { id: genId(), type: "reserve", amount, description, timestamp: Date.now() };
+    persist(balance - amount, trialBalance, totalDeposited, earnedTotal, [tx, ...transactions].slice(0, 100), stakes, reservations);
+    return true;
+  };
+
   // creditBalance counts as a real deposit — increments totalDeposited
   const creditBalance = (amount: number, description: string): void => {
     const tx: Transaction = { id: genId(), type: "earn", amount, description, timestamp: Date.now() };
@@ -388,6 +398,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
         earnReserveProfit,
         earnStakeReward,
         spendBalance,
+        spendRealBalance,
         creditBalance,
         addReservation,
         cancelReservation,

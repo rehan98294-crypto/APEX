@@ -40,7 +40,7 @@ export default function WithdrawScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const { availableBalance: balance, spendBalance } = useBalance();
+  const { balance, spendRealBalance } = useBalance();
 
   const [address, setAddress]     = useState("");
   const [amount, setAmount]       = useState("");
@@ -152,7 +152,7 @@ export default function WithdrawScreen() {
     }
     if (!address.trim())        errs.address   = "Please enter or select a withdrawal address.";
     if (numAmount < MIN_WITHDRAWAL) errs.amount = `Minimum withdrawal is ${MIN_WITHDRAWAL} USDT.`;
-    else if (numAmount > balance)   errs.amount = "Amount exceeds your available balance.";
+    else if (numAmount > balance)   errs.amount = "Amount exceeds your withdrawable balance. Trial balance cannot be withdrawn.";
     if (!emailCode.trim())      errs.emailCode = "Please enter the email verification code.";
     if (!twoFaCode.trim())      errs.twoFaCode = "Please enter your Google Authenticator code.";
 
@@ -167,18 +167,20 @@ export default function WithdrawScreen() {
         wallet_address: address.trim(),
         network: selectedNetwork ?? "TRC20",
       });
-      spendBalance(numAmount, `Withdrawal to ${address.slice(0, 8)}…`);
+      spendRealBalance(numAmount, `Withdrawal to ${address.slice(0, 8)}…`);
       setSuccess(true);
     } catch (e: any) {
       const msg: string = e.message ?? "Something went wrong. Please try again.";
       const low = msg.toLowerCase();
-      if (low.includes("email") || low.includes("otp") || low.includes("verif") || low.includes("code")) {
+      if (low.includes("deposit") || low.includes("requires_deposit") || low.includes("first deposit")) {
+        setFieldErrors({ general: "You need to make your first deposit before withdrawing." });
+      } else if (low.includes("email") || low.includes("otp") || low.includes("verif") || low.includes("code")) {
         setFieldErrors({ emailCode: msg });
       } else if (low.includes("2fa") || low.includes("totp") || low.includes("authenticat") || low.includes("google")) {
         setFieldErrors({ twoFaCode: msg });
       } else if (low.includes("address") || low.includes("wallet")) {
         setFieldErrors({ address: msg });
-      } else if (low.includes("amount") || low.includes("balance") || low.includes("minimum")) {
+      } else if (low.includes("amount") || low.includes("balance") || low.includes("minimum") || low.includes("trial")) {
         setFieldErrors({ amount: msg });
       } else {
         setFieldErrors({ general: msg });
@@ -322,8 +324,8 @@ export default function WithdrawScreen() {
           {/* Info card */}
           <Animated.View entering={FadeInDown.duration(330).delay(120)} style={sty.infoCard}>
             <View style={sty.infoRow}>
-              <Text style={sty.infoLabel}>Available Balance</Text>
-              <Text style={sty.infoValue}>{balance.toFixed(2)}</Text>
+              <Text style={sty.infoLabel}>Withdrawable Balance</Text>
+              <Text style={sty.infoValue}>{balance.toFixed(2)} USDT</Text>
             </View>
             <View style={sty.infoRow}>
               <Text style={sty.infoLabel}>Minimum Withdrawal</Text>
