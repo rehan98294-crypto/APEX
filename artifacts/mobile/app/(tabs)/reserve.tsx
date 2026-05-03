@@ -98,11 +98,8 @@ const ROYALTY = 0.002;
 /** Seconds until the next 12-hour boundary (noon or midnight UTC). */
 function secsToNext12HrUTC(): number {
   const now = new Date();
-  const h = now.getUTCHours();
-  const next = h < 12
-    ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0))      // noon
-    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));  // midnight
-  return Math.max(0, Math.floor((next.getTime() - now.getTime()) / 1000));
+  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+  return Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000));
 }
 function fmtCountdown(s: number): string {
   const h = Math.floor(s / 3600);
