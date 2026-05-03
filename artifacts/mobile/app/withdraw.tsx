@@ -423,9 +423,9 @@ export default function WithdrawScreen() {
               <Text style={sty.cancelBtnText}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={[sty.submitBtn, (isWithdrawalDisabled || hasPendingWithdrawal) && { opacity: 0.5 }]}
+              style={[sty.submitBtn, (isWithdrawalDisabled || hasPendingWithdrawal || savedAddresses.length < 2) && { opacity: 0.5 }]}
               onPress={handleSubmit}
-              disabled={submitting || hasPendingWithdrawal}
+              disabled={submitting || hasPendingWithdrawal || isWithdrawalDisabled || savedAddresses.length < 2}
             >
               <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
               {submitting
