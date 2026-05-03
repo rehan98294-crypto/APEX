@@ -1,6 +1,6 @@
 import { QueryClient, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-const BASE_URL = "/api/admin";
+const BASE_URL = (import.meta.env["VITE_API_URL"] ?? "") + "/api/admin";
 
 export const getAuthToken = () => localStorage.getItem("apex_admin_secret");
 export const setAuthToken = (token: string) => localStorage.setItem("apex_admin_secret", token);

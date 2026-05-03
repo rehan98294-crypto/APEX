@@ -1,0 +1,9 @@
+{
+  "buildCommand": "pnpm --filter @workspace/admin-panel run build:vercel",
+  "outputDirectory": "artifacts/admin-panel/dist",
+  "framework": null,
+  "installCommand": "pnpm install --frozen-lockfile",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

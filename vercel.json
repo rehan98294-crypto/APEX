@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "installCommand": "pnpm install --frozen-lockfile",
+  "builds": [
+    {
+      "src": "artifacts/api-server/api/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "artifacts/api-server/src/**",
+          "lib/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/artifacts/api-server/api/index.ts"
+    }
+  ]
+}
