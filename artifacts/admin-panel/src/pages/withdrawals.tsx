@@ -47,7 +47,7 @@ export default function Withdrawals() {
     }
   }
 
-  const withdrawals: any[] = data ?? [];
+  const withdrawals: any[] = data?.withdrawals ?? [];
 
   return (
     <div className="p-8 max-w-6xl">
