@@ -193,6 +193,7 @@ export default function ReserveScreen() {
   const { stats: teamStats } = useReferral();
   const currentOrderIdRef = useRef<string>("");
   const bottomPad = Platform.OS === "web" ? 34 : 0;
+  const [boxGridW, setBoxGridW] = useState(0);
 
   const [activeTab,      setActiveTab]      = useState<"todays" | "reserve" | "collected">("reserve");
   const [selectedLevel,  setSelectedLevel]  = useState(LEVELS[0]);
@@ -692,9 +693,9 @@ export default function ReserveScreen() {
         <View style={{ height: 20 }} />
 
         {/* ── 6 Stat Boxes ─────────────────────────────────────────────── */}
-        <View style={styles.boxGrid}>
+        <View style={styles.boxGrid} onLayout={(e) => setBoxGridW(e.nativeEvent.layout.width)}>
           {STAT_BOXES.map((box, i) => (
-            <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor, width: (W - 48) / 3 }]}>
+            <View key={i} style={[styles.statBox, { borderLeftColor: box.borderColor, width: boxGridW > 0 ? (boxGridW - 48) / 3 : "30%" }]}>
               <Text style={styles.boxLabel} numberOfLines={2}>{box.label}</Text>
               <Text style={styles.boxValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{box.value}</Text>
             </View>
