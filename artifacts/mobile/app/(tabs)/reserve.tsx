@@ -275,7 +275,7 @@ export default function ReserveScreen() {
   useEffect(() => {
     if (hydrated.current || collectedNFTs.length > 0) return;
     const loaded = orders
-      .filter((o) => o.status === "bought" || o.status === "sold")
+      .filter((o) => o.status === "bought")
       .map((o) => ({
         id: o.order_id,
         order_id: o.order_id,
@@ -473,14 +473,21 @@ export default function ReserveScreen() {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     earnReserveProfit(activeSellNFT.profit, activeSellNFT.price, `NFT Sale: ${activeSellNFT.name}`);
+
+    const soldId = activeSellNFT.id;
     setCollectedNFTs((prev) =>
-      prev.map((n) => n.id === activeSellNFT.id ? { ...n, sold: true } : n)
+      prev.map((n) => n.id === soldId ? { ...n, sold: true } : n)
     );
     updateOrder(activeSellNFT.order_id, { status: "sold" });
 
     if (token && activeSellNFT.profit > 0) {
       authApi.rewards.recordProfit(token, activeSellNFT.profit).catch(() => {});
     }
+
+    // Remove the sold card after 5 seconds
+    setTimeout(() => {
+      setCollectedNFTs((prev) => prev.filter((n) => n.id !== soldId));
+    }, 5000);
 
     setSellPhase("idle");
     setActiveSellNFT(null);
