@@ -65,15 +65,15 @@ router.post("/withdraw/create", requireAuth, async (req, res) => {
       return res.status(404).json({ error: "User not found." });
     }
 
-    // Enforce 72-hour cooldown after address change
-    if (user.withdrawal_disabled_until && new Date(user.withdrawal_disabled_until) > new Date()) {
-      const remainingMs = new Date(user.withdrawal_disabled_until).getTime() - Date.now();
-      const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
-      return res.status(403).json({
-        error: `Withdrawals are temporarily disabled for account security. Available in approximately ${remainingHours} hour${remainingHours === 1 ? "" : "s"}.`,
-        withdrawal_disabled_until: user.withdrawal_disabled_until,
-      });
-    }
+    // TESTING MODE: 72-hour cooldown temporarily disabled — re-enable before production
+    // if (user.withdrawal_disabled_until && new Date(user.withdrawal_disabled_until) > new Date()) {
+    //   const remainingMs = new Date(user.withdrawal_disabled_until).getTime() - Date.now();
+    //   const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
+    //   return res.status(403).json({
+    //     error: `Withdrawals are temporarily disabled for account security. Available in approximately ${remainingHours} hour${remainingHours === 1 ? "" : "s"}.`,
+    //     withdrawal_disabled_until: user.withdrawal_disabled_until,
+    //   });
+    // }
 
     const currentBalance = parseFloat(String(user.balance ?? 0));
     if (currentBalance < amount) {
