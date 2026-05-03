@@ -145,7 +145,7 @@ export function StakeProvider({ children }: { children: React.ReactNode }) {
     const stake = stakedNFTs.find((s) => s.stakeId === stakeId);
     if (!stake) return;
     const income = parseFloat(
-      ((stake.price * stake.apr) / 100 * (stake.durationMinutes / 30)).toFixed(4)
+      ((stake.price * stake.apr) / 100 * (stake.durationMinutes / 1440)).toFixed(4)
     );
     earnStakeReward(income, `Stake Reward: ${stake.name}`);
     const returned: OwnedNFT = {

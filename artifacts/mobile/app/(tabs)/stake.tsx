@@ -114,7 +114,7 @@ function formatCountdown(ms: number): string {
 function calcIncome(stake: StakedNFT, now: number): number {
   const elapsed = Math.min(now - stake.startTime, stake.endTime - stake.startTime);
   const total = stake.endTime - stake.startTime;
-  const fullIncome = (stake.price * stake.apr) / 100 * (stake.durationMinutes / 30);
+  const fullIncome = (stake.price * stake.apr) / 100 * (stake.durationMinutes / 1440);
   return parseFloat((fullIncome * (elapsed / total)).toFixed(4));
 }
 
