@@ -94,12 +94,11 @@ router.post("/withdraw/address", requireAuth, async (req, res) => {
       if (!twofa_code || twofa_code.trim().length !== 6) {
         return res.status(400).json({ error: "Google Authenticator code is required (6 digits)." });
       }
-      const { default: speakeasy } = await import("speakeasy");
-      const verified = speakeasy.totp.verify({
-        secret: user.twofa_secret,
-        encoding: "base32",
+      const { authenticator } = await import("otplib");
+      authenticator.options = { window: 1 };
+      const verified = authenticator.verify({
         token: twofa_code.trim(),
-        window: 1,
+        secret: user.twofa_secret,
       });
       if (!verified) return res.status(401).json({ error: "Invalid 2FA code." });
     }

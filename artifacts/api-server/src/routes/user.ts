@@ -111,4 +111,64 @@ router.post("/user/balance-sync", requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/user/save-withdraw-address — upsert withdrawal addresses by user_id
+router.post("/user/save-withdraw-address", async (req, res) => {
+  const {
+    user_id,
+    trc20_address,
+    bep20_address,
+    erc20_address,
+    sol_address,
+  } = req.body as {
+    user_id?: string;
+    trc20_address?: string;
+    bep20_address?: string;
+    erc20_address?: string;
+    sol_address?: string;
+  };
+
+  if (!user_id || typeof user_id !== "string" || user_id.trim().length === 0) {
+    return res.status(400).json({ error: "user_id is required." });
+  }
+
+  const uid = user_id.trim();
+
+  // Build list of networks to upsert (skip any that weren't provided)
+  const entries: { network: string; address: string }[] = [];
+  if (trc20_address?.trim()) entries.push({ network: "TRC20",   address: trc20_address.trim() });
+  if (bep20_address?.trim()) entries.push({ network: "BEP20",   address: bep20_address.trim() });
+  if (erc20_address?.trim()) entries.push({ network: "ERC20",   address: erc20_address.trim() });
+  if (sol_address?.trim())   entries.push({ network: "SOL",     address: sol_address.trim()   });
+
+  if (entries.length === 0) {
+    return res.status(400).json({ error: "At least one address must be provided." });
+  }
+
+  try {
+    const now = new Date().toISOString();
+
+    const rows = entries.map(({ network, address }) => ({
+      user_id:    uid,
+      network,
+      address,
+      updated_at: now,
+    }));
+
+    const { error } = await supabase
+      .from("withdrawal_addresses")
+      .upsert(rows, { onConflict: "user_id,network" });
+
+    if (error) throw error;
+
+    console.log(`[SaveWithdrawAddr] Saved ${entries.length} address(es) for user=${uid}`);
+    return res.json({
+      success:  true,
+      saved:    entries.map(e => e.network),
+    });
+  } catch (err) {
+    console.error("[SaveWithdrawAddr] error:", err);
+    return res.status(500).json({ error: err instanceof Error ? err.message : "Failed to save addresses." });
+  }
+});
+
 export default router;
