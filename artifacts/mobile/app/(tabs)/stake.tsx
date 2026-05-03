@@ -452,7 +452,7 @@ export default function StakeScreen() {
               <>
                 <View style={styles.nftGrid}>
                   {zoneNFTs.map((nft, idx) => (
-                    <Animated.View key={`${nft.name}-${idx}`} entering={FadeInDown.duration(300).delay((idx % 10) * 30)} style={[styles.nftCard, { width: (W - 40) / 2 }]}>
+                    <Animated.View key={`${nft.name}-${idx}`} entering={FadeInDown.duration(300).delay((idx % 10) * 30)} style={[styles.nftCard, { width: Math.floor((W - 44) / 2) }]}>
                       <Image source={{ uri: nft.image_url }} style={styles.nftImage} contentFit="cover" />
                       <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
                       <View style={styles.nftPriceRow}>
@@ -493,7 +493,7 @@ export default function StakeScreen() {
             ) : (
               <View style={styles.collectionGrid}>
                 {ownedNFTs.map((nft) => (
-                  <Animated.View key={nft.id} entering={FadeIn.duration(300)} style={[styles.collectionCard, { width: (W - 40) / 2 }]}>
+                  <Animated.View key={nft.id} entering={FadeIn.duration(300)} style={[styles.collectionCard, { width: Math.floor((W - 44) / 2) }]}>
                     <Image source={nft.imageSource} style={styles.collectionImg} contentFit="cover" />
                     <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
                     <View style={styles.nftPriceRow}>

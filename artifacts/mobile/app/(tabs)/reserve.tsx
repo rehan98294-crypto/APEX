@@ -193,7 +193,7 @@ export default function ReserveScreen() {
   const { stats: teamStats } = useReferral();
   const currentOrderIdRef = useRef<string>("");
   const bottomPad = Platform.OS === "web" ? 34 : 0;
-  const [boxGridW, setBoxGridW] = useState(0);
+  const [boxGridW, setBoxGridW] = useState(W);
 
   const [activeTab,      setActiveTab]      = useState<"todays" | "reserve" | "collected">("reserve");
   const [selectedLevel,  setSelectedLevel]  = useState(LEVELS[0]);
@@ -859,7 +859,7 @@ export default function ReserveScreen() {
               ) : (
                 <View style={styles.collectedGrid}>
                   {collectedNFTs.map((nft) => (
-                    <Animated.View key={nft.id} entering={FadeInDown.duration(400).springify()} style={[styles.collectedCard, { width: (W - 44) / 2 }]}>
+                    <Animated.View key={nft.id} entering={FadeInDown.duration(400).springify()} style={[styles.collectedCard, { width: Math.floor((W - 44) / 2) }]}>
                       <Image source={nft.imageSource} style={styles.collectedImage} contentFit="cover" />
                       <Text style={styles.collectedName} numberOfLines={1}>{nft.name}</Text>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>

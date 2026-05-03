@@ -16,6 +16,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -574,6 +575,8 @@ const STAKE_PRICES = ["497 USDT", "492 USDT", "496 USDT", "587 USDT", "501 USDT"
 
 // Card for API-fetched NFTs (paginated)
 function APICardNFT({ nft }: { nft: NFTItem }) {
+  const { width: W } = useWindowDimensions();
+  const cardWidth = Math.floor((W - 44) / 2);
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const price = nft.min_price && nft.max_price
@@ -581,7 +584,7 @@ function APICardNFT({ nft }: { nft: NFTItem }) {
     : nft.min_price ? `${nft.min_price} USDT` : "— USDT";
 
   return (
-    <Animated.View style={[animStyle, styles.discoverCard]}>
+    <Animated.View style={[animStyle, styles.discoverCard, { width: cardWidth }]}>
       <Pressable
         onPress={() => router.push({ pathname: "/nft/[id]", params: { id: nft.id } })}
         onPressIn={() => { scale.value = withSpring(0.96, { damping: 15 }); }}
@@ -607,11 +610,13 @@ function APICardNFT({ nft }: { nft: NFTItem }) {
 }
 
 function NFTCard({ nft, idx = 0 }: { nft: NFT; idx?: number }) {
+  const { width: W } = useWindowDimensions();
+  const cardWidth = Math.floor((W - 44) / 2);
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   return (
-    <Animated.View style={[animStyle, styles.discoverCard]}>
+    <Animated.View style={[animStyle, styles.discoverCard, { width: cardWidth }]}>
       <Pressable
         onPress={() => router.push({ pathname: "/nft/[id]", params: { id: nft.id } })}
         onPressIn={() => { scale.value = withSpring(0.96, { damping: 15 }); }}
@@ -652,11 +657,10 @@ const styles = StyleSheet.create({
   discoverEmptyText: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textMuted },
   loadMoreBtn: { height: 50, borderRadius: 14, overflow: "hidden", alignItems: "center", justifyContent: "center", marginTop: 18 },
   loadMoreText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold", zIndex: 1 },
-  skeletonMiniCard: { width: (width - 44) / 2, backgroundColor: "#fff", borderRadius: 18, overflow: "hidden" },
+  skeletonMiniCard: { flex: 1, minWidth: 0, backgroundColor: "#fff", borderRadius: 18, overflow: "hidden" },
   skeletonMiniImg: { width: "100%", height: 130, backgroundColor: "#E2E8EF" },
   skeletonLine: { height: 11, backgroundColor: "#E2E8EF", borderRadius: 5, width: "70%" },
   discoverCard: {
-    width: (width - 44) / 2,
     backgroundColor: Colors.white,
     borderRadius: 18,
     overflow: "hidden",
@@ -773,7 +777,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   nftImageWrap: { position: "relative" },
-  nftImage: { width: "100%", height: CARD_WIDTH * 0.95, resizeMode: "cover" },
+  nftImage: { width: "100%", aspectRatio: 1, resizeMode: "cover" },
   nftHeart: {
     position: "absolute",
     top: 8,

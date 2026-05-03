@@ -17,6 +17,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 const { width: SW } = Dimensions.get("window");
@@ -178,7 +179,8 @@ export function SkeletonPromo() {
 
 // ─── Discover NFT grid ────────────────────────────────────────────────────────
 export function SkeletonDiscoverSection() {
-  const CARD_W = (SW - 44) / 2;
+  const { width: SW_D } = useWindowDimensions();
+  const CARD_W = Math.floor((SW_D - 44) / 2);
   return (
     <View style={sk.discoverSection}>
       {/* Title */}
@@ -340,7 +342,8 @@ export function DashboardSkeleton({ topPad = 0 }: { topPad?: number }) {
 
 // ─── NFT grid skeleton (used for load-more pagination) ────────────────────────
 export function NFTSkeletonCard() {
-  const CARD_W = (SW - 44) / 2;
+  const { width: SW_D } = useWindowDimensions();
+  const CARD_W = Math.floor((SW_D - 44) / 2);
   return (
     <View style={[sk.gridCard, { width: CARD_W }]}>
       <ShimmerBox height={150} width="100%" borderRadius={0} />
@@ -366,12 +369,12 @@ export function NFTSkeletonGrid({ count = 6 }: { count?: number }) {
 // STAKE TAB SKELETONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const STAKE_CARD_W = (SW - 28 - 12) / 2;
-
 // ─── Stake zone NFT card skeleton ─────────────────────────────────────────────
 export function StakeNFTSkeletonCard() {
+  const { width: SW_D } = useWindowDimensions();
+  const STAKE_CARD_W = Math.floor((SW_D - 44) / 2);
   return (
-    <View style={sk.stakeNFTCard}>
+    <View style={[sk.stakeNFTCard, { width: STAKE_CARD_W }]}>
       <ShimmerBox height={STAKE_CARD_W - 20} width="100%" borderRadius={10} />
       <ShimmerBox height={12} width="80%" borderRadius={5} style={{ marginTop: 4 }} />
       <ShimmerBox height={12} width="50%" borderRadius={5} />
@@ -423,8 +426,10 @@ export function ZoneListSkeleton({ count = 3 }: { count?: number }) {
 
 // ─── Collection card skeleton ─────────────────────────────────────────────────
 export function CollectionCardSkeleton() {
+  const { width: SW_D } = useWindowDimensions();
+  const STAKE_CARD_W = Math.floor((SW_D - 44) / 2);
   return (
-    <View style={sk.stakeNFTCard}>
+    <View style={[sk.stakeNFTCard, { width: STAKE_CARD_W }]}>
       <ShimmerBox height={STAKE_CARD_W - 20} width="100%" borderRadius={10} />
       <ShimmerBox height={12} width="80%" borderRadius={5} style={{ marginTop: 4 }} />
       <ShimmerBox height={12} width="50%" borderRadius={5} />
@@ -784,7 +789,6 @@ const sk = StyleSheet.create({
 
   // Stake tab
   stakeNFTCard: {
-    width: STAKE_CARD_W,
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 10,
