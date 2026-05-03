@@ -145,11 +145,12 @@ export default function WithdrawScreen() {
       setFieldErrors(errs);
       return;
     }
-    if (savedAddresses.length < 2) {
-      errs.general = "Please set at least 2 withdrawal network addresses first.";
-      setFieldErrors(errs);
-      return;
-    }
+    // TESTING MODE: min-address requirement temporarily disabled — re-enable before production
+    // if (savedAddresses.length < 2) {
+    //   errs.general = "Please set at least 2 withdrawal network addresses first.";
+    //   setFieldErrors(errs);
+    //   return;
+    // }
     if (!address.trim())        errs.address   = "Please enter or select a withdrawal address.";
     if (numAmount < MIN_WITHDRAWAL) errs.amount = `Minimum withdrawal is ${MIN_WITHDRAWAL} USDT.`;
     else if (numAmount > balance)   errs.amount = "Amount exceeds your available balance.";
@@ -234,8 +235,8 @@ export default function WithdrawScreen() {
             </Animated.View>
           )}
 
-          {/* Min-address warning */}
-          {!isWithdrawalDisabled && savedAddresses.length < 2 && !loadingAddresses && (
+          {/* TESTING MODE: Min-address warning temporarily hidden — re-enable before production */}
+          {/* {!isWithdrawalDisabled && savedAddresses.length < 2 && !loadingAddresses && (
             <Animated.View entering={FadeInDown.duration(300)} style={sty.warnBanner}>
               <Feather name="alert-circle" size={15} color="#F0B90B" />
               <Text style={sty.warnBannerText}>
@@ -245,7 +246,7 @@ export default function WithdrawScreen() {
                 <Text style={sty.warnBannerLink}>Set now</Text>
               </Pressable>
             </Animated.View>
-          )}
+          )} */}
 
           {/* Network selector (shows saved addresses as tappable cards) */}
           {savedAddresses.length > 0 && (
