@@ -117,6 +117,20 @@ export const useAdjustBalance = () => {
   });
 };
 
+export const useCreateTestWithdrawal = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId?: string) =>
+      adminFetch("/test-withdrawal", {
+        method: "POST",
+        body: JSON.stringify(userId ? { user_id: userId } : {}),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["withdrawals"] });
+    },
+  });
+};
+
 export const useActionLog = () => {
   return useQuery({
     queryKey: ["actionLog"],

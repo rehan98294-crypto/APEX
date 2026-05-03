@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWithdrawals, useApproveWithdrawal, useRejectWithdrawal } from "@/lib/api";
+import { useWithdrawals, useApproveWithdrawal, useRejectWithdrawal, useCreateTestWithdrawal } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Clock,
   Wifi,
+  FlaskConical,
 } from "lucide-react";
 
 type Status = "pending" | "approved" | "rejected" | "all";
@@ -196,9 +197,23 @@ function CardSkeleton() {
 export default function Withdrawals() {
   const [activeStatus, setActiveStatus] = useState<Status>("pending");
   const { data, isLoading, isFetching, refetch, dataUpdatedAt } = useWithdrawals(activeStatus);
-  const approve = useApproveWithdrawal();
-  const reject  = useRejectWithdrawal();
-  const { toast } = useToast();
+  const approve    = useApproveWithdrawal();
+  const reject     = useRejectWithdrawal();
+  const createTest = useCreateTestWithdrawal();
+  const { toast }  = useToast();
+
+  async function handleCreateTest() {
+    try {
+      const result = await createTest.mutateAsync();
+      toast({
+        title: "Test withdrawal created",
+        description: `$${result.amount} USDT via ${result.network} — ID: ${result.withdrawal_id?.slice(0, 8)}…`,
+      });
+      setActiveStatus("pending");
+    } catch (e: any) {
+      toast({ title: "Failed to create test withdrawal", description: e.message, variant: "destructive" });
+    }
+  }
 
   const withdrawals: any[] = data?.withdrawals ?? [];
 
@@ -246,17 +261,30 @@ export default function Withdrawals() {
             }
           </p>
         </div>
-        <Button
-          data-testid="button-manual-refresh"
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="border-card-border text-muted-foreground hover:text-foreground h-9 px-3"
-        >
-          <RefreshCw size={14} className={`mr-1.5 ${isFetching ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            data-testid="button-create-test-withdrawal"
+            variant="outline"
+            size="sm"
+            onClick={handleCreateTest}
+            disabled={createTest.isPending}
+            className="border-dashed border-[#FFB08A]/50 text-[#FFB08A] hover:bg-[#FFB08A]/10 hover:text-[#FFB08A] h-9 px-3 text-sm font-semibold"
+          >
+            <FlaskConical size={14} className="mr-1.5" />
+            {createTest.isPending ? "Creating…" : "Fake Request"}
+          </Button>
+          <Button
+            data-testid="button-manual-refresh"
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="border-card-border text-muted-foreground hover:text-foreground h-9 px-3"
+          >
+            <RefreshCw size={14} className={`mr-1.5 ${isFetching ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Status tabs */}
