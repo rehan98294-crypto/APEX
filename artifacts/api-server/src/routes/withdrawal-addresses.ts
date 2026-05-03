@@ -112,12 +112,12 @@ router.post("/withdraw/address", requireAuth, async (req, res) => {
       );
     if (upsertErr) throw upsertErr;
 
-    // TESTING MODE: 72-hour cooldown temporarily disabled — re-enable before production
-    // const disabledUntil = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
-    // await supabase.from("users").update({ withdrawal_disabled_until: disabledUntil }).eq("id", userId);
+    // 6. Set 72-hour withdrawal cooldown
+    const disabledUntil = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+    await supabase.from("users").update({ withdrawal_disabled_until: disabledUntil }).eq("id", userId);
 
-    console.log(`[WithdrawalAddr] Saved network=${network} for user=${userId}.`);
-    return res.json({ success: true, withdrawal_disabled_until: null });
+    console.log(`[WithdrawalAddr] Saved network=${network} for user=${userId}. Cooldown until ${disabledUntil}`);
+    return res.json({ success: true, withdrawal_disabled_until: disabledUntil });
   } catch (err) {
     console.error("[WithdrawalAddr] save error:", err);
     return res.status(500).json({ error: err instanceof Error ? err.message : "Failed to save address." });
