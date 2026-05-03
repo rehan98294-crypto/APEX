@@ -1,0 +1,7 @@
+input:focus,
+textarea:focus,
+[data-focusable="true"]:focus {
+  outline: 2px solid #5CBFFE !important;
+  outline-offset: 0 !important;
+  box-shadow: 0 0 0 3px rgba(92, 191, 254, 0.18) !important;
+}

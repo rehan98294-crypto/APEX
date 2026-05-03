@@ -142,6 +142,7 @@ export default function StakeScreen() {
   const [zoneHasMore, setZoneHasMore] = useState(false);
   const [zonePage, setZonePage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Buy flow
   const [buySuccessNFT, setBuySuccessNFT] = useState<OwnedNFT | null>(null);
@@ -183,12 +184,26 @@ export default function StakeScreen() {
     setZoneNFTs([]);
     setZonePage(1);
     setZoneHasMore(false);
+    setSearchQuery("");
     fetchZoneNFTsByLevel(activeZone.nftLevel, 1, 10).then(({ items, hasMore }) => {
       setZoneNFTs(items);
       setZoneHasMore(hasMore);
       setNftsLoading(false);
     });
   }, [activeZone]);
+
+  // Filter NFTs by name (text) or max price (number)
+  const filteredNFTs = activeZone
+    ? (() => {
+        const q = searchQuery.trim();
+        if (!q) return zoneNFTs;
+        const asNum = parseFloat(q);
+        if (!isNaN(asNum)) {
+          return zoneNFTs.filter((nft) => nftZonePrice(nft.name, activeZone) <= asNum);
+        }
+        return zoneNFTs.filter((nft) => nft.name.toLowerCase().includes(q.toLowerCase()));
+      })()
+    : zoneNFTs;
 
   const handleLoadMore = async () => {
     if (!activeZone || loadingMore || !zoneHasMore) return;
@@ -431,12 +446,27 @@ export default function StakeScreen() {
         {mainTab === "stake" && activeZone && (
           <View style={{ paddingHorizontal: 14 }}>
             <View style={styles.gridTopRow}>
-              <Pressable onPress={() => setActiveZone(null)} style={styles.backBtn}>
+              <Pressable onPress={() => { setActiveZone(null); setSearchQuery(""); }} style={styles.backBtn}>
                 <Feather name="chevron-left" size={20} color={Colors.textPrimary} />
               </Pressable>
               <View style={styles.searchBar}>
-                <Feather name="search" size={16} color={Colors.textMuted} />
-                <Text style={styles.searchPlaceholder}>Enter name to search</Text>
+                <Feather name="search" size={16} color={searchQuery ? "#5CBFFE" : Colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder={`Name or max price (e.g. ${activeZone.priceMin + 100})`}
+                  placeholderTextColor={Colors.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                  keyboardType="default"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                />
+                {searchQuery.length > 0 && (
+                  <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
+                    <Feather name="x" size={15} color={Colors.textMuted} />
+                  </Pressable>
+                )}
               </View>
               <View style={styles.filterBtn}>
                 <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} borderRadius={20} />
@@ -450,23 +480,33 @@ export default function StakeScreen() {
               </View>
             ) : (
               <>
-                <View style={styles.nftGrid}>
-                  {zoneNFTs.map((nft, idx) => (
-                    <Animated.View key={`${nft.name}-${idx}`} entering={FadeInDown.duration(300).delay((idx % 10) * 30)} style={[styles.nftCard, { width: Math.floor((W - 44) / 2) }]}>
-                      <Image source={{ uri: nft.image_url }} style={styles.nftImage} contentFit="cover" />
-                      <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
-                      <View style={styles.nftPriceRow}>
-                        <View style={styles.tIcon}><Text style={styles.tIconText}>T</Text></View>
-                        <Text style={styles.nftPrice}>{nftZonePrice(nft.name, activeZone).toLocaleString()}</Text>
-                      </View>
-                      <Pressable style={styles.buyBtn} onPress={() => handleBuy(nft, activeZone)}>
-                        <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={10} />
-                        <Text style={styles.buyBtnText}>Buy</Text>
-                      </Pressable>
-                    </Animated.View>
-                  ))}
-                </View>
-                {zoneHasMore && (
+                {filteredNFTs.length === 0 ? (
+                  <View style={styles.emptyWrap}>
+                    <Feather name="search" size={36} color={Colors.textMuted} />
+                    <Text style={styles.emptyText}>No NFTs found</Text>
+                    <Text style={styles.emptySub}>
+                      {searchQuery.trim() !== "" ? "Try a different name or price" : "No items in this zone yet"}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.nftGrid}>
+                    {filteredNFTs.map((nft, idx) => (
+                      <Animated.View key={`${nft.name}-${idx}`} entering={FadeInDown.duration(300).delay((idx % 10) * 30)} style={[styles.nftCard, { width: Math.floor((W - 44) / 2) }]}>
+                        <Image source={{ uri: nft.image_url }} style={styles.nftImage} contentFit="cover" />
+                        <Text style={styles.nftName} numberOfLines={1}>{nft.name}</Text>
+                        <View style={styles.nftPriceRow}>
+                          <View style={styles.tIcon}><Text style={styles.tIconText}>T</Text></View>
+                          <Text style={styles.nftPrice}>{nftZonePrice(nft.name, activeZone).toLocaleString()}</Text>
+                        </View>
+                        <Pressable style={styles.buyBtn} onPress={() => handleBuy(nft, activeZone)}>
+                          <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={10} />
+                          <Text style={styles.buyBtnText}>Buy</Text>
+                        </Pressable>
+                      </Animated.View>
+                    ))}
+                  </View>
+                )}
+                {zoneHasMore && !searchQuery.trim() && (
                   <Pressable style={styles.loadMoreBtn} onPress={handleLoadMore} disabled={loadingMore}>
                     <LinearGradient colors={GRAD} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={14} />
                     {loadingMore
@@ -955,8 +995,8 @@ const styles = StyleSheet.create({
   // NFT Grid
   gridTopRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, marginBottom: 14 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
-  searchBar: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#fff", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 },
-  searchPlaceholder: { fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textMuted },
+  searchBar: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#fff", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: Colors.textPrimary, paddingVertical: 2, outlineStyle: "none" } as any,
   filterBtn: { width: 40, height: 40, borderRadius: 20, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   filterText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
   loadingWrap: { alignItems: "center", paddingTop: 60, gap: 12 },
