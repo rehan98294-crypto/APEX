@@ -64,6 +64,8 @@ export default function WithdrawalLinksScreen() {
   const [sendingCode,   setSendingCode]   = useState(false);
   const [codeSent,      setCodeSent]      = useState(false);
   const [codeCooldown,  setCodeCooldown]  = useState(0);
+  const [formError,     setFormError]     = useState<string | null>(null);
+  const [codeError,     setCodeError]     = useState<string | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadAddresses = useCallback(async () => {
@@ -98,12 +100,15 @@ export default function WithdrawalLinksScreen() {
     setFormTwoFa("");
     setCodeSent(false);
     setCodeCooldown(0);
+    setFormError(null);
+    setCodeError(null);
     if (cooldownRef.current) { clearInterval(cooldownRef.current); cooldownRef.current = null; }
     setStep("change_form");
   };
 
   const handleGetCode = async () => {
     if (!user?.email || codeCooldown > 0) return;
+    setCodeError(null);
     setSendingCode(true);
     try {
       await authApi.sendCode(user.email, "verify");
@@ -119,23 +124,24 @@ export default function WithdrawalLinksScreen() {
         }
       }, 1000);
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? "Failed to send code");
+      setCodeError(e.message ?? "Failed to send code. Try again.");
     } finally {
       setSendingCode(false);
     }
   };
 
   const handleConfirm = async () => {
+    setFormError(null);
     if (!formAddress.trim() || formAddress.trim().length < 10) {
-      Alert.alert("Invalid address", "Please enter a valid wallet address (at least 10 characters).");
+      setFormError("Please enter a valid wallet address (at least 10 characters).");
       return;
     }
     if (!formPassword.trim()) {
-      Alert.alert("Missing field", "Please enter your login password.");
+      setFormError("Please enter your login password.");
       return;
     }
     if (!formEmailCode.trim()) {
-      Alert.alert("Missing field", "Please enter the email verification code.");
+      setFormError("Please enter the email verification code.");
       return;
     }
     setSubmitting(true);
@@ -150,7 +156,7 @@ export default function WithdrawalLinksScreen() {
       await loadAddresses();
       setStep("success");
     } catch (e: any) {
-      Alert.alert("Failed", e.message ?? "Could not save address. Check your password and codes.");
+      setFormError(e.message ?? "Could not save address. Check your password and codes.");
     } finally {
       setSubmitting(false);
     }
@@ -354,8 +360,11 @@ export default function WithdrawalLinksScreen() {
                       }
                     </Pressable>
                   </View>
-                  {codeSent && (
+                  {codeSent && !codeError && (
                     <Text style={sty.codeSentHint}>Code sent to {user?.email}</Text>
+                  )}
+                  {codeError && (
+                    <Text style={sty.inlineError}>{codeError}</Text>
                   )}
                 </View>
 
@@ -372,6 +381,14 @@ export default function WithdrawalLinksScreen() {
                     maxLength={6}
                   />
                 </View>
+
+                {/* Inline form error */}
+                {formError && (
+                  <View style={sty.errorBox}>
+                    <Feather name="alert-circle" size={14} color="#FF5C5C" style={{ marginTop: 1 }} />
+                    <Text style={sty.errorBoxText}>{formError}</Text>
+                  </View>
+                )}
 
                 {/* Confirm button */}
                 <Pressable style={sty.confirmBtn} onPress={handleConfirm} disabled={submitting}>
@@ -582,6 +599,21 @@ const sty = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
     paddingHorizontal: 16, paddingVertical: 14,
     fontSize: 14, fontFamily: "Inter_400Regular", color: Colors.textPrimary,
+  },
+
+  errorBox: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    backgroundColor: "#FFF1F1", borderRadius: 10,
+    borderWidth: 1, borderColor: "#FFCDD2",
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  errorBoxText: {
+    flex: 1, fontSize: 13, fontFamily: "Inter_400Regular",
+    color: "#D32F2F", lineHeight: 18,
+  },
+  inlineError: {
+    fontSize: 12, fontFamily: "Inter_400Regular",
+    color: "#D32F2F", marginTop: 4,
   },
 
   codeRow: { flexDirection: "row", alignItems: "center", gap: 10 },
