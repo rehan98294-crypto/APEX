@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -254,7 +253,12 @@ export default function RegisterScreen() {
   }
 
   return (
-    <View style={s.root}>
+    <LinearGradient
+      colors={["#EEF6FF", "#EBF8FF", "#FFF0F8", "#F0FFF9"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={s.root}
+    >
       <LoadingScreen visible={loading} />
       <CountryPicker
         visible={showCountry}
@@ -268,12 +272,6 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Brand header */}
-          <View style={s.brandRow}>
-            <Image source={require("../../assets/images/icon.png")} style={s.brandLogo} resizeMode="contain" />
-            <Text style={s.brandName}>Apex</Text>
-          </View>
-
           <Text style={s.heading}>Sign up</Text>
 
           {!!error && (
@@ -492,13 +490,13 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </LinearGradient>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F8F9FB" },
+  root: { flex: 1 },
   scroll: { paddingHorizontal: 24 },
 
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 28 },

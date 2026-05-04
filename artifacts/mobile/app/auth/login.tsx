@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -56,19 +55,18 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={s.root}>
+    <LinearGradient
+      colors={["#EEF6FF", "#EBF8FF", "#FFF0F8", "#F0FFF9"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={s.root}
+    >
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView
           contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Brand header */}
-          <View style={s.brandRow}>
-            <Image source={require("../../assets/images/icon.png")} style={s.brandLogo} resizeMode="contain" />
-            <Text style={s.brandName}>Apex</Text>
-          </View>
-
           <Text style={s.heading}>Welcome Back</Text>
           <Text style={s.subheading}>Sign in to continue</Text>
 
@@ -141,12 +139,12 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F8F9FB" },
+  root: { flex: 1 },
   scroll: { paddingHorizontal: 24 },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 36 },
   brandLogo: { width: 40, height: 40 },
