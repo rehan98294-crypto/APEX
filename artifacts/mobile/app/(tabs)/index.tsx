@@ -9,6 +9,7 @@ import {
   Dimensions,
   FlatList,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -28,6 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StickyGlassHeader from "@/components/StickyGlassHeader";
 import { DashboardSkeleton, FadeInView, NFTSkeletonGrid } from "@/components/Skeleton";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { useBalance } from "@/context/BalanceContext";
 import { useWatchlist } from "@/context/WatchlistContext";
 import { NFT, NFTS, TOP_COLLECTIONS, RARITY_COLORS } from "@/data/nfts";
@@ -109,9 +111,25 @@ const HOT_PICKS = [
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
+  const { token, signOut } = useAuth();
   const [selectedCat, setSelectedCat] = useState("All");
+  const [logoutModal, setLogoutModal] = useState(false);
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : 0;
+
+  function handleAuthBtn() {
+    if (token) {
+      setLogoutModal(true);
+    } else {
+      router.push("/auth/login");
+    }
+  }
+
+  async function handleConfirmLogout() {
+    setLogoutModal(false);
+    await signOut();
+    router.replace("/auth/login");
+  }
 
   const filtered = selectedCat === "All" ? NFTS : NFTS.filter((n) => n.category === selectedCat);
 
@@ -162,7 +180,7 @@ export default function ExploreScreen() {
                 Web3 NFT Marketplace with AI-powered rewards
               </Text>
               <Pressable
-                onPress={() => router.push("/auth/register")}
+                onPress={handleAuthBtn}
                 style={styles.heroBtn}
               >
                 <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={20} />
@@ -235,7 +253,7 @@ export default function ExploreScreen() {
           <Text style={styles.promoSub}>
             Earning income in treasureFun is simple: just{"\n"}RESERVE and then TRADE to EARN
           </Text>
-          <Pressable style={styles.promoBtn} onPress={() => router.push("/auth/register")}>
+          <Pressable style={styles.promoBtn} onPress={handleAuthBtn}>
             <LinearGradient
               colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
               start={{ x: 0, y: 0 }}
@@ -396,6 +414,30 @@ export default function ExploreScreen() {
         {/* Footer */}
         <HomeFooter />
       </ScrollView>
+
+      {/* ── Logout Confirmation Modal ─────────────────────────────────── */}
+      <Modal visible={logoutModal} transparent animationType="fade" onRequestClose={() => setLogoutModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setLogoutModal(false)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <View style={styles.modalIconWrap}>
+              <LinearGradient colors={["#5CBFFE", "#2BD9A8"]} style={styles.modalIconGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <MaterialCommunityIcons name="logout" size={26} color="#fff" />
+              </LinearGradient>
+            </View>
+            <Text style={styles.modalTitle}>Log Out</Text>
+            <Text style={styles.modalSub}>Are you sure you want to log out of your account?</Text>
+            <View style={styles.modalBtnRow}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setLogoutModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalConfirmBtn} onPress={handleConfirmLogout}>
+                <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} borderRadius={12} />
+                <Text style={styles.modalConfirmText}>Confirm</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
     </FadeInView>
   );
@@ -954,6 +996,83 @@ const styles = StyleSheet.create({
     top: 40,
     transform: [{ rotate: "10deg" }],
     zIndex: 2,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  modalCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 28,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  modalIconWrap: { marginBottom: 18 },
+  modalIconGrad: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: "#1A1A2E",
+    marginBottom: 8,
+  },
+  modalSub: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: "#7B8794",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 28,
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalCancelBtn: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E8EE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: "#7B8794",
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalConfirmText: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    zIndex: 1,
   },
 });
 
