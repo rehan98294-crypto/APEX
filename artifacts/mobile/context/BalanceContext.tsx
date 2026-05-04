@@ -86,7 +86,7 @@ const BalanceContext = createContext<BalanceContextType>({
   cancelReservation: () => {},
 });
 
-const STORAGE_KEY = "treasurefun_balance_v5";
+// NOTE: storage key is now built per-user inside BalanceProvider to prevent data leaking between accounts
 
 function genId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 6);
@@ -99,7 +99,10 @@ function todayTimestamp(): number {
 }
 
 export function BalanceProvider({ children }: { children: React.ReactNode }) {
-  const { token, loading: authLoading } = useAuth();
+  const { token, user, loading: authLoading } = useAuth();
+
+  // Per-user storage key — prevents data leaking between accounts on the same device
+  const storageKey = user?.id ? `treasurefun_balance_v5_${user.id}` : null;
 
   const [balance, setBalance] = useState(0);
   const [trialBalance, setTrialBalance] = useState(0);
@@ -139,7 +142,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading) return;
 
-    if (!token) {
+    if (!token || !storageKey) {
       setBalance(0);
       setTrialBalance(0);
       setTotalDeposited(0);
@@ -156,7 +159,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
 
     Promise.all([
       authApi.user.getProfile(token).catch(() => null),
-      AsyncStorage.getItem(STORAGE_KEY).catch(() => null),
+      AsyncStorage.getItem(storageKey).catch(() => null),
     ]).then(([profile, savedData]) => {
       let finalBalance = 0;
       let finalTrialBalance = 0;
@@ -218,7 +221,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
         lastSyncedRef.current = syncKey(finalBalance, finalTrialBalance);
       }
     });
-  }, [token, authLoading]);
+  }, [token, storageKey, authLoading]);
 
   const persist = (
     b: number,
@@ -236,10 +239,13 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
     setTransactions(tx);
     setStakes(sk);
     setReservations(rv);
-    AsyncStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ balance: b, trialBalance: tb, totalDeposited: td, earnedTotal: et, transactions: tx, stakes: sk, reservations: rv })
-    );
+    // Only write to storage if we have a valid user-scoped key
+    if (storageKey) {
+      AsyncStorage.setItem(
+        storageKey,
+        JSON.stringify({ balance: b, trialBalance: tb, totalDeposited: td, earnedTotal: et, transactions: tx, stakes: sk, reservations: rv })
+      );
+    }
     syncToAPI(b, tb);
   };
 
