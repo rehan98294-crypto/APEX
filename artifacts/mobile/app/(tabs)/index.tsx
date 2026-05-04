@@ -162,7 +162,7 @@ export default function ExploreScreen() {
                 Web3 NFT Marketplace with AI-powered rewards
               </Text>
               <Pressable
-                onPress={() => router.push("/(tabs)/earn")}
+                onPress={() => router.push("/auth/register")}
                 style={styles.heroBtn}
               >
                 <LinearGradient colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} borderRadius={20} />
@@ -235,7 +235,7 @@ export default function ExploreScreen() {
           <Text style={styles.promoSub}>
             Earning income in treasureFun is simple: just{"\n"}RESERVE and then TRADE to EARN
           </Text>
-          <Pressable style={styles.promoBtn}>
+          <Pressable style={styles.promoBtn} onPress={() => router.push("/auth/register")}>
             <LinearGradient
               colors={["#5CBFFE", "#2BD9A8", "#FFB08A"]}
               start={{ x: 0, y: 0 }}
