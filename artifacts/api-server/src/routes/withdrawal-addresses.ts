@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
+import { verifySync } from "otplib";
 import { verifyToken, verifyOtp } from "../services/auth.service.js";
 import supabase from "../lib/supabase.js";
 
@@ -85,23 +86,18 @@ router.post("/withdraw/address", requireAuth, async (req, res) => {
     const passwordOk = await bcrypt.compare(password, user.password_hash);
     if (!passwordOk) return res.status(401).json({ error: "Incorrect password." });
 
-    // 3. Verify email OTP
-    const otpValid = await verifyOtp(userEmail, email_code.trim());
-    if (!otpValid) return res.status(400).json({ error: "Invalid or expired email code." });
-
-    // 4. Verify 2FA if enabled
+    // 3. Verify 2FA BEFORE consuming the OTP — so a wrong 2FA code doesn't waste the email code
     if (user.twofa_enabled && user.twofa_secret) {
       if (!twofa_code || twofa_code.trim().length !== 6) {
         return res.status(400).json({ error: "Google Authenticator code is required (6 digits)." });
       }
-      const { authenticator } = await import("otplib");
-      authenticator.options = { window: 1 };
-      const verified = authenticator.verify({
-        token: twofa_code.trim(),
-        secret: user.twofa_secret,
-      });
+      const verified = verifySync({ token: twofa_code.trim(), secret: user.twofa_secret, strategy: "totp", epochTolerance: 1 });
       if (!verified) return res.status(401).json({ error: "Invalid 2FA code." });
     }
+
+    // 4. Verify email OTP (consumes the code — done last so retries don't need a new code)
+    const otpValid = await verifyOtp(userEmail, email_code.trim());
+    if (!otpValid) return res.status(400).json({ error: "Invalid or expired email code." });
 
     // 5. Upsert the withdrawal address
     const { error: upsertErr } = await supabase
