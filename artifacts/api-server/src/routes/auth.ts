@@ -169,7 +169,7 @@ router.post("/auth/2fa/verify", async (req, res) => {
 
     let payload: { id: string; email: string; purpose: string };
     const jwt = await import("jsonwebtoken");
-    const JWT_SECRET = process.env["JWT_SECRET"] ?? "treasurefun_jwt_secret_2024";
+    const JWT_SECRET = process.env["JWT_SECRET"] ?? "apex_jwt_secret_2024";
     if (!process.env["JWT_SECRET"]) {
       console.warn("[Auth/2FA] WARNING: JWT_SECRET is not set — using insecure default.");
     }

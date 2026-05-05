@@ -174,7 +174,7 @@ const SubscriptionContext = createContext<SubscriptionState>({
   cancelPlan: () => {},
 });
 
-const STORAGE_KEY = "treasurefun_subscription_v1";
+const STORAGE_KEY = "apex_subscription_v1";
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const [activePlan, setActivePlan] = useState<PlanId | null>(null);

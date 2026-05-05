@@ -102,7 +102,7 @@ export function BalanceProvider({ children }: { children: React.ReactNode }) {
   const { token, user, loading: authLoading } = useAuth();
 
   // Per-user storage key — prevents data leaking between accounts on the same device
-  const storageKey = user?.id ? `treasurefun_balance_v5_${user.id}` : null;
+  const storageKey = user?.id ? `apex_balance_v5_${user.id}` : null;
 
   const [balance, setBalance] = useState(0);
   const [trialBalance, setTrialBalance] = useState(0);

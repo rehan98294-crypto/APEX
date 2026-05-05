@@ -23,7 +23,7 @@ const WatchlistContext = createContext<WatchlistContextType>({
   isWatched: () => false,
 });
 
-const STORAGE_KEY = "treasurefun_watchlist_v2";
+const STORAGE_KEY = "apex_watchlist_v2";
 
 export function WatchlistProvider({ children }: { children: React.ReactNode }) {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);

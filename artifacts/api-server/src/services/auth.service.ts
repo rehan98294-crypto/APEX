@@ -15,7 +15,7 @@ if (!JWT_SECRET_ENV) {
   }
   console.warn("[Auth] WARNING: JWT_SECRET is not set — using insecure default. Set JWT_SECRET in production.");
 }
-const JWT_SECRET = JWT_SECRET_ENV ?? "treasurefun_jwt_secret_2024";
+const JWT_SECRET = JWT_SECRET_ENV ?? "apex_jwt_secret_2024";
 const OTP_TTL_SECONDS = 600;
 
 function generateOtp(): string {

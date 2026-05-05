@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- TreasureFun Auth Tables  — CLEAN SLATE VERSION
+-- APEX Auth Tables  — CLEAN SLATE VERSION
 -- Run in Supabase: Dashboard → SQL Editor → New query → paste all → Run
 -- WARNING: Drops and recreates all tables. Existing data will be lost.
 -- ─────────────────────────────────────────────────────────────────────────────

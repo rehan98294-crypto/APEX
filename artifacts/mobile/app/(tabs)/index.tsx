@@ -251,7 +251,7 @@ export default function ExploreScreen() {
         <View style={styles.promoSection}>
           <Text style={styles.promoHeadline}>RESERVE AND SELL{"\n"}YOUR NFT EASILY</Text>
           <Text style={styles.promoSub}>
-            Earning income in treasureFun is simple: just{"\n"}RESERVE and then TRADE to EARN
+            Earning income in APEX is simple: just{"\n"}RESERVE and then TRADE to EARN
           </Text>
           <Pressable style={styles.promoBtn} onPress={handleAuthBtn}>
             <LinearGradient
